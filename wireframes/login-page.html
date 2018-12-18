@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html><head><title>Authl login wireframe</title>
+<style>
+#login {
+    border: solid black 1px;
+    margin: 3em;
+    padding: 3em;
+
+}
+
+#more_info {
+    font-size: 80%;
+    margin: 3em;
+}
+
+#notes {
+    background: yellow;
+    color: #300;
+    margin: 1em;
+    padding: 1em;
+    border: dashed black 1px;
+}
+</style>
+
+<script>
+var profile_url;
+(function() {
+    window.addEventListener("load", function() {
+        profile_url = document.getElementById('profile_url');
+    });
+})();
+function setUrl(url, repltext) {
+    repltext = repltext || 'username';
+    var index = url.indexOf('%');
+    url = url.replace('%', repltext);
+
+    profile_url.value = url;
+    profile_url.focus();
+    if (index >= 0) {
+        profile_url.setSelectionRange(index, index + repltext.length);
+    }
+}
+</script>
+
+</head>
+<body>
+
+    <div id="login">
+        <p>Who are you?</p>
+        <form>
+            <input id="profile_url" type="text" name="profile_url" size="30" placeholder="http://example.com/~username">
+            <input type="submit" value="Go!">
+        </form>
+    </div>
+
+    <div id="more_info">
+
+        <p>This sign-in form lets you log in using your existing profile on other websites! It currently supports the following:</p>
+
+        <ul>
+            <li>OpenID (<a href="#" onclick="setUrl('http://%.dreamwidth.org')">Dreamwidth</a>,
+                <a href="#" onclick="setUrl('http://%.livejournal.com')">Livejournal</a>,
+                <a href="#" onclick="setUrl('http://launchpad.net/~%')">Launchpad</a>,
+                <a href="#" onclick="setUrl('http://%.wordpress.com')">Wordpress.com</a>,
+                 and many more)</li>
+            <li><a href="#" onclick="setUrl('https://twitter.com/%')">Twitter</a></li>
+            <li><a href="#" onclick="setUrl('https://%', 'instance/@username')">Mastodon</a></li>
+            <li>IndieAuth</li>
+        </ul>
+
+        <p>Try pasting your profile URL into the box and we'll see if it's supported.</p>
+
+        <p>If you have your own website, you can use that too, by adding an OpenID or IndieAuth provider! I recommend <a href="http://simpleid.koinic.net/releases/simpleid-1.0.2/">SimpleID 1.0.2</a> or <a href="https://indieweb.org/selfauth">SelfAuth</a>, or if you're running WordPress you can install plugins for <a href="https://wordpress.org/plugins/openid/">OpenID</a> or <a href="https://wordpress.org/plugins/indieauth/">IndieAuth</a>!</p>
+    </div>
+
+
+    <div id="notes"><h1>Design notes</h1>
+
+        <p>Much of this is specific to how I plan on implementing <a href="https://github.com/PlaidWeb/Authl">Authl</a>.</p>
+
+        <ul>
+            <li>When a URL is entered into the form, an AJAX request will ask the Authl implementation if it's a supported profile. If so, a "Great!" message will appear, otherwise it'll say something like "I don't recognize that, try something else"</li>
+            <li>The list of providers would be generated automatically by what's supported by the Authl configuration</li>
+            <li>URLs in the provider list can be clicked on, and will fill out the input with the appropriate template and the cursor insertion point where the username goes</li>
+        </ul>
+    </div>
+
+
+</body>
