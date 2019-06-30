@@ -2,13 +2,14 @@ import uuid
 import flask
 
 import authl
-from authl.handlers import email, test_handler
+from authl.handlers import email, test_handler, indielogin
 
 app = flask.Flask('authl-test')
 
 auth = authl.Authl([
     email.Email(str(uuid.uuid4()), print),
-    test_handler.TestHandler()
+    test_handler.TestHandler(),
+    indielogin.IndieLogin('http://localhost/')
 ])
 
 
