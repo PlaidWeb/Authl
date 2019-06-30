@@ -3,7 +3,11 @@ A library for managing federated identity
 
 ## Current state
 
-Just a design in my head.
+Currently supported:
+
+* Directly authenticating against email
+* Federated authentication against [IndieLogin](https://indielogin.com)
+* Test/loopback authentication
 
 ## Design goals
 
@@ -26,10 +30,10 @@ This library should enable the following:
 
 Rough expected order of implementation:
 
+1. ~~Email magic links (which provides access for basically everyone)~~ DONE
+1. ~~IndieAuth (possibly using IndieLogin.com for the hard parts)~~ DONE
 1. OpenID 1.x (which provides access for Dreamwidth, Wordpress, Launchpad, and countless other site users)
-2. Email magic links (which provides access for basically everyone)
-3. IndieAuth (possibly using IndieLogin.com for the hard parts)
-4. Everything else
+1. Everything else
 
 ## Rationale
 
