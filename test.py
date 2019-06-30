@@ -1,12 +1,15 @@
 import uuid
 import flask
 
-from authl.handlers import email
-from authl import disposition
+import authl
+from authl.handlers import email, test_handler
 
-app = flask.Flask('email test')
+app = flask.Flask('authl-test')
 
-h = email.Email(str(uuid.uuid4()), print)
+auth = authl.Authl([
+    email.Email(str(uuid.uuid4()), print),
+    test_handler.TestHandler()
+])
 
 
 @app.route('/')
@@ -21,6 +24,7 @@ def index():
 
 
 def handle_disposition(d):
+    from authl import disposition
     if isinstance(d, disposition.Redirect):
         return flask.redirect(d.url)
     if isinstance(d, disposition.Verified):
@@ -35,14 +39,21 @@ def handle_disposition(d):
 @app.route('/login', methods=['POST'])
 def login():
     from flask import request
-    return handle_disposition(h.initiate_auth(request.form['id'],
-                                              flask.url_for('callback', _external=True)))
+
+    url = request.form['id']
+    handler, hid = auth.get_handler_for_url(url)
+
+    return handle_disposition(
+        handler.initiate_auth(request.form['id'],
+                              flask.url_for('callback', hid=hid, _external=True)))
 
 
-@app.route('/cb')
-def callback():
+@app.route('/cb/<int:hid>')
+def callback(hid):
     from flask import request
-    return handle_disposition(h.check_callback(request.url, request.args, request.form))
+
+    handler = auth.get_handler(hid)
+    return handle_disposition(handler.check_callback(request.url, request.args, request.form))
 
 
 if __name__ == '__main__':
