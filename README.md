@@ -26,10 +26,10 @@ This library should enable the following:
 
 Rough expected order of implementation:
 
+1. Email magic links (which provides access for basically everyone)
+1. IndieAuth (possibly using IndieLogin.com for the hard parts)
 1. OpenID 1.x (which provides access for Dreamwidth, Wordpress, Launchpad, and countless other site users)
-2. Email magic links (which provides access for basically everyone)
-3. IndieAuth (possibly using IndieLogin.com for the hard parts)
-4. Everything else
+1. Everything else
 
 ## Rationale
 

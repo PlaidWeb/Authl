@@ -1,0 +1,12 @@
+LICENSE
+README.md
+setup.cfg
+setup.py
+Authl.egg-info/PKG-INFO
+Authl.egg-info/SOURCES.txt
+Authl.egg-info/dependency_links.txt
+Authl.egg-info/requires.txt
+Authl.egg-info/top_level.txt
+authl/__init__.py
+authl/__version__.py
+authl/disposition.py
