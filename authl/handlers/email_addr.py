@@ -127,6 +127,12 @@ def smtplib_connector(hostname, port, username=None, password=None, use_ssl=True
 
         ctor = smtplib.SMTP_SSL if use_ssl else smtplib.SMTP
         conn = ctor(hostname, port)
+        if use_ssl:
+            import ssl
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            conn.ehlo()
+            conn.starttls(context=context)
+            conn.ehlo()
         if username or password:
             conn.login(username, password)
         return conn
