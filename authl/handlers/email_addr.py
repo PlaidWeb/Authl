@@ -160,6 +160,6 @@ def simple_sendmail(connector,
         message['Subject'] = subject
 
         with connector() as conn:
-            conn.sendmail(sender_address, message['To'], message)
+            return conn.sendmail(sender_address, message['To'], str(message))
 
     return sendmail

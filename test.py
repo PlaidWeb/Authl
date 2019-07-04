@@ -8,9 +8,17 @@ from authl.handlers import email_addr, test_handler, indielogin
 
 app = flask.Flask('authl-test')
 
+if os.environ.get('SMTP_SERVER') and os.environ.get('SMTP_PORT'):
+    email_handler = email_handler.simple_sendmail(
+        email_handler.smtplib_connector(os.environ.get('SMTP_SERVER'),
+                                        os.environ.get('SMTP_PORT'),
+                                        'SMTP_USE_SSL' in os.environ))
+else:
+    email_handler = print
+
 auth = authl.Authl([
     email_addr.EmailAddress(str(uuid.uuid4()),
-                            print,
+                            email_handler,
                             notify_cdata="Check your email"),
     test_handler.TestHandler(),
     indielogin.IndieLogin('http://localhost/')
