@@ -1,13 +1,17 @@
+""" Basic test app for Authl, implemented using Flask. """
+
 import uuid
 import flask
 
 import authl
-from authl.handlers import email, test_handler, indielogin
+from authl.handlers import email_addr, test_handler, indielogin
 
 app = flask.Flask('authl-test')
 
 auth = authl.Authl([
-    email.Email(str(uuid.uuid4()), print),
+    email_addr.EmailAddress(str(uuid.uuid4()),
+                            print,
+                            notify_cdata="Check your email"),
     test_handler.TestHandler(),
     indielogin.IndieLogin('http://localhost/')
 ])
@@ -15,6 +19,7 @@ auth = authl.Authl([
 
 @app.route('/')
 def index():
+    """ Just displays a very basic login form """
     return '''
     <html><body><form method="POST" action="{login}">
     <input type="text" name="id" placeholder="you@example.com">
@@ -31,7 +36,7 @@ def handle_disposition(d):
     if isinstance(d, disposition.Verified):
         return "It worked! Hello {user}".format(user=d.identity)
     if isinstance(d, disposition.Notify):
-        return d.message
+        return d.cdata
     if isinstance(d, disposition.Error):
         return "Failure: {msg}".format(msg=d.message), 403
     return "what happen", 500
@@ -50,10 +55,10 @@ def login():
 
 
 @app.route('/cb/<int:hid>')
-def callback(hid):
+def callback(hid, methods=['GET', 'POST']):
     from flask import request
 
-    handler = auth.get_handler(hid)
+    handler = auth.get_handler_by_id(hid)
     return handle_disposition(handler.check_callback(request.url, request.args, request.form))
 
 

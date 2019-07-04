@@ -6,6 +6,9 @@ from .. import disposition
 
 
 class TestHandler(Handler):
+    """ An Authl handler which always returns True for any URI beginning with
+    'test:'. Primarily for testing purposes. """
+
     def handles_url(self, url):
         return url.startswith('test:')
 

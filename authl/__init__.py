@@ -1,9 +1,12 @@
+""" Authl: A wrapper library to simplify the implementation of federated identity """
+
 import requests
 
-from . import handlers
+from .handlers import Handler
+from . import disposition
 
 
-class UnhandledHandler(handlers.Handler):
+class _UnhandledHandler(Handler):
     """ A Handler for unhandled URIs """
 
     def handles_url(self, url):
@@ -29,15 +32,23 @@ class Authl:
     """ Authentication wrapper """
 
     def __init__(self, handlers=None):
-        self._handlers = handlers or []
+        """ Initialize an Authl library instance.
 
-        self._unhandled = UnhandledHandler()
+        handlers -- a collection of handlers for different authentication
+            mechanisms
+
+        """
+        self._handlers = handlers or []
+        self._unhandled = _UnhandledHandler()
 
     def add_handler(self, handler):
+        """ Add another handler to the configured handler list. It will be
+        given the lowest priority. """
         self._handlers.append(handler)
-        self._handler_map[handler] = len(self._handlers)
 
     def get_handler_for_url(self, url):
+        """ Get the appropriate handler for the specified identity URL.
+        Returns a tuple of (handler, id). """
         for pos, handler in enumerate(self._handlers):
             if handler.handles_url(url):
                 return handler, pos
@@ -49,5 +60,6 @@ class Authl:
 
         return self._unhandled, -1
 
-    def get_handler(self, pos):
-        return self._handlers[pos]
+    def get_handler_by_id(self, handler_id):
+        """ Get the handler with the given ID """
+        return self._handlers[handler_id]

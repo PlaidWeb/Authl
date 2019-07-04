@@ -1,9 +1,7 @@
 """ Handler for emailing a magic link """
 
 import email
-import re
 import urllib.parse
-import json
 
 import validate_email
 import ska
@@ -13,7 +11,7 @@ from .. import disposition
 
 
 DEFAULT_TEMPLATE_TEXT = """\
-Hello! Someone asked to log in using this email address. If this
+Hello! Someone, possibly you, asked to log in using this email address. If this
 was you, please visit the following link within the next {minutes} minutes:
 
     {url}
@@ -23,12 +21,13 @@ If this wasn't you, you can safely disregard this message.
 """
 
 
-class Email(Handler):
+class EmailAddress(Handler):
     """ Email via "magic link" """
 
     def __init__(self,
                  secret_key,
                  sendmail,
+                 notify_cdata,
                  expires_time=900,
                  email_template_text=DEFAULT_TEMPLATE_TEXT):
         """ Instantiate a magic link email handler. Arguments:
@@ -40,14 +39,26 @@ class Email(Handler):
         sendmail -- a function that, given an email.message object, sends it.
             It is the responsibility of this function to set the From and
             Subject headers before it sends.
+        notify_cdata -- the callback data to provide back for the notification
+            response
         expires_time -- how long the email link should be valid for, in seconds
         email_template_text -- the plaintext template for the sent email,
             provided as a string.
+        email_template_html -- the HTML template for the sent email, provided
+            as a string
+
+        Email templates get the following strings:
+
+        {url} -- the URL that the user should visit to complete login
+        {minutes} -- how long the URL is valid for, in minutes
 
         """
+
+        # pylint:disable=too-many-arguments
         self._sendmail = sendmail
         self._email_template_text = email_template_text
         self._lifetime = expires_time
+        self._cdata = notify_cdata
 
         self._cfg = {
             'secret_key': secret_key,
@@ -96,7 +107,7 @@ class Email(Handler):
 
         self._sendmail(msg)
 
-        return disposition.Notify("check yr email")
+        return disposition.Notify(self._cdata)
 
     def check_callback(self, url, get, data):
         validation = ska.validate_signed_request_data(
@@ -107,3 +118,42 @@ class Email(Handler):
             return disposition.Verified(get[self._cfg['auth_user_param']])
 
         return disposition.Error(','.join(validation.reason))
+
+
+def smtplib_connector(hostname, port, username=None, password=None, use_ssl=True):
+    """ Generates an SMTP connection factory """
+    def connect():
+        import smtplib
+
+        ctor = smtplib.SMTP_SSL if use_ssl else smtplib.SMTP
+        conn = ctor(hostname, port)
+        if username or password:
+            conn.login(username, password)
+        return conn
+
+    return connect
+
+
+def simple_sendmail(connector,
+                    sender_address,
+                    subject):
+    """ Generates a simple SMTP sendmail handler for handlers.email.Email, using
+    smtplib.
+
+    Arguments:
+
+    connector -- a function that returns an smtplib.SMTP-compatible object in the
+        connected state. Use smtplib_connector for a general-purpose connector.
+    sender_address -- the email address to use for the sender
+    subject -- the subject to attach to the message
+
+    """
+
+    def sendmail(message):
+        message['From'] = sender_address
+        message['Subject'] = subject
+
+        with connector() as conn:
+            conn.sendmail(sender_address, message['To'], message)
+
+    return sendmail

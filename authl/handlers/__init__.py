@@ -1,3 +1,6 @@
+
+""" Basis for Authl authentication handlers """
+
 from abc import ABC, abstractmethod, abstractproperty
 
 
@@ -7,20 +10,23 @@ class Handler(ABC):
     @abstractmethod
     def handles_url(self, url):
         """ Returns True if this handler can handle this URL
-        e.g. a Twitter OAuth Handler would be configured to return True if it matches r'(https?://)twitter\\.com/(user/)?'
+        e.g. a Twitter OAuth Handler would be configured to return True if it
+        matches r'(https?://)twitter\\.com/(user/)?'
         """
 
     @abstractmethod
     def handles_page(self, headers, content):
         """ Returns True if this handler can handle the page based on headers
-        e.g. OpenIDHandler returns True if headers.links or the page links contain rel="openid.server"
+        e.g. a generic OpenID handler returns True if headers.links or the page
+        links contain rel="openid.server"
         """
 
     @abstractmethod
     def initiate_auth(self, id_url, callback_url):
-        """ Initiates a remote auth request for the URL, with the specified return URL.
+        """ Initiates a remote auth request for the URL, with the specified
+        return URL.
 
-        Returns a Disposition object to the browser
+        Returns a Disposition object to be handled by the frontend.
         """
 
     @abstractmethod
@@ -32,7 +38,7 @@ class Handler(ABC):
             get -- the GET parameters for the verification
             data -- the POST parameters for the verification
 
-        Returns a Disposition object to the browser
+        Returns a Disposition object to be handled by the frontend.
         """
 
     @abstractproperty

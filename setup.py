@@ -58,7 +58,7 @@ setup(
         'requests',
         'validate_email',
         'ska',
-        'py3dns'
+        'expiringdict'
     ],
 
     extras_require={
