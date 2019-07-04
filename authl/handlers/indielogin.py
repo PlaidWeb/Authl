@@ -19,10 +19,18 @@ class IndieLogin(Handler):
     This allows anyone with an IndieAuth endpoint or a rel="me" attribute that
     points to a supported third-party authentication mechanism (e.g. GitHub or
     email). See https://indielogin.com for more information.
+
+    Arguments:
+
+    client_id -- the client ID to send to the IndieLogin endpoint
+    max_pending -- the maximum number of pending connections to keep open (default: 128)
+    pending_ttl -- how long to wait for a pending connection, in seconds (default: 600)
+    endpoint -- the IndieLogin endpoint to authenticate against
     """
 
-    def __init__(self, client_id, max_pending=128, pending_ttl=600,
-                 instance='https://indielogin.com'):
+    def __init__(self, client_id,
+                 max_pending=None, pending_ttl=None,
+                 endpoint=None):
         """ Construct an IndieLogin handler, to work with indielogin.com. See
         https://indielogin.com/api for more information.
 
@@ -33,8 +41,9 @@ class IndieLogin(Handler):
         """
 
         self._client_id = client_id
-        self._pending = expiringdict.ExpiringDict(max_len=max_pending, max_age_seconds=pending_ttl)
-        self._base_url = instance
+        self._pending = expiringdict.ExpiringDict(
+            max_len=max_pending or 128, max_age_seconds=pending_ttl or 600)
+        self._endpoint = endpoint or 'https://indielogin.com/auth'
 
     def handles_url(self, url):
         return False
@@ -52,14 +61,13 @@ class IndieLogin(Handler):
             'callback_uri': callback_url,
         }
 
-        auth_url = urllib.parse.urljoin(
-            self._base_url, 'auth?' +
-            urllib.parse.urlencode({
-                'me': id_url,
-                'client_id': self._client_id,
-                'redirect_uri': callback_url,
-                'state': state
-            }))
+        auth_url = (self._endpoint + '?' +
+                    urllib.parse.urlencode({
+                        'me': id_url,
+                        'client_id': self._client_id,
+                        'redirect_uri': callback_url,
+                        'state': state
+                    }))
         return disposition.Redirect(auth_url)
 
     def check_callback(self, url, get, data):
@@ -77,7 +85,7 @@ class IndieLogin(Handler):
 
         item = self._pending[state]
         del self._pending[state]
-        req = requests.post('https://indielogin.com/auth', {
+        req = requests.post(self._endpoint, {
             'code': get['code'],
             'redirect_uri': item['callback_uri'],
             'client_id': self._client_id
@@ -96,3 +104,21 @@ class IndieLogin(Handler):
 
     def url_scheme(self):
         return 'test:%', 'example'
+
+
+def from_config(config):
+    """ Instantiate an IndieLogin handler from a configuration dictionary.
+
+    Possible configuration values:
+
+    INDIELOGIN_CLIENT_ID -- the client ID to send to the IndieLOgin service (required)
+    INDIELOGIN_ENDPOINT -- the endpoint to use for the IndieLogin service
+        (default: https://indielogin.com/auth)
+    INDIELOGIN_OPEN_MAX -- the maximum number of open requests to track
+    INDIELOGIN_OPEN_TTL -- the time-to-live of an open request
+    """
+
+    return IndieLogin(config['INDIELOGIN_CLIENT_ID'],
+                      max_pending=config.get('INDIELOGIN_OPEN_MAX'),
+                      pending_ttl=config.get('INDIELOGIN_OPEN_TTL'),
+                      endpoint=config.get('INDIELOGIN_ENDPOINT'))
