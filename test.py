@@ -1,6 +1,7 @@
 """ Basic test app for Authl, implemented using Flask. """
 
 import uuid
+import os
 import flask
 
 import authl
@@ -9,10 +10,11 @@ from authl.handlers import email_addr, test_handler, indielogin
 app = flask.Flask('authl-test')
 
 if os.environ.get('SMTP_SERVER') and os.environ.get('SMTP_PORT'):
-    email_handler = email_handler.simple_sendmail(
-        email_handler.smtplib_connector(os.environ.get('SMTP_SERVER'),
-                                        os.environ.get('SMTP_PORT'),
-                                        'SMTP_USE_SSL' in os.environ))
+    email_handler = email_addr.simple_sendmail(
+        email_addr.smtplib_connector(os.environ.get('SMTP_SERVER'),
+                                     os.environ.get('SMTP_PORT'),
+                                     use_ssl='SMTP_USE_SSL' in os.environ),
+        'nobody@beesbuzz.biz', 'Login attempted')
 else:
     email_handler = print
 
