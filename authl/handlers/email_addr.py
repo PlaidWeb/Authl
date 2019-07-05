@@ -29,7 +29,8 @@ class EmailAddress(Handler):
                  sendmail,
                  notify_cdata,
                  expires_time=None,
-                 email_template_text=DEFAULT_TEMPLATE_TEXT):
+                 email_template_text=DEFAULT_TEMPLATE_TEXT,
+                 ):
         """ Instantiate a magic link email handler. Arguments:
 
         from_addr -- the address that the email should be sent from
@@ -69,7 +70,7 @@ class EmailAddress(Handler):
         }
 
     def service_name(self):
-        return "Email"
+        return 'Email'
 
     def url_scheme(self):
         return 'mailto:%', 'email@example.com'
@@ -96,23 +97,22 @@ class EmailAddress(Handler):
             auth_user=dest_addr,
             lifetime=self._lifetime,
             suffix='&' if '?' in callback_url else '?',
-            **self._cfg)
+            **self._cfg
+        )
 
         msg = email.message.EmailMessage()
         msg['To'] = dest_addr
 
-        msg.set_content(self._email_template_text.format(
-            url=link_url,
-            minutes=self._lifetime / 60))
+        msg.set_content(
+            self._email_template_text.format(url=link_url, minutes=self._lifetime / 60)
+        )
 
         self._sendmail(msg)
 
         return disposition.Notify(self._cdata)
 
     def check_callback(self, url, get, data):
-        validation = ska.validate_signed_request_data(
-            data=get,
-            **self._cfg)
+        validation = ska.validate_signed_request_data(data=get, **self._cfg)
 
         if validation.result:
             return disposition.Verified(get[self._cfg['auth_user_param']])
@@ -122,6 +122,7 @@ class EmailAddress(Handler):
 
 def smtplib_connector(hostname, port, username=None, password=None, use_ssl=True):
     """ Generates an SMTP connection factory """
+
     def connect():
         import smtplib
 
@@ -129,6 +130,7 @@ def smtplib_connector(hostname, port, username=None, password=None, use_ssl=True
         conn = ctor(hostname, port)
         if use_ssl:
             import ssl
+
             context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             conn.ehlo()
             conn.starttls(context=context)
@@ -140,9 +142,7 @@ def smtplib_connector(hostname, port, username=None, password=None, use_ssl=True
     return connect
 
 
-def simple_sendmail(connector,
-                    sender_address,
-                    subject):
+def simple_sendmail(connector, sender_address, subject):
     """ Generates a simple SMTP sendmail handler for handlers.email.Email, using
     smtplib.
 
@@ -187,23 +187,23 @@ def from_config(config, secret_key):
         port=config['SMTP_PORT'],
         username=config.get('SMTP_USERNAME'),
         password=config.get('SMTP_PASSWORD'),
-        use_ssl=config.get('SMTP_USE_SSL'))
+        use_ssl=config.get('SMTP_USE_SSL'),
+    )
 
-    send_func = simple_sendmail(
-        connector,
-        config['EMAIL_FROM'],
-        config['EMAIL_SUBJECT'])
+    send_func = simple_sendmail(connector, config['EMAIL_FROM'], config['EMAIL_SUBJECT'])
 
-    check_message = config.get('EMAIL_CHECK_MESSAGE', "Check your email for a login link")
+    check_message = config.get('EMAIL_CHECK_MESSAGE', 'Check your email for a login link')
 
     if 'EMAIL_TEMPLATE_FILE' in config:
-        with open(config['EMAIL_TEMPLATE_FILE']) as f:
-            email_template_text = f.read()
+        with open(config['EMAIL_TEMPLATE_FILE']) as file:
+            email_template_text = file.read()
     else:
         email_template_text = DEFAULT_TEMPLATE_TEXT
 
-    return EmailAddress(secret_key,
-                        send_func,
-                        {'message': check_message},
-                        expires_time=config.get('EMAIL_LOGIN_TIMEOUT'),
-                        email_template_text=email_template_text)
+    return EmailAddress(
+        secret_key,
+        send_func,
+        {'message': check_message},
+        expires_time=config.get('EMAIL_LOGIN_TIMEOUT'),
+        email_template_text=email_template_text,
+    )

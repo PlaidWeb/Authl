@@ -1,13 +1,9 @@
 """ Authl: A wrapper library to simplify the implementation of federated identity """
 
-import logging
 
 import requests
 
-from .handlers import Handler
 from . import disposition
-
-LOGGER = logging.getLogger(__name__)
 
 
 class Authl:
@@ -71,27 +67,32 @@ def from_config(config, secret_key):
     handlers = []
     if config.get('TEST_ENABLED'):
         from .handlers import test_handler
+
         handlers.append(test_handler.TestHandler())
 
     if config.get('EMAIL_FROM'):
         from .handlers import email_addr
+
         handlers.append(email_addr.from_config(config, secret_key))
 
     if config.get('INDIELOGIN_CLIENT_ID'):
         from .handlers import indielogin
+
         handlers.append(indielogin.from_config(config))
 
     return Authl(handlers)
 
 
-def setup_flask(app, config,
+def setup_flask(app,
+                config,
                 login_name='login',
                 login_path='/_login',
                 login_render_func=None,
                 notify_render_func=None,
                 callback_name='_authl_callback',
                 callback_path='/_cb',
-                session_auth_name='me'):
+                session_auth_name='me',
+                ):
     """ Setup Authl to work with a Flask application.
 
     The Flask application should be configured with a secret_key before this
@@ -113,53 +114,55 @@ def setup_flask(app, config,
     callback_path -- The mount point of the callback handler
     session_auth_name -- The session parameter to use for the authenticated user
     """
+    # pylint:disable=too-many-arguments,too-many-locals
 
     import flask
 
     auth = from_config(config, app.secret_key)
 
-    def handle_disposition(d, redir):
-        from . import disposition
+    def handle_disposition(disp, redir):
 
         # A simple redirection
-        if isinstance(d, disposition.Redirect):
-            return flask.redirect(d.url)
+        if isinstance(disp, disposition.Redirect):
+            return flask.redirect(disp.url)
 
         # The user is verified; log them in
-        if isinstance(d, disposition.Verified):
-
-            flask.session[session_auth_name] = d.identity
-            return flask.redirect(redir)
+        if isinstance(disp, disposition.Verified):
+            flask.session.permanent = True
+            flask.session[session_auth_name] = disp.identity
+            return flask.redirect(redir or '/')
 
         # The user needs to take some additional action
-        if isinstance(d, disposition.Notify):
-            return render_notify(redir=redir)
+        if isinstance(disp, disposition.Notify):
+            return render_notify(disp.cdata)
 
         # The user's login failed
-        if isinstance(d, disposition.Error):
-            flask.flash(d.message)
+        if isinstance(disp, disposition.Error):
+            flask.flash(disp.message)
             return render_login_form(redir=redir)
 
         # Something weird happened
-        return "Unknown disposition", 500
+        return 'Unknown disposition', 500
+
+    def render_notify(cdata):
+        if notify_render_func:
+            return notify_render_func(cdata)
+
+        return str(cdata)
 
     def render_login_form(**kwargs):
         if login_render_func:
             return login_render_func(**kwargs)
 
-        # TODO replace this with flask.render_template_string with support for
-        # message flashing etc.
-        return '''
-        <html><body><form method="GET" action="{login}">
-        <input type="text" name="me" placeholder="you@example.com">
-        <input type="submit" value="go!">
-        </form>
-        </body></html>
-        '''.format(login=flask.url_for(login_name, redir=kwargs.get('redir')))
+        return """
+<html><body><form method="GET" action="{login}">
+<input type="text" name="me" placeholder="you@example.com">
+<input type="submit" value="go!">
+</form>
+</body></html>
+""".format(login=flask.url_for(login_name, redir=kwargs.get('redir')))
 
-    suffix_list = ['', '/', '/<path:redir>']
-
-    def login(redir=''):
+    def login():
         from flask import request
 
         if 'me' in request.args:
@@ -170,19 +173,17 @@ def setup_flask(app, config,
                 return handle_disposition(handler.initiate_auth(me_url, cb_url), redir)
 
             # No handler found, so flash an error message to login_form
-            flask.flash("Unknown authorization method")
+            flask.flash('Unknown authorization method')
 
         return render_login_form(redir=redir)
-    for sfx in suffix_list:
-        app.add_url_rule(login_path + sfx, login_name, login)
 
-    def callback(hid, redir=''):
+    def callback(hid):
         from flask import request
 
         handler = auth.get_handler_by_id(hid)
-        return handle_disposition(handler.check_callback(request.url,
-                                                         request.args,
-                                                         request.form),
-                                  redir)
-    for sfx in suffix_list:
-        app.add_url_rule(callback_path + '/<int:hid>' + sfx, callback_name, callback)
+        return handle_disposition(
+            handler.check_callback(request.url, request.args, request.form), redir
+        )
+
+    app.add_url_rule(login_path, login_name, login)
+    app.add_url_rule(callback_path + '/<int:hid>', callback_name, callback)

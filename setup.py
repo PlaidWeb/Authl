@@ -18,59 +18,40 @@ with open(ver_path) as ver_file:
 
 setup(
     name='Authl',
-
     version=main_ns['__version__'],
-
     description='Genericized multi-protocol authentication wrapper',
-
     long_description=long_description,
-
     long_description_content_type='text/markdown',
-
     url='https://github.com/PlaidWeb/Authl',
-
     author='fluffy',
     author_email='fluffy@beesbuzz.biz',
-
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
-
         'License :: OSI Approved :: MIT License',
-
         'Natural Language :: English',
-
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
-
         'Topic :: Internet :: WWW/HTTP :: Session',
     ],
-
     keywords='authentication openid indieauth login',
-
     packages=['authl'],
-
     install_requires=[
         'flask-micropub',
         'beautifulsoup4',
         'requests',
         'validate_email',
         'ska',
-        'expiringdict'
+        'expiringdict',
     ],
-
-    extras_require={
-        'dev': ['pylint', 'twine', 'flake8', 'flask'],
-    },
-
+    extras_require={'dev': ['pylint', 'twine', 'flake8', 'flask']},
     project_urls={
         'Bug Reports': 'https://github.com/PlaidWeb/Pushl/issues',
         'Source': 'https://github.com/PlaidWeb/Pushl/',
         'Discord': 'https://beesbuzz.biz/discord',
         'Funding': 'https://liberapay.com/fluffy',
     },
-
-    python_requires=">=3.5",
+    python_requires='>=3.5',
 )
