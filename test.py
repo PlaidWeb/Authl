@@ -1,9 +1,13 @@
 """ Basic test app for Authl, implemented using Flask. """
 
 import uuid
-import flask
+import logging
 
+import flask
 import authl
+
+logging.basicConfig(level=logging.INFO)
+LOGGER=logging.getLogger(__name__)
 
 app = flask.Flask('authl-test')
 
@@ -25,22 +29,27 @@ authl.setup_flask(
 @app.route('/some-page')
 def index():
     """ Just displays a very basic login form """
-    print(flask.session)
+    LOGGER.info("Session: %s", flask.session)
+    LOGGER.info("Request path: %s", flask.request.path)
+
     if 'me' in flask.session:
         return 'Hello {me}. Want to <a href="{logout}">log out</a>?'.format(
-            me=flask.session['me'], logout=flask.url_for('logout', redir=flask.request.full_path)
+            me=flask.session['me'], logout=flask.url_for('logout', redir=flask.request.path[1:])
         )
 
     return 'You are not logged in. Want to <a href="{login}">log in</a>?'.format(
-        login=flask.url_for('login', redir=flask.request.full_path))
+        login=flask.url_for('login', redir=flask.request.path[1:]))
 
 
-@app.route('/logout/<redir>')
+@app.route('/logout/<path:redir>')
 def logout(redir=''):
     """ Log out from the thing """
-    print('logout',redir)
+    LOGGER.info("Logging out")
+    LOGGER.info("Redir: %s", redir)
+    LOGGER.info("Request path: %s", flask.request.path)
+
     flask.session.clear()
-    return flask.redirect(redir or '/')
+    return flask.redirect('/' + redir)
 
 
 if __name__ == '__main__':
