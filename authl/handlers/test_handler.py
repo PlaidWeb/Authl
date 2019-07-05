@@ -22,7 +22,7 @@ class TestHandler(Handler):
         return disposition.Error("This shouldn't be possible")
 
     def service_name(self):
-        return "Loopback"
+        return 'Loopback'
 
     def url_scheme(self):
         return 'test:%', 'example'

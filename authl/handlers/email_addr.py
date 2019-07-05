@@ -28,8 +28,9 @@ class EmailAddress(Handler):
                  secret_key,
                  sendmail,
                  notify_cdata,
-                 expires_time=900,
-                 email_template_text=DEFAULT_TEMPLATE_TEXT):
+                 expires_time=None,
+                 email_template_text=DEFAULT_TEMPLATE_TEXT,
+                 ):
         """ Instantiate a magic link email handler. Arguments:
 
         from_addr -- the address that the email should be sent from
@@ -41,7 +42,7 @@ class EmailAddress(Handler):
             Subject headers before it sends.
         notify_cdata -- the callback data to provide back for the notification
             response
-        expires_time -- how long the email link should be valid for, in seconds
+        expires_time -- how long the email link should be valid for, in seconds (default: 900)
         email_template_text -- the plaintext template for the sent email,
             provided as a string.
         email_template_html -- the HTML template for the sent email, provided
@@ -57,7 +58,7 @@ class EmailAddress(Handler):
         # pylint:disable=too-many-arguments
         self._sendmail = sendmail
         self._email_template_text = email_template_text
-        self._lifetime = expires_time
+        self._lifetime = expires_time or 900
         self._cdata = notify_cdata
 
         self._cfg = {
@@ -69,7 +70,7 @@ class EmailAddress(Handler):
         }
 
     def service_name(self):
-        return "Email"
+        return 'Email'
 
     def url_scheme(self):
         return 'mailto:%', 'email@example.com'
@@ -96,23 +97,22 @@ class EmailAddress(Handler):
             auth_user=dest_addr,
             lifetime=self._lifetime,
             suffix='&' if '?' in callback_url else '?',
-            **self._cfg)
+            **self._cfg
+        )
 
         msg = email.message.EmailMessage()
         msg['To'] = dest_addr
 
-        msg.set_content(self._email_template_text.format(
-            url=link_url,
-            minutes=self._lifetime / 60))
+        msg.set_content(
+            self._email_template_text.format(url=link_url, minutes=self._lifetime / 60)
+        )
 
         self._sendmail(msg)
 
         return disposition.Notify(self._cdata)
 
     def check_callback(self, url, get, data):
-        validation = ska.validate_signed_request_data(
-            data=get,
-            **self._cfg)
+        validation = ska.validate_signed_request_data(data=get, **self._cfg)
 
         if validation.result:
             return disposition.Verified(get[self._cfg['auth_user_param']])
@@ -122,6 +122,7 @@ class EmailAddress(Handler):
 
 def smtplib_connector(hostname, port, username=None, password=None, use_ssl=True):
     """ Generates an SMTP connection factory """
+
     def connect():
         import smtplib
 
@@ -129,6 +130,7 @@ def smtplib_connector(hostname, port, username=None, password=None, use_ssl=True
         conn = ctor(hostname, port)
         if use_ssl:
             import ssl
+
             context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             conn.ehlo()
             conn.starttls(context=context)
@@ -140,9 +142,7 @@ def smtplib_connector(hostname, port, username=None, password=None, use_ssl=True
     return connect
 
 
-def simple_sendmail(connector,
-                    sender_address,
-                    subject):
+def simple_sendmail(connector, sender_address, subject):
     """ Generates a simple SMTP sendmail handler for handlers.email.Email, using
     smtplib.
 
@@ -163,3 +163,47 @@ def simple_sendmail(connector,
             return conn.sendmail(sender_address, message['To'], str(message))
 
     return sendmail
+
+
+def from_config(config, secret_key):
+    """ Generate an EmailAddress handler from the provided configuration directory.
+
+    Possible configuration values (all optional unless specified):
+
+    SMTP_HOST -- the email host (required)
+    SMTP_PORT -- the email port (required)
+    SMTP_USE_SSL -- whether to use SSL for the SMTP connection
+    SMTP_USERNAME -- the username to use with the SMTP server
+    SMTP_PASSWORD -- the password to use with the SMTP server
+    EMAIL_FROM -- the From: address to use when sending an email (required)
+    EMAIL_SUBJECT -- the Subject: to use for a login email (required)
+    EMAIL_LOGIN_TIMEOUT -- How long (in seconds) the user has to follow the login link
+    EMAIL_CHECK_MESSAGE -- The message to send back to the user
+    EMAIL_TEMPLATE_FILE -- A path to a text file for the email message
+    """
+
+    connector = smtplib_connector(
+        hostname=config['SMTP_HOST'],
+        port=config['SMTP_PORT'],
+        username=config.get('SMTP_USERNAME'),
+        password=config.get('SMTP_PASSWORD'),
+        use_ssl=config.get('SMTP_USE_SSL'),
+    )
+
+    send_func = simple_sendmail(connector, config['EMAIL_FROM'], config['EMAIL_SUBJECT'])
+
+    check_message = config.get('EMAIL_CHECK_MESSAGE', 'Check your email for a login link')
+
+    if 'EMAIL_TEMPLATE_FILE' in config:
+        with open(config['EMAIL_TEMPLATE_FILE']) as file:
+            email_template_text = file.read()
+    else:
+        email_template_text = DEFAULT_TEMPLATE_TEXT
+
+    return EmailAddress(
+        secret_key,
+        send_func,
+        {'message': check_message},
+        expires_time=config.get('EMAIL_LOGIN_TIMEOUT'),
+        email_template_text=email_template_text,
+    )
