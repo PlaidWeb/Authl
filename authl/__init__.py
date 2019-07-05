@@ -92,6 +92,7 @@ def setup_flask(app,
                 callback_name='_authl_callback',
                 callback_path='/_cb',
                 session_auth_name='me',
+                force_ssl=False
                 ):
     """ Setup Authl to work with a Flask application.
 
@@ -113,12 +114,14 @@ def setup_flask(app,
         flask.url_for()
     callback_path -- The mount point of the callback handler
     session_auth_name -- The session parameter to use for the authenticated user
+    force_ssl -- Whether to force authentication to switch to an SSL connection
     """
     # pylint:disable=too-many-arguments,too-many-locals
 
     import flask
 
     auth = from_config(config, app.secret_key)
+    url_scheme = 'https' if force_ssl else None
 
     def handle_disposition(disp, redir):
 
@@ -161,6 +164,7 @@ def setup_flask(app,
 </head><body>
 {% with messages = get_flashed_messages() %}
   {% if messages %}
+  <p>The following errors occurred:</p>
     <ul class="flashes">
     {% for message in messages %}
       <li>{{ message }}</li>
@@ -174,7 +178,7 @@ def setup_flask(app,
 <input type="submit" value="go!">
 </form>
 </body></html>
-""", login_url=flask.url_for(login_name, redir=kwargs.get('redir')))
+""", login_url=flask.url_for(login_name, redir=kwargs.get('redir'), _scheme=url_scheme))
 
     def login(redir=''):
         from flask import request
@@ -183,7 +187,8 @@ def setup_flask(app,
             me_url = request.args['me']
             handler, hid = auth.get_handler_for_url(me_url)
             if handler:
-                cb_url = flask.url_for(callback_name, hid=hid, redir=redir, _external=True)
+                cb_url = flask.url_for(callback_name, hid=hid, redir=redir, _external=True,
+                                       _scheme=url_scheme)
                 return handle_disposition(handler.initiate_auth(me_url, cb_url), redir)
 
             # No handler found, so flash an error message to login_form
