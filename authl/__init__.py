@@ -130,7 +130,7 @@ def setup_flask(app,
         if isinstance(disp, disposition.Verified):
             flask.session.permanent = True
             flask.session[session_auth_name] = disp.identity
-            return flask.redirect('/'+ redir)
+            return flask.redirect('/' + redir)
 
         # The user needs to take some additional action
         if isinstance(disp, disposition.Notify):
@@ -162,7 +162,7 @@ def setup_flask(app,
 </body></html>
 """.format(login=flask.url_for(login_name, redir=kwargs.get('redir')))
 
-    def login(redir):
+    def login(redir=''):
         from flask import request
 
         if 'me' in request.args:
@@ -177,7 +177,7 @@ def setup_flask(app,
 
         return render_login_form(redir=redir)
 
-    def callback(hid, redir):
+    def callback(hid, redir=''):
         from flask import request
 
         handler = auth.get_handler_by_id(hid)
@@ -185,5 +185,6 @@ def setup_flask(app,
             handler.check_callback(request.url, request.args, request.form), redir
         )
 
-    app.add_url_rule(login_path + '/<path:redir>', login_name, login)
-    app.add_url_rule(callback_path + '/<int:hid>/<path:redir>', callback_name, callback)
+    for sfx in ['', '/', '/<path:redir>']:
+        app.add_url_rule(login_path + sfx, login_name, login)
+        app.add_url_rule(callback_path + '/<int:hid>' + sfx, callback_name, callback)

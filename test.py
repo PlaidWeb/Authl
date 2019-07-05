@@ -7,7 +7,7 @@ import flask
 import authl
 
 logging.basicConfig(level=logging.INFO)
-LOGGER=logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 app = flask.Flask('authl-test')
 
@@ -40,7 +40,7 @@ def index():
     return 'You are not logged in. Want to <a href="{login}">log in</a>?'.format(
         login=flask.url_for('login', redir=flask.request.path[1:]))
 
-
+@app.route('/logout/')
 @app.route('/logout/<path:redir>')
 def logout(redir=''):
     """ Log out from the thing """
