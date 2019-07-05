@@ -39,14 +39,19 @@ setup(
     keywords='authentication openid indieauth login',
     packages=['authl'],
     install_requires=[
-        'flask-micropub',
         'beautifulsoup4',
         'requests',
         'validate_email',
         'ska',
         'expiringdict',
     ],
-    extras_require={'dev': ['pylint', 'twine', 'flake8', 'flask']},
+    extras_require={'dev': [
+        'pylint',
+        'twine',
+        'flake8',
+        'flask',
+        'autopep8'
+    ]},
     project_urls={
         'Bug Reports': 'https://github.com/PlaidWeb/Pushl/issues',
         'Source': 'https://github.com/PlaidWeb/Pushl/',

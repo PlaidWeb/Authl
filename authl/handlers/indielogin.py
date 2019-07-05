@@ -7,6 +7,7 @@ import logging
 
 import requests
 import expiringdict
+from bs4 import BeautifulSoup
 
 from . import Handler
 from .. import disposition
@@ -48,7 +49,11 @@ class IndieLogin(Handler):
         return False
 
     def handles_page(self, headers, content):
-        return True
+        # Check to see if there's any appropriate links
+        soup = BeautifulSoup(content, 'html.parser')
+        if soup.find_all(['a', 'link'], rel='me'):
+            return True
+        return False
 
     def initiate_auth(self, id_url, callback_url):
         LOGGER.info('Initiate auth: %s %s', id_url, callback_url)

@@ -86,7 +86,7 @@ def from_config(config, secret_key):
 def setup_flask(app,
                 config,
                 login_name='login',
-                login_path='/_login',
+                login_path='/login',
                 login_render_func=None,
                 notify_render_func=None,
                 callback_name='_authl_callback',
@@ -154,13 +154,27 @@ def setup_flask(app,
         if login_render_func:
             return login_render_func(**kwargs)
 
-        return """
-<html><body><form method="GET" action="{login}">
+        # Default template that shows a login form and flashes all pending messages
+        return flask.render_template_string("""<!DOCTYPE html>
+<html><head>
+<title>Login</title>
+</head><body>
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <ul class="flashes">
+    {% for message in messages %}
+      <li>{{ message }}</li>
+    {% endfor %}
+    </ul>
+  {% endif %}
+{% endwith %}
+
+<form method="GET" action="{{login_url}}">
 <input type="text" name="me" placeholder="you@example.com">
 <input type="submit" value="go!">
 </form>
 </body></html>
-""".format(login=flask.url_for(login_name, redir=kwargs.get('redir')))
+""", login_url=flask.url_for(login_name, redir=kwargs.get('redir')))
 
     def login(redir=''):
         from flask import request

@@ -53,7 +53,7 @@ The basic flow is as follows:
 
     At present, the only useful handlers are `email_addr` and `indieauth`.
 
-2. Make endpoints for initiation and progress callbacks (`/login` and `/cb` in `test.py`)
+2. Make endpoints for initiation and progress callbacks
 
     The initiation callback receives an identity string (email address/URL/etc.) from the user, queries Authl
     for the handler and its ID, and builds a callback URL for that handler to use. Typically you'll have a single
@@ -74,89 +74,59 @@ The basic flow is as follows:
     * `Verified`: indicates that the user has been verified; set a session cookie (or whatever) and forward them along to their intended destination
     * `Error`: An error occurred; return it to the user as appropriate
 
-### Flask example
+## Flask usage
 
-Note: this is untested. Eventually there will be a more fleshed-out sample site to use for an example.
+To make life easier with Flask, Authl provides an `authl.setup_flask` convenience function. You can use it from a Flask app with something like the below:
 
 ```python
 import uuid
+import logging
+
 import flask
 import authl
-from authl.handlers import email_addr, indielogin
 
-app = flask.Flask(__name__)
+logging.basicConfig(level=logging.INFO)
+LOGGER = logging.getLogger(__name__)
 
-# Make sure the app.secret_key is set to something secret!
-# see http://flask.pocoo.org/docs/1.0/quickstart/#sessions for more info
-app.secret_key = uuid.uuid4()
+# Create a Flask application and give it a randomly-generated signing key
+app = flask.Flask('authl-test')
+app.secret_key = str(uuid.uuid4())
 
-auth = authl.Authl([
-    # email handler that uses localhost to send messages
-    email_addr.EmailAddress(app.secret_key,
-        email_addr.simple_sendmail(
-            email_addr.smtplib_connector('localhost', 25, use_ssl=False),
-            'nobody@example.com', 'Login requested to example.com'),
-        {'message':"Check your email"}
-    ),
+# Configure the default Flask endpoints
+authl.setup_flask(
+    app,
+    {
+        'SMTP_HOST': 'localhost',
+        'SMTP_PORT': 25,
+        'EMAIL_FROM': 'nobody@example.com',
+        'EMAIL_SUBJECT': 'Login attempt for Authl test',
+        'INDIELOGIN_CLIENT_ID': 'http://localhost',
+    },
+)
 
-    # IndieLogin handler using indielogin.com
-    indielogin.IndieLogin('http://example.com',
-        instance='https://indielogin.com')
-])
+# Here's a simple page handler which just shows a login link if you're logged out
+# and vice versa
+@app.route('/')
+@app.route('/some-page')
+def index():
+    if 'me' in flask.session:
+        return 'Hello {me}. Want to <a href="{logout}">log out</a>?'.format(
+            me=flask.session['me'],
+            logout=flask.url_for('logout', redir=flask.request.path[1:])
+        )
 
-@app.route('/login/<path:redir>')
-def login(redir):
-    from flask import request
+    return 'You are not logged in. Want to <a href="{login}">log in</a>?'.format(
+        login=flask.url_for('login', redir=flask.request.path[1:]))
 
-    if 'me' in request.args:
-        me_url = request.args['me']
-        handler, hid = auth.get_handler_for_url(me_url)
-        if handler:
-            cb_url = flask.url_for('login_cb', hid=hid, redir=redir, _external=True)
-            return handle_disposition(handler.initiate_auth(me_url, cb_url), redir)
-
-        # No handler found, so flash an error message to login_form
-        flask.flash("Unknown authorization method")
-
-    return render_template('login_form.html')
-
-@app.route('/_cb/<int:hid>/<path:redir>')
-def login_cb(hid, redir):
-    from flask import request
-
-    handler = auth.get_handler_by_id(hid)
-    return handle_disposition(handler.check_callback(request.url, request.args, request.form), redir)
-
-def handle_disposition(d, redir):
-    from authl import disposition
-
-    # A simple redirection
-    if isinstance(d, disposition.Redirect):
-        return flask.redirect(d.url)
-
-    # The user is verified; log them in
-    if isinstance(d, disposition.Verified):
-        flask.session['who'] = d.identity
-        return flask.redirect(redir)
-
-    # The user needs to take some additional action
-    if isinstance(d, disposition.Notify):
-        return render_template('login_notify.html', cdata=d.cdata)
-
-    # The user's login failed
-    if isinstance(d, disposition.Error):
-        return render_template('login_form.html', error=d.message), 403
-
-    # Something weird happened
-    return "Unknown disposition", 500
-
-
-@app.route('/some-protected-page')
-def protected_page():
-    # this could also be wrapped up in a Flask-Login decorator or the like
-    if 'who' not in flask.session or flask.session['who'] not in authorized_users:
-        return flask.redirect(url_for('login', redir=flask.request.full_path))
-
-    return "It's a secret to everyone!"
-
+# And here's a means of logging out
+@app.route('/logout/')
+@app.route('/logout/<path:redir>')
+def logout(redir=''):
+    flask.session.clear()
+    return flask.redirect('/' + redir)
 ```
+
+This will configure the Flask app to allow IndieLogin and email-based authentication (using the server's local sendmail), and use the default login endpoint of `/login/`. The `index()` endpoint handler always redirects logins and logouts back to the same page when you log in or log out (the `[1:]` is to trim off the initial `/` from the path). The logout handler simply clears the session and redirects back to the redirection path.
+
+The above configuration uses Flask's default session lifetime of one month (this can be configured by setting `app.permanent_session_lifetime` to a `timedelta` object, e.g. `app.permanent_session_lifetime = datetime.timedelta(hours=20)`). Sessions will also implicitly expire whenever the application server is restarted, as `app.secret_key` is generated randomly at every startup.
+

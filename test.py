@@ -1,4 +1,11 @@
-""" Basic test app for Authl, implemented using Flask. """
+""" Basic test app for Authl, implemented using Flask.
+
+Run it locally with:
+
+    pipenv install --dev
+    FLASK_APP=test pipenv run flask run
+
+ """
 
 import uuid
 import logging
@@ -39,6 +46,7 @@ def index():
 
     return 'You are not logged in. Want to <a href="{login}">log in</a>?'.format(
         login=flask.url_for('login', redir=flask.request.path[1:]))
+
 
 @app.route('/logout/')
 @app.route('/logout/<path:redir>')
