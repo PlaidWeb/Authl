@@ -123,36 +123,49 @@ def setup_flask(app,
     auth = from_config(config, app.secret_key)
     url_scheme = 'https' if force_ssl else None
 
+    def set_cache(age):
+        def decorator(func):
+            def wrapped_func(*args, **kwargs):
+                response = flask.make_response(func(*args, **kwargs))
+                response.cache_control.max_age = age
+                return response
+            return wrapped_func
+        return decorator
+
+    @set_cache(0)
     def handle_disposition(disp, redir):
 
-        # A simple redirection
         if isinstance(disp, disposition.Redirect):
+            # A simple redirection
             return flask.redirect(disp.url)
 
-        # The user is verified; log them in
-        if isinstance(disp, disposition.Verified):
+        elif isinstance(disp, disposition.Verified):
+            # The user is verified; log them in
             flask.session.permanent = True
             flask.session[session_auth_name] = disp.identity
             return flask.redirect('/' + redir)
 
-        # The user needs to take some additional action
-        if isinstance(disp, disposition.Notify):
+        elif isinstance(disp, disposition.Notify):
+            # The user needs to take some additional action
             return render_notify(disp.cdata)
 
-        # The user's login failed
-        if isinstance(disp, disposition.Error):
+        elif isinstance(disp, disposition.Error):
+            # The user's login failed
             flask.flash(disp.message)
             return render_login_form(redir=redir)
 
-        # Something weird happened
-        return 'Unknown disposition', 500
+        # unhandled disposition
+        import werkzeug.exceptions as http_error
+        raise http_error.InternalServerError("Unknown disposition type " + type(disp))
 
+    @set_cache(0)
     def render_notify(cdata):
         if notify_render_func:
             return notify_render_func(cdata)
 
         return str(cdata)
 
+    @set_cache(0)
     def render_login_form(**kwargs):
         if login_render_func:
             return login_render_func(**kwargs)
