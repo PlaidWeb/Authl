@@ -1,4 +1,4 @@
-"""Setup for Pushl packaging"""
+"""Setup for AUthl packaging"""
 
 # Always prefer setuptools over distutils
 from setuptools import setup
@@ -26,11 +26,12 @@ setup(
     author='fluffy',
     author_email='fluffy@beesbuzz.biz',
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
@@ -53,8 +54,8 @@ setup(
         'autopep8'
     ]},
     project_urls={
-        'Bug Reports': 'https://github.com/PlaidWeb/Pushl/issues',
-        'Source': 'https://github.com/PlaidWeb/Pushl/',
+        'Bug Reports': 'https://github.com/PlaidWeb/Authl/issues',
+        'Source': 'https://github.com/PlaidWeb/Authl/',
         'Discord': 'https://beesbuzz.biz/discord',
         'Funding': 'https://liberapay.com/fluffy',
     },
