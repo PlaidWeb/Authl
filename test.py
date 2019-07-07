@@ -11,7 +11,7 @@ import uuid
 import logging
 
 import flask
-import authl
+import authl.flask
 
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ LOGGER = logging.getLogger(__name__)
 app = flask.Flask('authl-test')
 
 app.secret_key = str(uuid.uuid4())
-authl.setup_flask(
+authl.flask.setup(
     app,
     {
         'SMTP_HOST': 'localhost',
