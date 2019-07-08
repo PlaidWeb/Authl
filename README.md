@@ -57,7 +57,7 @@ Basic usage is as follows:
 
 ## Flask usage
 
-To make life easier with Flask, Authl provides an `authl.setup_flask` convenience function. You can use it from a Flask app with something like the below:
+To make life easier with Flask, Authl provides an `authl.flask.setup` convenience function. You can use it from a Flask app with something like the below:
 
 ```python
 import uuid
