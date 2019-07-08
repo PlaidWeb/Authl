@@ -150,7 +150,8 @@ class Mastodon(Handler):
             LOGGER.warning("Response did not contain 'access_token': %s", response)
             return disposition.Error("No access token provided")
 
-        auth_headers = {'Authorization': 'Bearer ' + response['access_token']}
+        token = response['access_token']
+        auth_headers = {'Authorization': 'Bearer ' + token}
 
         def get_credentials():
             # now we can get the authenticated user profile
@@ -173,10 +174,11 @@ class Mastodon(Handler):
         request = requests.post(instance + '/oauth/revoke', data={
             'client_id': client['client_id'],
             'client_secret': client['client_secret'],
-            'code': get['code']
+            'token': token
         }, headers=auth_headers)
         if request.status_code != 200:
             LOGGER.warning("Unable to revoke credentials: %d %s", request.status_code, request.text)
+        LOGGER.info("Revocation response: %s", request.text)
 
         return result
 
