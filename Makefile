@@ -6,7 +6,7 @@ format:
 
 .PHONY: pylint
 pylint:
-	pipenv run pylint -f colorized authl
+	pipenv run pylint authl
 
 .PHONY: flake8
 flake8:

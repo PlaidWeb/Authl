@@ -7,7 +7,6 @@ import logging
 
 import requests
 import expiringdict
-from bs4 import BeautifulSoup
 
 from . import Handler
 from .. import disposition
@@ -53,8 +52,7 @@ class IndieLogin(Handler):
         if links.get('authorization_endpoint'):
             return True
 
-        soup = BeautifulSoup(content, 'html.parser')
-        if soup.find_all(['a', 'link'], rel=['me', 'authorization_endpoint']):
+        if content.find_all(['a', 'link'], rel=['me', 'authorization_endpoint']):
             return True
 
         return False

@@ -86,7 +86,7 @@ class EmailAddress(Handler):
         return validate_email.validate_email(url)
 
     def handles_page(self, headers, content, links):
-        return False
+        return None
 
     def initiate_auth(self, id_url, callback_url):
         # Extract the destination email from the identity URL

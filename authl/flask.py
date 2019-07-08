@@ -118,11 +118,11 @@ def setup(app,
 
         if 'me' in request.args:
             me_url = request.args['me']
-            handler, hid = auth.get_handler_for_url(me_url)
+            handler, hid, id_url = auth.get_handler_for_url(me_url)
             if handler:
                 cb_url = flask.url_for(callback_name, hid=hid, redir=redir, _external=True,
                                        _scheme=url_scheme)
-                return handle_disposition(handler.initiate_auth(me_url, cb_url), redir)
+                return handle_disposition(handler.initiate_auth(id_url, cb_url), redir)
 
             # No handler found, so flash an error message to login_form
             flask.flash('Unknown authorization method')

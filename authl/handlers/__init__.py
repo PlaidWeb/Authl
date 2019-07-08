@@ -5,20 +5,21 @@ from abc import ABC, abstractmethod, abstractproperty
 
 
 class Handler(ABC):
-    """ base class for all external auth providers """
+    """ base class for authentication handlers """
 
     @abstractmethod
     def handles_url(self, url):
-        """ Returns True if this handler can handle this URL
-        e.g. a Twitter OAuth Handler would be configured to return True if it
-        matches r'(https?://)twitter\\.com/(user/)?'
-        """
+        """ Returns True if we can handle this URL, by pattern match """
 
     @abstractmethod
     def handles_page(self, headers, content, links):
-        """ Returns True if this handler can handle the page based on headers
-        e.g. a generic OpenID handler returns True if headers.links or the page
-        links contain rel="openid.server"
+        """ Returns True if we can handle the page based on page content
+
+        headers -- the raw headers from the page request, as a MultiDict (as
+            provided by the requests library)
+        content -- the page content, as a BeautifulSoup4 parse tree
+        links -- the results of parsing the Link: headers, as a dict of
+            rel -> list of href/rel pairs (as provided by the requests library)
         """
 
     @abstractmethod

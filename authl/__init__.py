@@ -1,7 +1,11 @@
 """ Authl: A wrapper library to simplify the implementation of federated identity """
 
+import logging
 
 import requests
+from bs4 import BeautifulSoup
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Authl:
@@ -23,17 +27,22 @@ class Authl:
 
     def get_handler_for_url(self, url):
         """ Get the appropriate handler for the specified identity URL.
-        Returns a tuple of (handler, id). """
+        Returns a tuple of (handler, id, url). """
         for pos, handler in enumerate(self._handlers):
             if handler.handles_url(url):
-                return handler, pos
+                LOGGER.debug("%s URL matches %s", url, handler)
+                return handler, pos, url
 
-        request = requests.get(url)
-        for pos, handler in enumerate(self._handlers):
-            if handler.handles_page(request.headers, request.text):
-                return handler, pos
+        request = request_url(url)
+        if request:
+            soup = BeautifulSoup(request.text, 'html.parser')
+            for pos, handler in enumerate(self._handlers):
+                if handler.handles_page(request.headers, soup, request.links):
+                    LOGGER.debug("%s response matches %s", request.url, handler)
+                    return handler, pos, request.url
 
-        return None, -1
+        LOGGER.debug("No handler found for URL %s", url)
+        return None, None, None
 
     def get_handler_by_id(self, handler_id):
         """ Get the handler with the given ID """
@@ -43,6 +52,32 @@ class Authl:
     def handlers(self):
         """ get all of the registered handlers, for UX purposes """
         return [*self._handlers]
+
+
+def request_url(url):
+    """ Requests a URL, attempting to canonicize it as it goes """
+    # pylint:disable=broad-except
+
+    try:
+        return requests.get(url)
+    except requests.exceptions.MissingSchema:
+        LOGGER.info("Missing schema on URL %s", url)
+
+    try:
+        attempt = 'https://' + url
+        LOGGER.debug("attempting %s", attempt)
+        return requests.get(attempt)
+    except Exception as err:
+        LOGGER.info("%s failed: %s", attempt, err)
+
+    try:
+        attempt = 'http://' + url
+        LOGGER.debug("attempting %s", attempt)
+        return requests.get(attempt)
+    except Exception as err:
+        LOGGER.info("%s failed: %s", attempt, err)
+
+    return None
 
 
 def from_config(config, secret_key):
