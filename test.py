@@ -28,6 +28,8 @@ authl.flask.setup(
         'EMAIL_SUBJECT': 'Login attempt for Authl test',
         'INDIELOGIN_CLIENT_ID': 'http://localhost',
         'TEST_ENABLED': True,
+        'MASTODON_NAME': 'authl testing',
+        'MASTODON_HOMEPAGE': 'https://github.com/PlaidWeb/Authl'
     },
 )
 

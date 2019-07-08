@@ -113,4 +113,9 @@ def from_config(config, secret_key):
 
         handlers.append(indielogin.from_config(config))
 
+    if config.get('MASTODON_NAME'):
+        from .handlers import mastodon
+
+        handlers.append(mastodon.from_config(config))
+
     return Authl(handlers)

@@ -166,7 +166,7 @@ def simple_sendmail(connector, sender_address, subject):
 
 
 def from_config(config, secret_key):
-    """ Generate an EmailAddress handler from the provided configuration directory.
+    """ Generate an EmailAddress handler from the provided configuration dictionary.
 
     Possible configuration values (all optional unless specified):
 

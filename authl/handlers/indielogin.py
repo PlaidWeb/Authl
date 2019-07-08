@@ -83,8 +83,8 @@ class IndieLogin(Handler):
 
         state = get.get('state')
         if not state:
-            return disposition.Error('No CSRF token specified')
-        if not state or state not in self._pending:
+            return disposition.Error('No CSRF token provided')
+        if state not in self._pending:
             LOGGER.warning('state=%s pending=%s', state, self._pending)
             return disposition.Error('CSRF token invalid or expired')
 
