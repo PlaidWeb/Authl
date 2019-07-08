@@ -118,5 +118,4 @@ def from_config(config, secret_key):
 
         handlers.append(indielogin.from_config(config))
 
-
     return Authl(handlers)

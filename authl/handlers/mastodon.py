@@ -105,7 +105,7 @@ class Mastodon(Handler):
             return disposition.Error("Failed to register OAuth client")
         client['instance'] = instance
 
-        self._pending[state] = {**client};
+        self._pending[state] = {**client}
 
         if client.get('redirect_uri') != callback_url:
             return disposition.Error("Got incorrect callback URL")
