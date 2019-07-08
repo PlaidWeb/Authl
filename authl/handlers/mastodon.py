@@ -88,7 +88,7 @@ class Mastodon(Handler):
                                 data={
                                     'client_name': self._name,
                                     'redirect_uris': callback,
-                                    'scopes': 'read',
+                                    'scopes': 'read:accounts',
                                     'website': self._homepage
                                 })
         if request.status_code != 200:
@@ -114,7 +114,7 @@ class Mastodon(Handler):
             'client_id': client['client_id'],
             'response_type': 'code',
             'redirect_uri': callback_url,
-            'scopes': 'read',
+            'scope': 'read:accounts',
             'state': state
         })
         return disposition.Redirect(url)
