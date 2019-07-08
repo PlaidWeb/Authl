@@ -108,9 +108,15 @@ def from_config(config, secret_key):
 
         handlers.append(email_addr.from_config(config, secret_key))
 
+    if config.get('MASTODON_NAME'):
+        from .handlers import mastodon
+
+        handlers.append(mastodon.from_config(config))
+
     if config.get('INDIELOGIN_CLIENT_ID'):
         from .handlers import indielogin
 
         handlers.append(indielogin.from_config(config))
+
 
     return Authl(handlers)

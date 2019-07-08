@@ -60,7 +60,7 @@ class IndieLogin(Handler):
     def initiate_auth(self, id_url, callback_url):
         LOGGER.info('Initiate auth: %s %s', id_url, callback_url)
 
-        # register a new CSRF token
+        # register a new transaction ID
         state = str(uuid.uuid4())
         self._pending[state] = {'id_url': id_url, 'callback_uri': callback_url}
 
@@ -83,10 +83,10 @@ class IndieLogin(Handler):
 
         state = get.get('state')
         if not state:
-            return disposition.Error('No CSRF token specified')
-        if not state or state not in self._pending:
+            return disposition.Error('No transaction ID provided')
+        if state not in self._pending:
             LOGGER.warning('state=%s pending=%s', state, self._pending)
-            return disposition.Error('CSRF token invalid or expired')
+            return disposition.Error('Transaction invalid or expired')
 
         if 'code' not in get:
             return disposition.Error('Missing auth code')
