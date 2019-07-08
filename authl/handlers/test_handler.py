@@ -12,7 +12,7 @@ class TestHandler(Handler):
     def handles_url(self, url):
         return url.startswith('test:')
 
-    def handles_page(self, headers, content):
+    def handles_page(self, headers, content, links):
         return False
 
     def initiate_auth(self, id_url, callback_url):

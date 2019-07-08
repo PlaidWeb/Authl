@@ -15,7 +15,7 @@ class Handler(ABC):
         """
 
     @abstractmethod
-    def handles_page(self, headers, content):
+    def handles_page(self, headers, content, links):
         """ Returns True if this handler can handle the page based on headers
         e.g. a generic OpenID handler returns True if headers.links or the page
         links contain rel="openid.server"

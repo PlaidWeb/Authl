@@ -48,11 +48,15 @@ class IndieLogin(Handler):
     def handles_url(self, url):
         return False
 
-    def handles_page(self, headers, content):
+    def handles_page(self, headers, content, links):
         # Check to see if there's any appropriate links
-        soup = BeautifulSoup(content, 'html.parser')
-        if soup.find_all(['a', 'link'], rel='me'):
+        if links.get('authorization_endpoint'):
             return True
+
+        soup = BeautifulSoup(content, 'html.parser')
+        if soup.find_all(['a', 'link'], rel=['me', 'authorization_endpoint']):
+            return True
+
         return False
 
     def initiate_auth(self, id_url, callback_url):
