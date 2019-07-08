@@ -5,6 +5,7 @@ import urllib.parse
 import json
 import logging
 import uuid
+import functools
 
 import expiringdict
 import requests
@@ -80,6 +81,7 @@ class Mastodon(Handler):
     def handles_page(self, headers, content, links):
         return False
 
+    @functools.lru_cache(128)
     def _get_client(self, instance, callback):
         """ Get the client data """
         request = requests.post(instance + '/api/v1/apps',
@@ -97,16 +99,13 @@ class Mastodon(Handler):
         instance = self._get_instance(id_url)
 
         state = str(uuid.uuid4())
-        # for some reason there's no 'state' passed through, so we add it to the cb
-        callback_url += (('&' if '?' in callback_url else '?') +
-                         urllib.parse.urlencode({'_x': state}))
 
         client = self._get_client(instance, callback_url)
         if not client:
-            return disposition.Error("Failed to register client")
+            return disposition.Error("Failed to register OAuth client")
         client['instance'] = instance
 
-        self._pending[state] = client
+        self._pending[state] = {**client};
 
         if client.get('redirect_uri') != callback_url:
             return disposition.Error("Got incorrect callback URL")
@@ -115,17 +114,18 @@ class Mastodon(Handler):
             'client_id': client['client_id'],
             'response_type': 'code',
             'redirect_uri': callback_url,
-            'scopes': 'read'
+            'scopes': 'read',
+            'state': state
         })
         return disposition.Redirect(url)
 
     def check_callback(self, url, get, data):
-        state = get.get('_x')
+        state = get.get('state')
         if not state:
-            return disposition.Error("No CSRF token provided")
+            return disposition.Error("No transaction ID provided")
         if state not in self._pending:
             LOGGER.warning('state=%s pending=%s', state, self._pending)
-            return disposition.Error('CSRF token invalid or expired')
+            return disposition.Error('Transaction invalid or expired')
         client = self._pending[state]
         instance = client['instance']
 
