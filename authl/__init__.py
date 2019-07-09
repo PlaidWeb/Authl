@@ -98,11 +98,6 @@ def from_config(config, secret_key):
     """
 
     handlers = []
-    if config.get('TEST_ENABLED'):
-        from .handlers import test_handler
-
-        handlers.append(test_handler.TestHandler())
-
     if config.get('EMAIL_FROM'):
         from .handlers import email_addr
 
@@ -117,5 +112,11 @@ def from_config(config, secret_key):
         from .handlers import indielogin
 
         handlers.append(indielogin.from_config(config))
+
+    if config.get('TEST_ENABLED'):
+        from .handlers import test_handler
+
+        handlers.append(test_handler.TestHandler())
+
 
     return Authl(handlers)

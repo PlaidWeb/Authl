@@ -21,8 +21,14 @@ class TestHandler(Handler):
     def check_callback(self, url, get, data):
         return disposition.Error("This shouldn't be possible")
 
+    @property
     def service_name(self):
         return 'Loopback'
 
-    def url_scheme(self):
-        return 'test:%', 'example'
+    @property
+    def url_schemes(self):
+        return [('test:%', 'example')]
+
+    @property
+    def description(self):
+        return """Used for testing purposes. Don't use this on a production website."""

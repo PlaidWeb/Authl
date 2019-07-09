@@ -24,6 +24,20 @@ If this wasn't you, you can safely disregard this message.
 class EmailAddress(Handler):
     """ Email via "magic link" """
 
+    @property
+    def service_name(self):
+        return 'Email'
+
+    @property
+    def url_schemes(self):
+        return [('mailto:%', 'email@example.com'),
+                ('%', 'email@example.com')]
+
+    @property
+    def description(self):
+        return """Uses a good old-fashioned email address to log you in, by sending a
+        "magic link" to the destination address."""
+
     def __init__(self,
                  secret_key,
                  sendmail,
@@ -68,12 +82,6 @@ class EmailAddress(Handler):
             'valid_until_param': 'v',
             'extra_param': 'e',
         }
-
-    def service_name(self):
-        return 'Email'
-
-    def url_scheme(self):
-        return 'mailto:%', 'email@example.com'
 
     def handles_url(self, url):
         """ Validating email by regex: not even once """

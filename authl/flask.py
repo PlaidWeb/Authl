@@ -2,6 +2,126 @@
 
 from . import from_config, disposition
 
+DEFAULT_LOGIN_TEMPLATE = """<!DOCTYPE html>
+<html>
+
+<head>
+<title>Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{% if stylesheet %}
+<link rel="stylesheet" href="{{stylesheet}}">
+{% else %}
+<style>
+body {
+    background: #ccccff;
+    font-family: "Helvetica Neue", sans-serif;
+}
+#login {
+    background: white;
+    border-radius: 1em;
+    box-shadow: 0px 5px 5px rgba(0,0,0,0.25);
+
+    margin: 3em;
+    overflow: hidden;
+}
+#info {
+    font-size: small;
+    color: #333;
+    background: #eee;
+    padding: 1em;
+    border-top: solid #ccc 1px;
+}
+h1 {
+    background: #ffc;
+    margin: 0 0 1ex;
+    padding: 1ex 1em;
+    box-shadow: 0px 1px 2px rgba(0,0,0,0.25);
+}
+form {
+    display: inline-block;
+    font-size: large;
+    margin: 1em;
+}
+input[type="url"] {
+    font-family: "Helvetica Neue", sans-serif;
+    font-weight: light;
+    font-size: large;
+}
+.description {
+    font-style: italic;
+    color: #555;
+}
+a:link {
+    color: #500;
+}
+.description a:link {
+    color: #944;
+}
+.flashes {
+    color: #700;
+    list-style-type: none;
+    font-size: small;
+    margin: 0;
+    padding: 0;
+}
+.flashes li {
+    margin: 0;
+    padding: 0;
+    display: inline;
+}
+.flashes li + li::before {
+    content: ' | ';
+}
+</style>
+{% endif %}
+
+<script>
+function setUrl(url, repltext) {
+    repltext = repltext || 'username';
+    var index = url.indexOf('%');
+    url = url.replace('%', repltext);
+
+    profile_url = document.getElementById('me');
+    profile_url.value = url;
+    profile_url.focus();
+    if (index >= 0) {
+        profile_url.setSelectionRange(index, index + repltext.length);
+    }
+}
+</script>
+</head>
+
+<body>
+    <div id="login">
+        <h1>Who are you?</h1>
+        <form novalidate>
+            <input id="me" type="url" name="me" size="30" placeholder="Your ID here" autofocus>
+            <button>Go!</button>
+            {% with messages = get_flashed_messages() %}
+            {% if messages %}
+            <ul class="flashes">
+                {% for message in messages %}
+                <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            {% endwith %}
+        </form>
+
+        <div id="info">
+            <p>This form allows you to log in using your existing identity from another website or
+                provider. The following endpoints are currently configured:</p>
+            <ul>
+                {% for handler in auth.handlers %}
+                <li><a href="#" onClick="setUrl('{{ handler.url_schemes[0][0] }}', '{{ handler.url_schemes[0][1]}}')">{{ handler.service_name }}</a> &mdash; <span class="description">{{handler.description|safe}}</span></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
 
 def setup(app,
           config,
@@ -12,7 +132,8 @@ def setup(app,
           callback_name='_authl_callback',
           callback_path='/_cb',
           session_auth_name='me',
-          force_ssl=False
+          force_ssl=False,
+          stylesheet=None
           ):
     """ Setup Authl to work with a Flask application.
 
@@ -35,6 +156,7 @@ def setup(app,
     callback_path -- The mount point of the callback handler
     session_auth_name -- The session parameter to use for the authenticated user
     force_ssl -- Whether to force authentication to switch to an SSL connection
+    stylesheet -- the URL to use for the default page stylesheet
     """
     # pylint:disable=too-many-arguments,too-many-locals
 
@@ -91,27 +213,12 @@ def setup(app,
             return login_render_func(**kwargs)
 
         # Default template that shows a login form and flashes all pending messages
-        return flask.render_template_string("""<!DOCTYPE html>
-<html><head>
-<title>Login</title>
-</head><body>
-{% with messages = get_flashed_messages() %}
-  {% if messages %}
-  <p>The following errors occurred:</p>
-    <ul class="flashes">
-    {% for message in messages %}
-      <li>{{ message }}</li>
-    {% endfor %}
-    </ul>
-  {% endif %}
-{% endwith %}
-
-<form method="GET" action="{{login_url}}">
-<input type="text" name="me" placeholder="you@example.com">
-<input type="submit" value="go!">
-</form>
-</body></html>
-""", login_url=flask.url_for(login_name, redir=kwargs.get('redir'), _scheme=url_scheme))
+        return flask.render_template_string(DEFAULT_LOGIN_TEMPLATE,
+                                            login_url=flask.url_for(login_name,
+                                                                    redir=kwargs.get('redir'),
+                                                                    _scheme=url_scheme),
+                                            stylesheet_url=stylesheet,
+                                            auth=auth)
 
     def login(redir=''):
         from flask import request
@@ -120,7 +227,10 @@ def setup(app,
             me_url = request.args['me']
             handler, hid, id_url = auth.get_handler_for_url(me_url)
             if handler:
-                cb_url = flask.url_for(callback_name, hid=hid, redir=redir, _external=True,
+                cb_url = flask.url_for(callback_name,
+                                       hid=hid,
+                                       redir=redir,
+                                       _external=True,
                                        _scheme=url_scheme)
                 return handle_disposition(handler.initiate_auth(id_url, cb_url), redir)
 

@@ -28,6 +28,19 @@ class IndieLogin(Handler):
     endpoint -- the IndieLogin endpoint to authenticate against
     """
 
+    @property
+    def service_name(self):
+        return 'IndieLogin'
+
+    @property
+    def url_schemes(self):
+        return [('%', 'https://website.name')]
+
+    @property
+    def description(self):
+        return """Uses a third-party <a href="https://indielogin.com/">IndieLogin</a>
+        endpoint to securely log you in based on your personal profile page."""
+
     def __init__(self, client_id, max_pending=None, pending_ttl=None, endpoint=None):
         """ Construct an IndieLogin handler, to work with indielogin.com. See
         https://indielogin.com/api for more information.
@@ -112,12 +125,6 @@ class IndieLogin(Handler):
             )
 
         return disposition.Verified(result.get('me'))
-
-    def service_name(self):
-        return 'Loopback'
-
-    def url_scheme(self):
-        return 'test:%', 'example'
 
 
 def from_config(config):
