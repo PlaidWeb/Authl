@@ -1,7 +1,7 @@
 """Setup for AUthl packaging"""
 
 # Always prefer setuptools over distutils
-from setuptools import setup
+from setuptools import setup, find_packages
 from distutils.util import convert_path
 from os import path
 
@@ -18,13 +18,20 @@ with open(ver_path) as ver_file:
 
 setup(
     name='Authl',
+
     version=main_ns['__version__'],
+
     description='Genericized multi-protocol authentication wrapper',
+
     long_description=long_description,
+
     long_description_content_type='text/markdown',
+
     url='https://github.com/PlaidWeb/Authl',
+
     author='fluffy',
     author_email='fluffy@beesbuzz.biz',
+
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
@@ -36,8 +43,11 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Topic :: Internet :: WWW/HTTP :: Session',
     ],
+
     keywords='authentication openid indieauth login',
-    packages=['authl'],
+
+    packages=find_packages(),
+
     install_requires=[
         'beautifulsoup4',
         'requests',
@@ -45,6 +55,7 @@ setup(
         'ska',
         'expiringdict',
     ],
+
     extras_require={'dev': [
         'pylint',
         'twine',
@@ -52,11 +63,13 @@ setup(
         'flask',
         'autopep8'
     ]},
+
     project_urls={
         'Bug Reports': 'https://github.com/PlaidWeb/Authl/issues',
         'Source': 'https://github.com/PlaidWeb/Authl/',
         'Discord': 'https://beesbuzz.biz/discord',
         'Funding': 'https://liberapay.com/fluffy',
     },
+
     python_requires='>=3.5',
 )
