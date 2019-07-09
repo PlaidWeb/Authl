@@ -45,7 +45,7 @@ def index():
     if 'me' in flask.session:
         return 'Hello {me}. Want to <a href="{logout}">log out</a>?'.format(
             me=flask.session['me'], logout=flask.url_for(
-                'authl.logout', redir=flask.request.path[1:])
+                'logout', redir=flask.request.path[1:])
         )
 
     return 'You are not logged in. Want to <a href="{login}">log in</a>?'.format(
