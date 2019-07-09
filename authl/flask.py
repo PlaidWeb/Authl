@@ -108,7 +108,7 @@ function setUrl(url, repltext) {
 
 <body>
     <div id="login">
-        <h1>Who are you?</h1>
+        <h1>Identify Yourself</h1>
         <form method="GET" action="{{login_url}}" novalidate>
             <input id="me" type="url" name="me" size="30" placeholder="Your ID here" autofocus>
             <button>Go!</button>
