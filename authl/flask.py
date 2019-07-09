@@ -28,7 +28,7 @@ body {
     font-size: small;
     color: #333;
     background: #eee;
-    padding: 1em;
+    padding: 1ex 1em;
     border-top: solid #ccc 1px;
 }
 h1 {
@@ -72,6 +72,15 @@ a:link {
 .flashes li + li::before {
     content: ' | ';
 }
+
+#powered {
+    font-size: x-small;
+    background: #ddd;
+}
+#powered p {
+    margin: 0 1em;
+    padding: 0;
+}
 </style>
 {% endif %}
 
@@ -110,13 +119,16 @@ function setUrl(url, repltext) {
 
         <div id="info">
             <p>This form allows you to log in using your existing identity from another website or
-                provider. The following endpoints are currently configured:</p>
+                provider. The following sources are supported:</p>
             <ul>
                 {% for handler in auth.handlers %}
                 <li><a href="#" onClick="setUrl('{{ handler.url_schemes[0][0] }}', '{{ handler.url_schemes[0][1]}}')">{{ handler.service_name }}</a> &mdash; <span class="description">{{handler.description|safe}}</span></li>
                 {% endfor %}
             </ul>
         </div>
+
+        <div id="powered">
+        <p>Powered by <a href="https://github.com/PlaidWeb/Authl">Authl</a></p>
     </div>
 </body>
 </html>
