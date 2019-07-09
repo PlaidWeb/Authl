@@ -1,13 +1,10 @@
 """ Flask wrapper for Authl """
 
+import json
+
 from . import from_config, disposition
 
-DEFAULT_LOGIN_TEMPLATE = """<!DOCTYPE html>
-<html>
-
-<head>
-<title>Login</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+DEFAULT_STYLESHEET = """
 {% if stylesheet %}
 <link rel="stylesheet" href="{{stylesheet}}">
 {% else %}
@@ -37,7 +34,7 @@ h1 {
     padding: 1ex 1em;
     box-shadow: 0px 1px 2px rgba(0,0,0,0.25);
 }
-form {
+form, #notify {
     display: inline-block;
     font-size: large;
     margin: 1em;
@@ -83,6 +80,15 @@ a:link {
 }
 </style>
 {% endif %}
+"""
+
+DEFAULT_LOGIN_TEMPLATE = """<!DOCTYPE html>
+<html>
+
+<head>
+<title>Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+""" + DEFAULT_STYLESHEET + """
 
 <script>
 function setUrl(url, repltext) {
@@ -90,7 +96,7 @@ function setUrl(url, repltext) {
     var index = url.indexOf('%');
     url = url.replace('%', repltext);
 
-    profile_url = document.getElementById('me');
+    var profile_url = document.getElementById('me');
     profile_url.value = url;
     profile_url.focus();
     if (index >= 0) {
@@ -102,10 +108,11 @@ function setUrl(url, repltext) {
 
 <body>
     <div id="login">
-        <h1>Who are you?</h1>
-        <form novalidate>
+        <h1>Identify Yourself</h1>
+        <form method="GET" action="{{login_url}}" novalidate>
             <input id="me" type="url" name="me" size="30" placeholder="Your ID here" autofocus>
             <button>Go!</button>
+            <label for="me" id="url_type"></label>
             {% with messages = get_flashed_messages() %}
             {% if messages %}
             <ul class="flashes">
@@ -122,7 +129,11 @@ function setUrl(url, repltext) {
                 provider. The following sources are supported:</p>
             <ul>
                 {% for handler in auth.handlers %}
-                <li><a href="#" onClick="setUrl('{{ handler.url_schemes[0][0] }}', '{{ handler.url_schemes[0][1]}}')">{{ handler.service_name }}</a> &mdash; <span class="description">{{handler.description|safe}}</span></li>
+                <li><a href="#"
+                       onClick="setUrl('{{ handler.url_schemes[0][0] }}',
+                                       '{{ handler.url_schemes[0][1] }}')">{{
+                                        handler.service_name }}</a>
+                    &mdash; <span class="description">{{handler.description|safe}}</span></li>
                 {% endfor %}
             </ul>
         </div>
@@ -135,14 +146,38 @@ function setUrl(url, repltext) {
 """
 
 
+DEFAULT_NOTIFY_TEMPLATE = """<!DOCTYPE html>
+<html>
+
+<head>
+<title>Complete your login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+""" + DEFAULT_STYLESHEET + """
+
+<body>
+    <div id="login">
+        <h1>Next Step</h1>
+
+        <div id="notify">
+            {{cdata.message}}
+        </div>
+
+    </div>
+</body>
+</html>
+"""
+
+
 def setup(app,
           config,
-          login_name='login',
+          login_name='authl.login',
           login_path='/login',
+          callback_name='authl.callback',
+          callback_path='/cb',
+          tester_name='authl.test',
+          tester_path=None,
           login_render_func=None,
           notify_render_func=None,
-          callback_name='_authl_callback',
-          callback_path='/_cb',
           session_auth_name='me',
           force_ssl=False,
           stylesheet=None
@@ -159,16 +194,40 @@ def setup(app,
         for more information.
     login_name -- The endpoint name for the login handler, for flask.url_for()
     login_path -- The mount point of the login route
-    login_render_func -- The function to call to render the login page; if not
-        specified a default will be provided. It must take an argument named
-        'redir' (for the redir parameter to pass along to flask.url_for) and
-        should support Flask message flashing.
     callback_name -- The endpoint name for the callback handler, for
         flask.url_for()
     callback_path -- The mount point of the callback handler
+    tester_name -- The endpoint name for the URL tester, for flask.url_for()
+    tester_path -- The mount point of the URL tester
+    login_render_func -- The function to call to render the login page; if not
+        specified a default will be provided.
+    notify_render_func -- The function to call to render the user notification
+        page; if not specified a default will be provided.
     session_auth_name -- The session parameter to use for the authenticated user
     force_ssl -- Whether to force authentication to switch to an SSL connection
     stylesheet -- the URL to use for the default page stylesheet
+
+    The login_render_func takes the following arguments:
+
+        login_url -- the URL to use for the login form
+        auth -- the Authl object
+
+    The render_notify_func takes the following arguments:
+
+        cdata -- the client data for the handler
+
+    The login endpoint takes a query parameter of 'me' which is the URL to
+    authenticate against.
+
+    The URL tester endpoint takes a query parameter of 'url' which is the URL
+    to check. It returns a JSON object that describes the detected handler, with
+    the following attributes:
+
+        name -- the service name
+        url -- a canonicized version of the URL
+
+    The URL tester endpoint will only be mounted if tester_path is specified.
+
     """
     # pylint:disable=too-many-arguments,too-many-locals
 
@@ -215,20 +274,27 @@ def setup(app,
     @set_cache(0)
     def render_notify(cdata):
         if notify_render_func:
-            return notify_render_func(cdata)
+            result = notify_render_func(cdata)
+            if result:
+                return result
 
-        return str(cdata)
+        return flask.render_template_string(DEFAULT_NOTIFY_TEMPLATE, cdata=cdata)
 
     @set_cache(0)
-    def render_login_form(**kwargs):
+    def render_login_form(redir):
+        login_url = flask.url_for(login_name,
+                                  redir=redir,
+                                  _scheme=url_scheme,
+                                  _external=bool(url_scheme))
         if login_render_func:
-            return login_render_func(**kwargs)
+            result = login_render_func(login_url=login_url,
+                                       auth=auth)
+            if result:
+                return result
 
         # Default template that shows a login form and flashes all pending messages
         return flask.render_template_string(DEFAULT_LOGIN_TEMPLATE,
-                                            login_url=flask.url_for(login_name,
-                                                                    redir=kwargs.get('redir'),
-                                                                    _scheme=url_scheme),
+                                            login_url=login_url,
                                             stylesheet_url=stylesheet,
                                             auth=auth)
 
@@ -262,3 +328,20 @@ def setup(app,
     for sfx in ['', '/', '/<path:redir>']:
         app.add_url_rule(login_path + sfx, login_name, login)
         app.add_url_rule(callback_path + '/<int:hid>' + sfx, callback_name, callback)
+
+    def find_service():
+        from flask import request
+
+        url = request.args.get('url')
+        if not url:
+            return json.dumps(None)
+
+        handler, _, canon_url = auth.get_handler_for_url(url)
+        if handler:
+            return json.dumps({'name': handler.service_name,
+                               'url': canon_url})
+
+        return json.dumps(None)
+
+    if tester_path:
+        app.add_url_rule(tester_path, tester_name, find_service)

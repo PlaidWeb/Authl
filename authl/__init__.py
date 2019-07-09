@@ -29,9 +29,10 @@ class Authl:
         """ Get the appropriate handler for the specified identity URL.
         Returns a tuple of (handler, id, url). """
         for pos, handler in enumerate(self._handlers):
-            if handler.handles_url(url):
+            result = handler.handles_url(url)
+            if result:
                 LOGGER.debug("%s URL matches %s", url, handler)
-                return handler, pos, url
+                return handler, pos, result
 
         request = request_url(url)
         if request:
@@ -117,6 +118,5 @@ def from_config(config, secret_key):
         from .handlers import test_handler
 
         handlers.append(test_handler.TestHandler())
-
 
     return Authl(handlers)
