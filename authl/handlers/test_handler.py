@@ -10,7 +10,9 @@ class TestHandler(Handler):
     'test:'. Primarily for testing purposes. """
 
     def handles_url(self, url):
-        return url.startswith('test:')
+        if url.startswith('test:'):
+            return url
+        return None
 
     def handles_page(self, headers, content, links):
         return False

@@ -87,11 +87,14 @@ class EmailAddress(Handler):
         """ Validating email by regex: not even once """
         try:
             if urllib.parse.urlparse(url).scheme == 'mailto':
-                return True
+                return url
         except (ValueError, AttributeError):
             pass
 
-        return validate_email.validate_email(url)
+        if validate_email.validate_email(url):
+            return 'mailto:' + url
+
+        return None
 
     def handles_page(self, headers, content, links):
         return None

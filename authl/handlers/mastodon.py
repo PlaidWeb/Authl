@@ -63,7 +63,7 @@ class Mastodon(Handler):
 
         instance = self._get_instance(url)
         if not instance:
-            return False
+            return None
 
         # we have a domain, does it implement the Mastodon instance API?
         LOGGER.debug("Testing Mastodon instance %s", instance)
@@ -72,16 +72,20 @@ class Mastodon(Handler):
             request = requests.get(instance + '/api/v1/instance')
             if request.status_code != 200:
                 LOGGER.debug("Instance endpoint returned error %d", request.status_code)
-                return False
+                return None
 
             info = json.dumps(request.text)
             for key in ('uri', 'version', 'urls'):
                 if key not in info:
                     LOGGER.debug("Instance data missing key '%s'", key)
-                    return False
+                    return None
 
-            # This seems to be a Mastodon endpoint
-            return True
+            # This seems to be a Mastodon endpoint; try to figure out the username
+            for tmpl in ('@(.*)@', '.*/@(.*)$', '.*/user/(.*)%'):
+                match = re.match(tmpl, url)
+                if match:
+                    return instance + '/@' + match[1]
+            return instance
         except Exception as error:  # pylint:disable=broad-except
             LOGGER.debug("Mastodon probe failed: %s", error)
 

@@ -31,6 +31,7 @@ authl.flask.setup(
         'MASTODON_NAME': 'authl testing',
         'MASTODON_HOMEPAGE': 'https://github.com/PlaidWeb/Authl'
     },
+    tester_path='/check_url'
 )
 
 
@@ -43,11 +44,12 @@ def index():
 
     if 'me' in flask.session:
         return 'Hello {me}. Want to <a href="{logout}">log out</a>?'.format(
-            me=flask.session['me'], logout=flask.url_for('logout', redir=flask.request.path[1:])
+            me=flask.session['me'], logout=flask.url_for(
+                'authl.logout', redir=flask.request.path[1:])
         )
 
     return 'You are not logged in. Want to <a href="{login}">log in</a>?'.format(
-        login=flask.url_for('login', redir=flask.request.path[1:]))
+        login=flask.url_for('authl.login', redir=flask.request.path[1:]))
 
 
 @app.route('/logout/')
