@@ -62,7 +62,3 @@ def logout(redir=''):
 
     flask.session.clear()
     return flask.redirect('/' + redir)
-
-
-if __name__ == '__main__':
-    app.run()

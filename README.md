@@ -69,46 +69,55 @@ import authl.flask
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
-# Create a Flask application and give it a randomly-generated signing key
 app = flask.Flask('authl-test')
-app.secret_key = str(uuid.uuid4())
 
-# Configure the default Flask endpoints
+app.secret_key = str(uuid.uuid4())
 authl.flask.setup(
     app,
     {
         'SMTP_HOST': 'localhost',
         'SMTP_PORT': 25,
-        'EMAIL_FROM': 'nobody@example.com',
+        'EMAIL_FROM': 'authl@example.com',
         'EMAIL_SUBJECT': 'Login attempt for Authl test',
         'INDIELOGIN_CLIENT_ID': 'http://localhost',
-        'MASTODON_NAME': 'Authl test site'
+        'TEST_ENABLED': True,
+        'MASTODON_NAME': 'authl testing',
+        'MASTODON_HOMEPAGE': 'https://github.com/PlaidWeb/Authl'
     },
+    tester_path='/check_url'
 )
 
-# Here's a simple page handler which just shows a login link if you're logged out
-# and vice versa
+
 @app.route('/')
 @app.route('/some-page')
 def index():
+    """ Just displays a very basic login form """
+    LOGGER.info("Session: %s", flask.session)
+    LOGGER.info("Request path: %s", flask.request.path)
+
     if 'me' in flask.session:
         return 'Hello {me}. Want to <a href="{logout}">log out</a>?'.format(
-            me=flask.session['me'],
-            logout=flask.url_for('logout', redir=flask.request.path[1:])
+            me=flask.session['me'], logout=flask.url_for(
+                'logout', redir=flask.request.path[1:])
         )
 
     return 'You are not logged in. Want to <a href="{login}">log in</a>?'.format(
-        login=flask.url_for('login', redir=flask.request.path[1:]))
+        login=flask.url_for('authl.login', redir=flask.request.path[1:]))
 
-# And here's a means of logging out
+
 @app.route('/logout/')
 @app.route('/logout/<path:redir>')
 def logout(redir=''):
+    """ Log out from the thing """
+    LOGGER.info("Logging out")
+    LOGGER.info("Redir: %s", redir)
+    LOGGER.info("Request path: %s", flask.request.path)
+
     flask.session.clear()
     return flask.redirect('/' + redir)
 ```
 
-This will configure the Flask app to allow IndieLogin and email-based authentication (using the server's local sendmail), and use the default login endpoint of `/login/`. The `index()` endpoint handler always redirects logins and logouts back to the same page when you log in or log out (the `[1:]` is to trim off the initial `/` from the path). The logout handler simply clears the session and redirects back to the redirection path.
+This will configure the Flask app to allow IndieLogin, Mastodon, and email-based authentication (using the server's local sendmail), and use the default login endpoint of `/login/`. The `index()` endpoint handler always redirects logins and logouts back to the same page when you log in or log out (the `[1:]` is to trim off the initial `/` from the path). The logout handler simply clears the session and redirects back to the redirection path.
 
 The above configuration uses Flask's default session lifetime of one month (this can be configured by setting `app.permanent_session_lifetime` to a `timedelta` object, e.g. `app.permanent_session_lifetime = datetime.timedelta(hours=20)`). Sessions will also implicitly expire whenever the application server is restarted, as `app.secret_key` is generated randomly at every startup.
 
