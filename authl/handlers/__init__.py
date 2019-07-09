@@ -47,16 +47,14 @@ class Handler(ABC):
         """ Returns the human-readable service name """
 
     @abstractproperty
-    def url_scheme(self):
-        """ Returns a URL scheme for the login UI to fill in with a placeholder.
+    def url_schemes(self):
+        """ Returns a list of supported URL schemes for the login UI to fill in
+        with a placeholder.
 
-        Format is a tuple, the first being an example URL with a % placeholder,
-        the second being the text to put into the placeholder.
-
-        Examples:
-
-        ('http://twitter.com/%', 'username')  # Twitter
-        ('https://%', 'instance/@username')   # Mastodon
-        ('%', 'email@example.com')            # Email
-
+        Format is a list of tuples of (format, default_placeholder) where the
+        format string contains a '%' which indicates where the placeholder goes.
         """
+
+    @abstractproperty
+    def description(self):
+        """ Returns a description of the service. HTML, I guess. """

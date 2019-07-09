@@ -19,6 +19,21 @@ LOGGER = logging.getLogger(__name__)
 class Mastodon(Handler):
     """ Handler for Mastodon and Mastodon-like services """
 
+    @property
+    def service_name(self):
+        return "Mastodon"
+
+    @property
+    def url_schemes(self):
+        return [('https://%', 'instance/@username'),
+                ('@%', 'username@instance')]
+
+    @property
+    def description(self):
+        return """Identifies you using your choice of
+        <a href="https://joinmastodon.org/">Mastodon</a>
+        instance."""
+
     def __init__(self, name, homepage=None, max_pending=None, pending_ttl=None):
         """ Instantiate a Mastodon handler.
 
@@ -30,12 +45,6 @@ class Mastodon(Handler):
         self._pending = expiringdict.ExpiringDict(
             max_len=max_pending or 128,
             max_age_seconds=pending_ttl or 600)
-
-    def service_name(self):
-        return "Mastodon"
-
-    def url_scheme(self):
-        return 'https://%', 'instance/@username'
 
     @staticmethod
     def _get_instance(url):
@@ -166,7 +175,14 @@ class Mastodon(Handler):
                 LOGGER.warning("Response did not contain 'url': %s", response)
                 return disposition.Error("No user URL provided")
 
-            return disposition.Verified(response['url'], response)
+            # canonicize the URL and also make sure the domain matches
+            id_url = urllib.parse.urljoin(instance, response['url'])
+            if urllib.parse.urlparse(id_url).netloc != urllib.parse.urlparse(instance).netloc:
+                LOGGER.warning("Instance %s returned response of %s -> %s",
+                               instance, response['url'], id_url)
+                return disposition.Error("Domains do not match")
+
+            return disposition.Verified(id_url, response)
 
         result = get_credentials()
 

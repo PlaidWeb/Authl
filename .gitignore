@@ -106,3 +106,4 @@ cache/
 
 *.sublime-workspace
 
+.DS_Store
