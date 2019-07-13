@@ -208,8 +208,8 @@ def from_config(config):
 
     Posible configuration values:
 
-    MASTODON_NAME -- the name of the website (required)
-    MASTODON_HOMEPAGE -- the website's homepage (recommended)
+    MASTODON_NAME -- the name of your website (required)
+    MASTODON_HOMEPAGE -- your website's homepage (recommended)
     """
 
     return Mastodon(config['MASTODON_NAME'], config.get('MASTODON_HOMEPAGE'))

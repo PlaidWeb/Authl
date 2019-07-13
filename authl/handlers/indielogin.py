@@ -136,7 +136,7 @@ def from_config(config):
     INDIELOGIN_ENDPOINT -- the endpoint to use for the IndieLogin service
         (default: https://indielogin.com/auth)
     INDIELOGIN_OPEN_MAX -- the maximum number of open requests to track
-    INDIELOGIN_OPEN_TTL -- the time-to-live of an open request
+    INDIELOGIN_OPEN_TTL -- the time-to-live of an open request, in seconds
     """
 
     return IndieLogin(
