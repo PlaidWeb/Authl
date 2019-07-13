@@ -7,10 +7,11 @@ Run it locally with:
 
  """
 
-import uuid
 import logging
+import uuid
 
 import flask
+
 import authl.flask
 
 logging.basicConfig(level=logging.INFO)

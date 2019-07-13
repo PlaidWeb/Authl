@@ -9,6 +9,7 @@ twine = "*"
 flake8 = "*"
 flask = "*"
 autopep8 = "*"
+isort = "*"
 
 [packages]
 authl = {editable = true,path = "."}

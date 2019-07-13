@@ -1,15 +1,15 @@
 """ Implementation that uses IndieLogin.com """
 
-import urllib.parse
-import uuid
 import json
 import logging
+import urllib.parse
+import uuid
 
-import requests
 import expiringdict
+import requests
 
-from . import Handler
 from .. import disposition
+from . import Handler
 
 LOGGER = logging.getLogger(__name__)
 

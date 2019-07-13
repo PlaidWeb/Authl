@@ -3,12 +3,11 @@
 import email
 import urllib.parse
 
-import validate_email
 import ska
+import validate_email
 
-from . import Handler
 from .. import disposition
-
+from . import Handler
 
 DEFAULT_TEMPLATE_TEXT = """\
 Hello! Someone, possibly you, asked to log in using this email address. If this

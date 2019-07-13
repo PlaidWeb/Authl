@@ -1,17 +1,17 @@
 """ Mastodon/Pleroma/Fediverse provider """
 
-import re
-import urllib.parse
+import functools
 import json
 import logging
+import re
+import urllib.parse
 import uuid
-import functools
 
 import expiringdict
 import requests
 
-from . import Handler
 from .. import disposition
+from . import Handler
 
 LOGGER = logging.getLogger(__name__)
 

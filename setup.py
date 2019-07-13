@@ -1,9 +1,10 @@
 """Setup for AUthl packaging"""
 
-# Always prefer setuptools over distutils
-from setuptools import setup, find_packages
 from distutils.util import convert_path
 from os import path
+
+# Always prefer setuptools over distutils
+from setuptools import find_packages, setup
 
 here = path.abspath(path.dirname(__file__))
 
@@ -57,11 +58,12 @@ setup(
     ],
 
     extras_require={'dev': [
-        'pylint',
-        'twine',
+        'autopep8',
         'flake8',
         'flask',
-        'autopep8'
+        'isort',
+        'pylint',
+        'twine',
     ]},
 
     project_urls={

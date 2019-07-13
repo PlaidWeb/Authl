@@ -1,8 +1,8 @@
 """ Test handler which always returns an immediate success. Not to be used
 in production. """
 
-from . import Handler
 from .. import disposition
+from . import Handler
 
 
 class TestHandler(Handler):

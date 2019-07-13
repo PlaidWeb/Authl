@@ -2,7 +2,7 @@
 
 import json
 
-from . import from_config, disposition
+from . import disposition, from_config
 
 DEFAULT_STYLESHEET = """
 {% if stylesheet %}
@@ -228,12 +228,14 @@ def setup(app,
 
     The URL tester endpoint will only be mounted if tester_path is specified.
 
+    Return value: the configured Authl instance
+
     """
     # pylint:disable=too-many-arguments,too-many-locals
 
     import flask
 
-    auth = from_config(config, app.secret_key)
+    instance = from_config(config, app.secret_key)
     url_scheme = 'https' if force_ssl else None
 
     def set_cache(age):
@@ -288,7 +290,7 @@ def setup(app,
                                   _external=bool(url_scheme))
         if login_render_func:
             result = login_render_func(login_url=login_url,
-                                       auth=auth)
+                                       auth=instance)
             if result:
                 return result
 
@@ -296,14 +298,14 @@ def setup(app,
         return flask.render_template_string(DEFAULT_LOGIN_TEMPLATE,
                                             login_url=login_url,
                                             stylesheet_url=stylesheet,
-                                            auth=auth)
+                                            auth=instance)
 
     def login(redir=''):
         from flask import request
 
         if 'me' in request.args:
             me_url = request.args['me']
-            handler, hid, id_url = auth.get_handler_for_url(me_url)
+            handler, hid, id_url = instance.get_handler_for_url(me_url)
             if handler:
                 cb_url = flask.url_for(callback_name,
                                        hid=hid,
@@ -320,7 +322,7 @@ def setup(app,
     def callback(hid, redir=''):
         from flask import request
 
-        handler = auth.get_handler_by_id(hid)
+        handler = instance.get_handler_by_id(hid)
         return handle_disposition(
             handler.check_callback(request.url, request.args, request.form), redir
         )
@@ -336,7 +338,7 @@ def setup(app,
         if not url:
             return json.dumps(None)
 
-        handler, _, canon_url = auth.get_handler_for_url(url)
+        handler, _, canon_url = instance.get_handler_for_url(url)
         if handler:
             return json.dumps({'name': handler.service_name,
                                'url': canon_url})
@@ -345,3 +347,5 @@ def setup(app,
 
     if tester_path:
         app.add_url_rule(tester_path, tester_name, find_service)
+
+    return instance
