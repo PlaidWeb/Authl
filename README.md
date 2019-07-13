@@ -26,6 +26,10 @@ Any solution which requires all users to have a certain minimum level of technic
 
 All of these solutions are prone to the so-called "[NASCAR problem](https://indieweb.org/NASCAR_problem)" where every supported login provider needs its own UI. But being able to experiment with a more unified UX might help to fix some of that.
 
+## Documentation
+
+For now, see [the wiki](https://github.com/PlaidWeb/Authl/wiki).
+
 ## Usage
 
 Basic usage is as follows:
