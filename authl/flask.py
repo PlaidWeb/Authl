@@ -1,8 +1,11 @@
 """ Flask wrapper for Authl """
 
 import json
+import logging
 
 from . import disposition, from_config
+
+LOGGER = logging.getLogger(__name__)
 
 DEFAULT_STYLESHEET = """
 {% if stylesheet %}
@@ -256,6 +259,7 @@ def setup(app,
 
         if isinstance(disp, disposition.Verified):
             # The user is verified; log them in
+            LOGGER.info("Successful login: %s", disp.identity)
             flask.session.permanent = True
             flask.session[session_auth_name] = disp.identity
             return flask.redirect('/' + redir)
