@@ -1,5 +1,5 @@
 # Authl
-A library for managing federated identity
+A Python library for managing federated identity
 
 ## About
 
@@ -9,6 +9,8 @@ All it should take is a single login form that asks for how the user wants to be
 
 ## Current state
 
+The basic API works, and provides an easy drop-in set of endpoints for [Flask](http://flask.pocoo.org).
+
 Currently supported authentication mechanisms:
 
 * Directly authenticating against email using a magic link
@@ -16,7 +18,15 @@ Currently supported authentication mechanisms:
 * Federated authentcation against [Mastodon](https://joinmastodon.org)
 * Test/loopback authentication for development purposes
 
-It also provides an easy setup mechanism for use with [Flask](http://flask.pocoo.org).
+Planned functionality:
+
+* Pluggable OAuth mechanism to easily support additional identity providers such as:
+    * IndieAuth
+    * OpenID Connect (Google et al)
+    * Twitter
+    * Facebook
+* OpenID 1.x (Wordpress, LiveJournal, Dreamwidth, etc.)
+* A more flexible configuration system
 
 ## Rationale
 
