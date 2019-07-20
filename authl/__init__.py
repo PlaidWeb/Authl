@@ -63,6 +63,9 @@ def request_url(url):
         return requests.get(url)
     except requests.exceptions.MissingSchema:
         LOGGER.info("Missing schema on URL %s", url)
+    except requests.exceptions.InvalidSchema:
+        LOGGER.info("Not a valid URL scheme: %s", url)
+        return None
 
     try:
         attempt = 'https://' + url
