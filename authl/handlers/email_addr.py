@@ -125,7 +125,7 @@ class EmailAddress(Handler):
         validation = ska.validate_signed_request_data(data=get, **self._cfg)
 
         if validation.result:
-            return disposition.Verified(get[self._cfg['auth_user_param']])
+            return disposition.Verified(get[self._cfg['auth_user_param']].lower())
 
         return disposition.Error(','.join(validation.reason))
 
