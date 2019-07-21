@@ -7,6 +7,7 @@ import time
 import urllib.parse
 import html
 import uuid
+import base64
 
 import expiringdict
 import validate_email
@@ -120,7 +121,7 @@ class EmailAddress(Handler):
                 email=html.escape(dest_addr),
                 minutes=math.ceil(wait_time / 60)))
 
-        token = str(uuid.uuid4())
+        token = base64.urlsafe_b64encode(uuid.uuid4().bytes).decode().replace('=','')
         link_url = (callback_url + ('&' if '?' in callback_url else '?') +
             urllib.parse.urlencode({'t':token}))
 
