@@ -1,13 +1,19 @@
 """ Handler for emailing a magic link """
 
 import email
+import logging
+import math
+import time
 import urllib.parse
 
+import expiringdict
 import ska
 import validate_email
 
 from .. import disposition
 from . import Handler
+
+LOGGER = logging.getLogger(__name__)
 
 DEFAULT_TEMPLATE_TEXT = """\
 Hello! Someone, possibly you, asked to log in using this email address. If this
@@ -18,6 +24,9 @@ was you, please visit the following link within the next {minutes} minutes:
 If this wasn't you, you can safely disregard this message.
 
 """
+
+DEFAULT_WAIT_ERROR = """An email has already been sent to {email}. Please be
+patient; you may try again in {minutes} minutes."""
 
 
 class EmailAddress(Handler):
@@ -43,6 +52,7 @@ class EmailAddress(Handler):
                  notify_cdata,
                  expires_time=None,
                  email_template_text=DEFAULT_TEMPLATE_TEXT,
+                 please_wait_error=DEFAULT_WAIT_ERROR,
                  ):
         """ Instantiate a magic link email handler. Arguments:
 
@@ -71,8 +81,12 @@ class EmailAddress(Handler):
         # pylint:disable=too-many-arguments
         self._sendmail = sendmail
         self._email_template_text = email_template_text
+        self._wait_error = please_wait_error
         self._lifetime = expires_time or 900
         self._cdata = notify_cdata
+        self._timeouts = expiringdict.ExpiringDict(
+            max_age_seconds=self._lifetime * 4,
+            max_len=1024)
 
         self._cfg = {
             'secret_key': secret_key,
@@ -102,6 +116,14 @@ class EmailAddress(Handler):
         # Extract the destination email from the identity URL
         dest_addr = urllib.parse.urlparse(id_url).path
 
+        now = time.time()
+        if dest_addr in self._timeouts and self._timeouts[dest_addr] > now:
+            wait_time = (self._timeouts[dest_addr] - now) * 1.2
+            self._timeouts[dest_addr] = now + wait_time
+            return disposition.Error(self._wait_error.format(
+                email=dest_addr,
+                minutes=math.ceil(wait_time / 60)))
+
         link_url = ska.sign_url(
             url=callback_url,
             auth_user=dest_addr,
@@ -118,6 +140,9 @@ class EmailAddress(Handler):
         )
 
         self._sendmail(msg)
+
+        self._timeouts[dest_addr] = now + self._lifetime / 2
+        LOGGER.debug("Timeout for %s = %f", dest_addr, self._timeouts[dest_addr])
 
         return disposition.Notify(self._cdata)
 
@@ -180,27 +205,30 @@ def from_config(config, secret_key):
 
     Possible configuration values (all optional unless specified):
 
-    SMTP_HOST -- the email host (required)
-    SMTP_PORT -- the email port (required)
-    SMTP_USE_SSL -- whether to use SSL for the SMTP connection
-    SMTP_USERNAME -- the username to use with the SMTP server
-    SMTP_PASSWORD -- the password to use with the SMTP server
+    EMAIL_SENDMAIL -- a function to call to send the email (see simple_sendmail)
     EMAIL_FROM -- the From: address to use when sending an email (required)
     EMAIL_SUBJECT -- the Subject: to use for a login email (required)
     EMAIL_LOGIN_TIMEOUT -- How long (in seconds) the user has to follow the login link
     EMAIL_CHECK_MESSAGE -- The message to send back to the user
     EMAIL_TEMPLATE_FILE -- A path to a text file for the email message
+    SMTP_HOST -- the email host (required if no EMAIL_SENDMAIL)
+    SMTP_PORT -- the email port (required if no EMAIL_SENDMAIL)
+    SMTP_USE_SSL -- whether to use SSL for the SMTP connection
+    SMTP_USERNAME -- the username to use with the SMTP server
+    SMTP_PASSWORD -- the password to use with the SMTP server
     """
 
-    connector = smtplib_connector(
-        hostname=config['SMTP_HOST'],
-        port=config['SMTP_PORT'],
-        username=config.get('SMTP_USERNAME'),
-        password=config.get('SMTP_PASSWORD'),
-        use_ssl=config.get('SMTP_USE_SSL'),
-    )
-
-    send_func = simple_sendmail(connector, config['EMAIL_FROM'], config['EMAIL_SUBJECT'])
+    if config.get('EMAIL_SENDMAIL'):
+        send_func = config['EMAIL_SENDMAIL']
+    else:
+        connector = smtplib_connector(
+            hostname=config['SMTP_HOST'],
+            port=config['SMTP_PORT'],
+            username=config.get('SMTP_USERNAME'),
+            password=config.get('SMTP_PASSWORD'),
+            use_ssl=config.get('SMTP_USE_SSL'),
+        )
+        send_func = simple_sendmail(connector, config['EMAIL_FROM'], config['EMAIL_SUBJECT'])
 
     check_message = config.get('EMAIL_CHECK_MESSAGE', 'Check your email for a login link')
 
