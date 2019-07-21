@@ -14,7 +14,7 @@ import flask
 
 import authl.flask
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
 
 app = flask.Flask('authl-test')
@@ -31,12 +31,14 @@ def on_login(verified):
 authl.flask.setup(
     app,
     {
-        'SMTP_HOST': 'localhost',
-        'SMTP_PORT': 25,
-        'EMAIL_FROM': 'nobody@beesbuzz.biz',
-        'EMAIL_SUBJECT': 'Login attempt for Authl test',
+        'EMAIL_SENDMAIL': print,
+        'EMAIL_FROM': 'nobody@example.com',
+        'EMAIL_SUBJECT': 'Log in to authl test',
+
         'INDIELOGIN_CLIENT_ID': 'http://localhost',
+
         'TEST_ENABLED': True,
+
         'MASTODON_NAME': 'authl testing',
         'MASTODON_HOMEPAGE': 'https://github.com/PlaidWeb/Authl'
     },

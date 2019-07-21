@@ -102,7 +102,7 @@ def from_config(config, secret_key):
     """
 
     handlers = []
-    if config.get('EMAIL_FROM'):
+    if config.get('EMAIL_FROM') or config.get('EMAIL_SENDMAIL'):
         from .handlers import email_addr
 
         handlers.append(email_addr.from_config(config, secret_key))
