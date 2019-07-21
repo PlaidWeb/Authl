@@ -1,18 +1,16 @@
 """ Handler for emailing a magic link """
 
 import email
+import html
 import logging
 import math
 import time
 import urllib.parse
-import html
-import uuid
-import base64
 
 import expiringdict
 import validate_email
 
-from .. import disposition
+from .. import disposition, utils
 from . import Handler
 
 LOGGER = logging.getLogger(__name__)
@@ -49,7 +47,6 @@ class EmailAddress(Handler):
         "magic link" to the destination address."""
 
     def __init__(self,
-                 secret_key,
                  sendmail,
                  notify_cdata,
                  expires_time=None,
@@ -59,9 +56,6 @@ class EmailAddress(Handler):
         """ Instantiate a magic link email handler. Arguments:
 
         from_addr -- the address that the email should be sent from
-        secret_key -- a secret key for the authentication algorithm to use.
-            This should be a fixed value that is configured outside of code
-            (e.g. via an environment variable)
         sendmail -- a function that, given an email.message object, sends it.
             It is the responsibility of this function to set the From and
             Subject headers before it sends.
@@ -121,9 +115,9 @@ class EmailAddress(Handler):
                 email=html.escape(dest_addr),
                 minutes=math.ceil(wait_time / 60)))
 
-        token = base64.urlsafe_b64encode(uuid.uuid4().bytes).decode().replace('=','')
+        token = utils.gen_token()
         link_url = (callback_url + ('&' if '?' in callback_url else '?') +
-            urllib.parse.urlencode({'t':token}))
+                    urllib.parse.urlencode({'t': token}))
 
         msg = email.message.EmailMessage()
         msg['To'] = dest_addr
@@ -204,7 +198,7 @@ def simple_sendmail(connector, sender_address, subject):
     return sendmail
 
 
-def from_config(config, secret_key):
+def from_config(config):
     """ Generate an EmailAddress handler from the provided configuration dictionary.
 
     Possible configuration values (all optional unless specified):
@@ -243,7 +237,6 @@ def from_config(config, secret_key):
         email_template_text = DEFAULT_TEMPLATE_TEXT
 
     return EmailAddress(
-        secret_key,
         send_func,
         {'message': check_message},
         expires_time=config.get('EMAIL_LOGIN_TIMEOUT'),

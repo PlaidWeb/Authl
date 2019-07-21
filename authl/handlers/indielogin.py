@@ -3,12 +3,11 @@
 import json
 import logging
 import urllib.parse
-import uuid
 
 import expiringdict
 import requests
 
-from .. import disposition
+from .. import disposition, utils
 from . import Handler
 
 LOGGER = logging.getLogger(__name__)
@@ -74,7 +73,7 @@ class IndieLogin(Handler):
         LOGGER.info('Initiate auth: %s %s', id_url, callback_url)
 
         # register a new transaction ID
-        state = str(uuid.uuid4())
+        state = utils.gen_token()
         self._pending[state] = {'id_url': id_url, 'callback_uri': callback_url}
 
         auth_url = (
