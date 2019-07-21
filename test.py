@@ -20,6 +20,14 @@ LOGGER = logging.getLogger(__name__)
 app = flask.Flask('authl-test')
 
 app.secret_key = str(uuid.uuid4())
+
+
+def on_login(verified):
+    LOGGER.info("Got login: %s", verified)
+    if verified.identity == 'test:override':
+        return "This user gets a special override"
+
+
 authl.flask.setup(
     app,
     {
@@ -32,7 +40,8 @@ authl.flask.setup(
         'MASTODON_NAME': 'authl testing',
         'MASTODON_HOMEPAGE': 'https://github.com/PlaidWeb/Authl'
     },
-    tester_path='/check_url'
+    tester_path='/check_url',
+    on_verified=on_login
 )
 
 

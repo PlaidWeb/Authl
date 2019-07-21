@@ -183,7 +183,8 @@ def setup(app,
           notify_render_func=None,
           session_auth_name='me',
           force_ssl=False,
-          stylesheet=None
+          stylesheet=None,
+          on_verified=None
           ):
     """ Setup Authl to work with a Flask application.
 
@@ -209,6 +210,8 @@ def setup(app,
     session_auth_name -- The session parameter to use for the authenticated user
     force_ssl -- Whether to force authentication to switch to an SSL connection
     stylesheet -- the URL to use for the default page stylesheet
+    on_verified -- A function to call on successful login (called after
+        setting the session value)
 
     The login_render_func takes the following arguments:
 
@@ -218,6 +221,11 @@ def setup(app,
     The render_notify_func takes the following arguments:
 
         cdata -- the client data for the handler
+
+    The on_verified function receives the disposition.Verified object, and may
+    return a Flask response of its own, ideally a flask.redirect(). This can be
+    used to capture more information about the user (such as their display name)
+    or to redirect certain users to an administrative screen of some sort.
 
     The login endpoint takes a query parameter of 'me' which is the URL to
     authenticate against.
@@ -262,6 +270,12 @@ def setup(app,
             LOGGER.info("Successful login: %s", disp.identity)
             flask.session.permanent = True
             flask.session[session_auth_name] = disp.identity
+
+            if on_verified:
+                response = on_verified(disp)
+                if response:
+                    return response
+
             return flask.redirect('/' + redir)
 
         if isinstance(disp, disposition.Notify):
