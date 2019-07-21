@@ -1,9 +1,9 @@
 """ Handler for emailing a magic link """
 
 import email
+import logging
 import math
 import time
-import logging
 import urllib.parse
 
 import expiringdict
