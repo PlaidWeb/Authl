@@ -100,12 +100,13 @@ def from_config(config, secret_key):
         INDIELOGIN_CLIENT_ID -- enable the IndieLogin handler
 
     """
+    # pylint:disable=unused-argument
 
     handlers = []
     if config.get('EMAIL_FROM') or config.get('EMAIL_SENDMAIL'):
         from .handlers import email_addr
 
-        handlers.append(email_addr.from_config(config, secret_key))
+        handlers.append(email_addr.from_config(config))
 
     if config.get('MASTODON_NAME'):
         from .handlers import mastodon

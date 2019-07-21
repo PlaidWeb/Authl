@@ -5,12 +5,11 @@ import json
 import logging
 import re
 import urllib.parse
-import uuid
 
 import expiringdict
 import requests
 
-from .. import disposition
+from .. import disposition, utils
 from . import Handler
 
 LOGGER = logging.getLogger(__name__)
@@ -111,7 +110,7 @@ class Mastodon(Handler):
     def initiate_auth(self, id_url, callback_url):
         instance = self._get_instance(id_url)
 
-        state = str(uuid.uuid4())
+        state = utils.gen_token()
 
         client = self._get_client(instance, callback_url)
         if not client:

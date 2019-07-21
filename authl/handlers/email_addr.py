@@ -1,16 +1,16 @@
 """ Handler for emailing a magic link """
 
 import email
+import html
 import logging
 import math
 import time
 import urllib.parse
 
 import expiringdict
-import ska
 import validate_email
 
-from .. import disposition
+from .. import disposition, utils
 from . import Handler
 
 LOGGER = logging.getLogger(__name__)
@@ -47,7 +47,6 @@ class EmailAddress(Handler):
         "magic link" to the destination address."""
 
     def __init__(self,
-                 secret_key,
                  sendmail,
                  notify_cdata,
                  expires_time=None,
@@ -57,9 +56,6 @@ class EmailAddress(Handler):
         """ Instantiate a magic link email handler. Arguments:
 
         from_addr -- the address that the email should be sent from
-        secret_key -- a secret key for the authentication algorithm to use.
-            This should be a fixed value that is configured outside of code
-            (e.g. via an environment variable)
         sendmail -- a function that, given an email.message object, sends it.
             It is the responsibility of this function to set the From and
             Subject headers before it sends.
@@ -84,17 +80,12 @@ class EmailAddress(Handler):
         self._wait_error = please_wait_error
         self._lifetime = expires_time or 900
         self._cdata = notify_cdata
-        self._timeouts = expiringdict.ExpiringDict(
-            max_age_seconds=self._lifetime * 4,
+        self._pending = expiringdict.ExpiringDict(
+            max_age_seconds=self._lifetime,
             max_len=1024)
-
-        self._cfg = {
-            'secret_key': secret_key,
-            'signature_param': 's',
-            'auth_user_param': 'u',
-            'valid_until_param': 'v',
-            'extra_param': 'e',
-        }
+        self._timeouts = expiringdict.ExpiringDict(
+            max_age_seconds=86400,
+            max_len=1024)
 
     def handles_url(self, url):
         """ Validating email by regex: not even once """
@@ -114,23 +105,19 @@ class EmailAddress(Handler):
 
     def initiate_auth(self, id_url, callback_url):
         # Extract the destination email from the identity URL
-        dest_addr = urllib.parse.urlparse(id_url).path
+        dest_addr = urllib.parse.urlparse(id_url).path.lower()
 
         now = time.time()
         if dest_addr in self._timeouts and self._timeouts[dest_addr] > now:
             wait_time = (self._timeouts[dest_addr] - now) * 1.2
             self._timeouts[dest_addr] = now + wait_time
             return disposition.Error(self._wait_error.format(
-                email=dest_addr,
+                email=html.escape(dest_addr),
                 minutes=math.ceil(wait_time / 60)))
 
-        link_url = ska.sign_url(
-            url=callback_url,
-            auth_user=dest_addr,
-            lifetime=self._lifetime,
-            suffix='&' if '?' in callback_url else '?',
-            **self._cfg
-        )
+        token = utils.gen_token()
+        link_url = (callback_url + ('&' if '?' in callback_url else '?') +
+                    urllib.parse.urlencode({'t': token}))
 
         msg = email.message.EmailMessage()
         msg['To'] = dest_addr
@@ -141,18 +128,29 @@ class EmailAddress(Handler):
 
         self._sendmail(msg)
 
+        self._pending[token] = dest_addr
         self._timeouts[dest_addr] = now + self._lifetime / 2
         LOGGER.debug("Timeout for %s = %f", dest_addr, self._timeouts[dest_addr])
 
         return disposition.Notify(self._cdata)
 
     def check_callback(self, url, get, data):
-        validation = ska.validate_signed_request_data(data=get, **self._cfg)
+        token = get.get('t')
+        print(token, self._pending)
 
-        if validation.result:
-            return disposition.Verified(get[self._cfg['auth_user_param']].lower())
+        if not token or token not in self._pending:
+            return disposition.Error('Invalid or expired sign-in token')
 
-        return disposition.Error(','.join(validation.reason))
+        email_addr = self._pending[token]
+        del self._pending[token]
+
+        if not email_addr or not validate_email.validate_email(email_addr):
+            return disposition.Error('Invalid email address ' + html.escape(str(email_addr)))
+
+        if email_addr in self._timeouts:
+            del self._timeouts[email_addr]
+
+        return disposition.Verified(email_addr)
 
 
 def smtplib_connector(hostname, port, username=None, password=None, use_ssl=True):
@@ -200,7 +198,7 @@ def simple_sendmail(connector, sender_address, subject):
     return sendmail
 
 
-def from_config(config, secret_key):
+def from_config(config):
     """ Generate an EmailAddress handler from the provided configuration dictionary.
 
     Possible configuration values (all optional unless specified):
@@ -239,7 +237,6 @@ def from_config(config, secret_key):
         email_template_text = DEFAULT_TEMPLATE_TEXT
 
     return EmailAddress(
-        secret_key,
         send_func,
         {'message': check_message},
         expires_time=config.get('EMAIL_LOGIN_TIMEOUT'),
