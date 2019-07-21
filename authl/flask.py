@@ -184,7 +184,8 @@ def setup(app,
           session_auth_name='me',
           force_ssl=False,
           stylesheet=None,
-          on_verified=None
+          on_verified=None,
+          make_permanent=True
           ):
     """ Setup Authl to work with a Flask application.
 
@@ -212,6 +213,8 @@ def setup(app,
     stylesheet -- the URL to use for the default page stylesheet
     on_verified -- A function to call on successful login (called after
         setting the session value)
+    make_permanent -- Whether a session should persist past the browser window
+        closing
 
     The login_render_func takes the following arguments:
 
@@ -268,7 +271,7 @@ def setup(app,
         if isinstance(disp, disposition.Verified):
             # The user is verified; log them in
             LOGGER.info("Successful login: %s", disp.identity)
-            flask.session.permanent = True
+            flask.session.permanent = make_permanent
             flask.session[session_auth_name] = disp.identity
 
             if on_verified:
@@ -312,10 +315,9 @@ def setup(app,
             if result:
                 return result
 
-        # Default template that shows a login form and flashes all pending messages
         return flask.render_template_string(DEFAULT_LOGIN_TEMPLATE,
                                             login_url=login_url,
-                                            stylesheet_url=stylesheet,
+                                            stylesheet=stylesheet,
                                             auth=instance)
 
     def login(redir=''):
