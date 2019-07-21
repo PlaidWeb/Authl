@@ -53,7 +53,6 @@ setup(
         'beautifulsoup4',
         'requests',
         'validate_email',
-        'ska',
         'expiringdict',
     ],
 
