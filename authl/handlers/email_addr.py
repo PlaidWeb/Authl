@@ -150,7 +150,7 @@ class EmailAddress(Handler):
         if email_addr in self._timeouts:
             del self._timeouts[email_addr]
 
-        return disposition.Verified(email_addr)
+        return disposition.Verified('mailto:' + email_addr)
 
 
 def smtplib_connector(hostname, port, username=None, password=None, use_ssl=True):
