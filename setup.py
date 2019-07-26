@@ -49,6 +49,8 @@ setup(
 
     packages=find_packages(),
 
+    package_data={'authl': ['flask_templates/*']},
+
     install_requires=[
         'beautifulsoup4',
         'requests',

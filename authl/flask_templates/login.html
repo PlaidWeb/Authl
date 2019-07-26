@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="{{stylesheet}}">
+
+<script>
+function setUrl(url, repltext) {
+    repltext = repltext || 'username';
+    var index = url.indexOf('%');
+    url = url.replace('%', repltext);
+
+    var profile_url = document.getElementById('me');
+    profile_url.value = url;
+    profile_url.focus();
+    if (index >= 0) {
+        profile_url.setSelectionRange(index, index + repltext.length);
+    }
+}
+</script>
+</head>
+
+<body>
+    <div id="login">
+        <h1>Identify Yourself</h1>
+        <form method="GET" action="{{login_url}}" novalidate>
+            <input id="me" type="url" name="me" size="30" placeholder="Your ID here" autofocus>
+            <button>Go!</button>
+            <label for="me" id="url_type"></label>
+            {% with messages = get_flashed_messages() %}
+            {% if messages %}
+            <ul class="flashes">
+                {% for message in messages %}
+                <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            {% endwith %}
+        </form>
+
+        <div id="info">
+            <p>This form allows you to log in using your existing identity from another website or
+                provider. The following sources are supported:</p>
+            <ul>
+                {% for handler in auth.handlers %}
+                <li><a href="#"
+                       onClick="setUrl('{{ handler.url_schemes[0][0] }}',
+                                       '{{ handler.url_schemes[0][1] }}')">{{
+                                        handler.service_name }}</a>
+                    &mdash; <span class="description">{{handler.description|safe}}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div id="powered">
+            <p>Powered by <a href="https://github.com/PlaidWeb/Authl">Authl</a></p>
+        </div>
+    </div>
+</body>
+</html>

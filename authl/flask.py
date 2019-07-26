@@ -1,174 +1,13 @@
 """ Flask wrapper for Authl """
 
+import functools
 import json
 import logging
+import os
 
-from . import disposition, from_config
+from . import disposition, from_config, utils
 
 LOGGER = logging.getLogger(__name__)
-
-DEFAULT_STYLESHEET = """
-{% if stylesheet %}
-<link rel="stylesheet" href="{{stylesheet}}">
-{% else %}
-<style>
-body {
-    background: #ccccff;
-    font-family: "Helvetica Neue", sans-serif;
-}
-#login {
-    background: white;
-    border-radius: 1em;
-    box-shadow: 0px 5px 5px rgba(0,0,0,0.25);
-
-    margin: 3em;
-    overflow: hidden;
-}
-#info {
-    font-size: small;
-    color: #333;
-    background: #eee;
-    padding: 1ex 1em;
-    border-top: solid #ccc 1px;
-}
-h1 {
-    background: #ffc;
-    margin: 0 0 1ex;
-    padding: 1ex 1em;
-    box-shadow: 0px 1px 2px rgba(0,0,0,0.25);
-}
-form, #notify {
-    display: inline-block;
-    font-size: large;
-    margin: 1em;
-}
-input[type="url"] {
-    font-family: "Helvetica Neue", sans-serif;
-    font-weight: light;
-    font-size: large;
-}
-.description {
-    font-style: italic;
-    color: #555;
-}
-a:link {
-    color: #500;
-}
-.description a:link {
-    color: #944;
-}
-.flashes {
-    color: #700;
-    list-style-type: none;
-    font-size: small;
-    margin: 0;
-    padding: 0;
-}
-.flashes li {
-    margin: 0;
-    padding: 0;
-    display: inline;
-}
-.flashes li + li::before {
-    content: ' | ';
-}
-
-#powered {
-    font-size: x-small;
-    background: #ddd;
-}
-#powered p {
-    margin: 0 1em;
-    padding: 0;
-}
-</style>
-{% endif %}
-"""
-
-DEFAULT_LOGIN_TEMPLATE = """<!DOCTYPE html>
-<html>
-
-<head>
-<title>Login</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-""" + DEFAULT_STYLESHEET + """
-
-<script>
-function setUrl(url, repltext) {
-    repltext = repltext || 'username';
-    var index = url.indexOf('%');
-    url = url.replace('%', repltext);
-
-    var profile_url = document.getElementById('me');
-    profile_url.value = url;
-    profile_url.focus();
-    if (index >= 0) {
-        profile_url.setSelectionRange(index, index + repltext.length);
-    }
-}
-</script>
-</head>
-
-<body>
-    <div id="login">
-        <h1>Identify Yourself</h1>
-        <form method="GET" action="{{login_url}}" novalidate>
-            <input id="me" type="url" name="me" size="30" placeholder="Your ID here" autofocus>
-            <button>Go!</button>
-            <label for="me" id="url_type"></label>
-            {% with messages = get_flashed_messages() %}
-            {% if messages %}
-            <ul class="flashes">
-                {% for message in messages %}
-                <li>{{ message }}</li>
-                {% endfor %}
-            </ul>
-            {% endif %}
-            {% endwith %}
-        </form>
-
-        <div id="info">
-            <p>This form allows you to log in using your existing identity from another website or
-                provider. The following sources are supported:</p>
-            <ul>
-                {% for handler in auth.handlers %}
-                <li><a href="#"
-                       onClick="setUrl('{{ handler.url_schemes[0][0] }}',
-                                       '{{ handler.url_schemes[0][1] }}')">{{
-                                        handler.service_name }}</a>
-                    &mdash; <span class="description">{{handler.description|safe}}</span></li>
-                {% endfor %}
-            </ul>
-        </div>
-
-        <div id="powered">
-        <p>Powered by <a href="https://github.com/PlaidWeb/Authl">Authl</a></p>
-    </div>
-</body>
-</html>
-"""
-
-
-DEFAULT_NOTIFY_TEMPLATE = """<!DOCTYPE html>
-<html>
-
-<head>
-<title>Complete your login</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-""" + DEFAULT_STYLESHEET + """
-
-<body>
-    <div id="login">
-        <h1>Next Step</h1>
-
-        <div id="notify">
-            {{cdata.message}}
-        </div>
-
-    </div>
-</body>
-</html>
-"""
 
 
 def setup(app,
@@ -294,6 +133,10 @@ def setup(app,
         import werkzeug.exceptions as http_error
         raise http_error.InternalServerError("Unknown disposition type " + type(disp))
 
+    @functools.lru_cache(8)
+    def load_template(filename):
+        return utils.read_file(os.path.join(os.path.dirname(__file__), 'flask_templates', filename))
+
     @set_cache(0)
     def render_notify(cdata):
         if notify_render_func:
@@ -301,7 +144,9 @@ def setup(app,
             if result:
                 return result
 
-        return flask.render_template_string(DEFAULT_NOTIFY_TEMPLATE, cdata=cdata)
+        return flask.render_template_string(load_template('notify.html'),
+                                            cdata=cdata,
+                                            stylesheet=get_stylesheet())
 
     @set_cache(0)
     def render_login_form(redir):
@@ -315,13 +160,19 @@ def setup(app,
             if result:
                 return result
 
-        return flask.render_template_string(DEFAULT_LOGIN_TEMPLATE,
+        return flask.render_template_string(load_template('login.html'),
                                             login_url=login_url,
-                                            stylesheet=stylesheet,
+                                            stylesheet=get_stylesheet(),
                                             auth=instance)
 
     def login(redir=''):
         from flask import request
+
+        if 'asset' in request.args:
+            asset = request.args['asset']
+            if asset == 'css':
+                return load_template('authl.css'), {'Content-Type': 'text/css'}
+            raise http_error.NotFound("Unknown asset " + asset)
 
         if 'me' in request.args:
             me_url = request.args['me']
@@ -350,6 +201,11 @@ def setup(app,
     for sfx in ['', '/', '/<path:redir>']:
         app.add_url_rule(login_path + sfx, login_name, login)
         app.add_url_rule(callback_path + '/<int:hid>' + sfx, callback_name, callback)
+
+    def get_stylesheet():
+        if stylesheet is None:
+            return flask.url_for(login_name, asset='css')
+        return stylesheet
 
     def find_service():
         from flask import request
