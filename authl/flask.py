@@ -59,6 +59,10 @@ def setup(app,
 
         login_url -- the URL to use for the login form
         auth -- the Authl object
+        
+    If login_render_func returns a false value, the default login form will be
+    used instead. This is useful for providing a conditional override, or as a
+    rudimentary hook for analytics on the login flow or the like.
 
     The render_notify_func takes the following arguments:
 
