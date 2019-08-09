@@ -135,3 +135,18 @@ This will configure the Flask app to allow IndieLogin, Mastodon, and email-based
 
 The above configuration uses Flask's default session lifetime of one month (this can be configured by setting `app.permanent_session_lifetime` to a `timedelta` object, e.g. `app.permanent_session_lifetime = datetime.timedelta(hours=20)`). Sessions will also implicitly expire whenever the application server is restarted, as `app.secret_key` is generated randomly at every startup.
 
+### Accessing the default stylesheet
+
+If you would like to access `authl.flask`'s default stylesheet, you can do it by passing the argument `asset='css'` to the `login` endpoint. For example, if you are using the default endpoint name of `login`, you can use:
+
+```python
+flask.url_for('login', asset='css')
+```
+
+from Python, or e.g.
+
+```html
+<link rel="stylesheet" href="{{url_for('login', asset='css')}}">
+```
+
+from a Jinja template.
