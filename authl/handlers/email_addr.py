@@ -113,7 +113,7 @@ class EmailAddress(Handler):
             self._timeouts[dest_addr] = now + wait_time
             return disposition.Error(self._wait_error.format(
                 email=html.escape(dest_addr),
-                minutes=math.ceil(wait_time / 60)))
+                minutes=int(math.ceil(wait_time / 60))))
 
         token = utils.gen_token()
         link_url = (callback_url + ('&' if '?' in callback_url else '?') +
@@ -123,7 +123,8 @@ class EmailAddress(Handler):
         msg['To'] = dest_addr
 
         msg.set_content(
-            self._email_template_text.format(url=link_url, minutes=self._lifetime / 60)
+            self._email_template_text.format(
+                url=link_url, minutes=int(math.ceil(self._lifetime / 60)))
         )
 
         self._sendmail(msg)
