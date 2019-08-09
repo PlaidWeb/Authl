@@ -5,6 +5,8 @@ import json
 import logging
 import os
 
+import werkzeug.exceptions as http_error
+
 from . import disposition, from_config, utils
 
 LOGGER = logging.getLogger(__name__)
@@ -59,7 +61,7 @@ def setup(app,
 
         login_url -- the URL to use for the login form
         auth -- the Authl object
-        
+
     If login_render_func returns a false value, the default login form will be
     used instead. This is useful for providing a conditional override, or as a
     rudimentary hook for analytics on the login flow or the like.
@@ -134,7 +136,6 @@ def setup(app,
             return render_login_form(redir=redir)
 
         # unhandled disposition
-        import werkzeug.exceptions as http_error
         raise http_error.InternalServerError("Unknown disposition type " + type(disp))
 
     @functools.lru_cache(8)
