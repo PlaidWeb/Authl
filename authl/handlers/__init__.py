@@ -1,7 +1,7 @@
 
 """ Basis for Authl authentication handlers """
 
-from abc import ABC, abstractmethod, abstractproperty
+from abc import ABC, abstractmethod
 
 
 class Handler(ABC):
@@ -42,11 +42,13 @@ class Handler(ABC):
         Returns a Disposition object to be handled by the frontend.
         """
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def service_name(self):
         """ Returns the human-readable service name """
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def url_schemes(self):
         """ Returns a list of supported URL schemes for the login UI to fill in
         with a placeholder.
@@ -55,6 +57,7 @@ class Handler(ABC):
         format string contains a '%' which indicates where the placeholder goes.
         """
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def description(self):
         """ Returns a description of the service. HTML, I guess. """

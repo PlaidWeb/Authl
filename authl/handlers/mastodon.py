@@ -6,17 +6,28 @@ import logging
 import re
 import urllib.parse
 
-import expiringdict
 import requests
 
-from .. import disposition, utils
-from . import Handler
+from .. import disposition
+from . import oauth
 
 LOGGER = logging.getLogger(__name__)
 
 
-class Mastodon(Handler):
+class Mastodon(oauth.OAuth):
     """ Handler for Mastodon and Mastodon-like services """
+
+    class Client(oauth.Client):
+        """ Mastodon OAuth client info """
+        # pylint:disable=too-few-public-methods
+
+        def __init__(self, instance, client_id, client_secret, callback):
+            super().__init__(instance + '/oauth',
+                             client_id,
+                             client_secret,
+                             callback,
+                             'read:accounts')
+            self.instance = instance
 
     @property
     def service_name(self):
@@ -39,13 +50,12 @@ class Mastodon(Handler):
         name -- Human-readable website name
         homepage -- Homepage for the website
         """
+        super().__init__(max_pending, pending_ttl)
         self._name = name
         self._homepage = homepage
-        self._pending = expiringdict.ExpiringDict(
-            max_len=max_pending or 128,
-            max_age_seconds=pending_ttl or 600)
 
     @staticmethod
+    @functools.lru_cache(128)
     def _get_instance(url):
         match = re.match('@.*@(.*)$', url)
         if match:
@@ -55,19 +65,11 @@ class Mastodon(Handler):
             if not parsed.netloc:
                 parsed = urllib.parse.urlparse('https://' + url)
             domain = parsed.netloc
-        return 'https://' + domain
 
-    def handles_url(self, url):
-        # Try to extract out the instance name
-
-        instance = self._get_instance(url)
-        if not instance:
-            return None
-
-        # we have a domain, does it implement the Mastodon instance API?
-        LOGGER.debug("Testing Mastodon instance %s", instance)
+        instance = 'https://' + domain
 
         try:
+            LOGGER.debug("Trying Mastodon instance: %s", instance)
             request = requests.get(instance + '/api/v1/instance')
             if request.status_code != 200:
                 LOGGER.debug("Instance endpoint returned error %d", request.status_code)
@@ -79,127 +81,78 @@ class Mastodon(Handler):
                     LOGGER.debug("Instance data missing key '%s'", key)
                     return None
 
-            # This seems to be a Mastodon endpoint; try to figure out the username
-            for tmpl in ('@(.*)@', '.*/@(.*)$', '.*/user/(.*)%'):
-                match = re.match(tmpl, url)
-                if match:
-                    return instance + '/@' + match[1]
+            LOGGER.info("Found Mastodon instance: %s", instance)
             return instance
         except Exception as error:  # pylint:disable=broad-except
             LOGGER.debug("Mastodon probe failed: %s", error)
 
-        return False
+        return None
+
+    def handles_url(self, url):
+        LOGGER.info("Checking URL %s", url)
+
+        instance = self._get_instance(url)
+        if not instance:
+            LOGGER.debug("Not a Mastodon instance: %s", url)
+            return None
+
+        # This seems to be a Mastodon endpoint; try to figure out the username
+        for tmpl in ('@(.*)@', '.*/@(.*)$', '.*/user/(.*)%'):
+            match = re.match(tmpl, url)
+            if match:
+                LOGGER.debug("handles_url: instance %s user %s", instance, match[1])
+                return instance + '/@' + match[1]
+
+        return instance
 
     def handles_page(self, headers, content, links):
         return False
 
     @functools.lru_cache(128)
-    def _get_client(self, instance, callback):
+    def _get_client(self, id_url, callback_url):
         """ Get the client data """
+        instance = self._get_instance(id_url)
         request = requests.post(instance + '/api/v1/apps',
                                 data={
                                     'client_name': self._name,
-                                    'redirect_uris': callback,
+                                    'redirect_uris': callback_url,
                                     'scopes': 'read:accounts',
                                     'website': self._homepage
                                 })
         if request.status_code != 200:
             return None
-        return json.loads(request.text)
+        info = json.loads(request.text)
 
-    def initiate_auth(self, id_url, callback_url):
-        instance = self._get_instance(id_url)
+        if info['redirect_uri'] != callback_url:
+            raise ValueError("Got incorrect redirect_uri")
 
-        state = utils.gen_token()
+        return Mastodon.Client(
+            instance,
+            info['client_id'],
+            info['client_secret'],
+            callback_url)
 
-        client = self._get_client(instance, callback_url)
-        if not client:
-            return disposition.Error("Failed to register OAuth client")
-        client['instance'] = instance
-
-        self._pending[state] = {**client}
-
-        if client.get('redirect_uri') != callback_url:
-            return disposition.Error("Got incorrect callback URL")
-
-        url = instance + '/oauth/authorize?' + urllib.parse.urlencode({
-            'client_id': client['client_id'],
-            'response_type': 'code',
-            'redirect_uri': callback_url,
-            'scope': 'read:accounts',
-            'state': state
-        })
-        return disposition.Redirect(url)
-
-    def check_callback(self, url, get, data):
-        state = get.get('state')
-        if not state:
-            return disposition.Error("No transaction ID provided")
-        if state not in self._pending:
-            LOGGER.warning('state=%s pending=%s', state, self._pending)
-            return disposition.Error('Transaction invalid or expired')
-        client = self._pending[state]
-        instance = client['instance']
-
-        if 'code' not in get:
-            return disposition.Error("Missing auth code")
-
-        # Get the actual auth token
-        request = requests.post(instance + '/oauth/token',
-                                data={
-                                    'client_id': client['client_id'],
-                                    'client_secret': client['client_secret'],
-                                    'grant_type': 'authorization_code',
-                                    'code': get['code'],
-                                    'redirect_uri': client['redirect_uri']
-                                })
+    def _get_identity(self, client, auth_headers):
+        request = requests.get(
+            client.instance + '/api/v1/accounts/verify_credentials',
+            headers=auth_headers)
         if request.status_code != 200:
-            LOGGER.warning('oauth/token: %d %s', request.status_code, request.text)
-            return disposition.Error("Could not retrieve access token")
+            LOGGER.warning('verify_credentials: %d %s', request.status_code, request.text)
+            return disposition.Error("Unable to get account credentials")
 
         response = json.loads(request.text)
-        if 'access_token' not in response:
-            LOGGER.warning("Response did not contain 'access_token': %s", response)
-            return disposition.Error("No access token provided")
+        if 'url' not in response:
+            LOGGER.warning("Response did not contain 'url': %s", response)
+            return disposition.Error("No user URL provided")
 
-        token = response['access_token']
-        auth_headers = {'Authorization': 'Bearer ' + token}
+        # canonicize the URL and also make sure the domain matches
+        id_url = urllib.parse.urljoin(client.instance, response['url'])
+        if urllib.parse.urlparse(id_url).netloc != urllib.parse.urlparse(client.instance).netloc:
+            LOGGER.warning("Instance %s returned response of %s -> %s",
+                           client.instance, response['url'], id_url)
+            return disposition.Error("Domains do not match")
 
-        def get_credentials():
-            # now we can get the authenticated user profile
-            request = requests.get(instance + '/api/v1/accounts/verify_credentials',
-                                   headers=auth_headers)
-            if request.status_code != 200:
-                LOGGER.warning('verify_credentials: %d %s', request.status_code, request.text)
-                return disposition.Error("Unable to get account credentials")
-
-            response = json.loads(request.text)
-            if 'url' not in response:
-                LOGGER.warning("Response did not contain 'url': %s", response)
-                return disposition.Error("No user URL provided")
-
-            # canonicize the URL and also make sure the domain matches
-            id_url = urllib.parse.urljoin(instance, response['url'])
-            if urllib.parse.urlparse(id_url).netloc != urllib.parse.urlparse(instance).netloc:
-                LOGGER.warning("Instance %s returned response of %s -> %s",
-                               instance, response['url'], id_url)
-                return disposition.Error("Domains do not match")
-
-            return disposition.Verified(id_url, response)
-
-        result = get_credentials()
-
-        # try to clean up after ourselves
-        request = requests.post(instance + '/oauth/revoke', data={
-            'client_id': client['client_id'],
-            'client_secret': client['client_secret'],
-            'token': token
-        }, headers=auth_headers)
-        if request.status_code != 200:
-            LOGGER.warning("Unable to revoke credentials: %d %s", request.status_code, request.text)
-        LOGGER.info("Revocation response: %s", request.text)
-
-        return result
+        return disposition.Verified(id_url, response)
 
 
 def from_config(config):

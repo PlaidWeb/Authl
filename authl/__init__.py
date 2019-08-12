@@ -1,9 +1,9 @@
 """ Authl: A wrapper library to simplify the implementation of federated identity """
 
+import html
+import json
 import logging
 import re
-import json
-import html
 
 import requests
 from bs4 import BeautifulSoup
@@ -57,9 +57,11 @@ class Authl:
         """ get all of the registered handlers, for UX purposes """
         return [*self._handlers]
 
+
 def get_webfinger_profile(user, domain):
     """ Get the webfinger profile page URL from a webfinger query """
-    resource = 'https://{}/.well-known/webfinger?resource={}'.format(domain,
+    resource = 'https://{}/.well-known/webfinger?resource={}'.format(
+        domain,
         html.escape('acct:{}@{}'.format(user, domain)))
     request = requests.get(resource)
 
@@ -78,7 +80,7 @@ def get_webfinger_profile(user, domain):
         for link in profile['links']:
             if link['rel'] == 'http://webfinger.net/rel/profile-page':
                 return link['href']
-    except Exception as err: #pylint:disable=broad-except
+    except Exception as err:  # pylint:disable=broad-except
         LOGGER.info("Failed to decode %s profile: %s", resource, err)
         return None
 
@@ -93,7 +95,7 @@ def request_url(url):
     # webfinger addresses should be treated as the profile URL instead
     webfinger = re.match(r'@([^@])+@(.*)$', url)
     if webfinger:
-        url = get_webfinger_profile(webfinger.group(1),webfinger.group(2))
+        url = get_webfinger_profile(webfinger.group(1), webfinger.group(2))
     if not url:
         return None
 
