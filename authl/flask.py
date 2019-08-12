@@ -3,11 +3,10 @@
 import functools
 import json
 import logging
-import urllib.parse
 import os
+import urllib.parse
 
 import werkzeug.exceptions as http_error
-import flask
 
 from . import disposition, from_config, utils
 
@@ -233,9 +232,11 @@ def setup(app,
 
     return instance
 
+
 def client_id():
     """ A shim to generate a client ID for IndieAuth/IndieLogin """
-    parsed = urllib.parse.urlparse(flask.request.base_url)
-    client_id = '{}://{}'.format(parsed.scheme, parsed.hostname)
-    LOGGER.debug("using client_id %s", client_id)
-    return client_id
+    from flask import request
+    parsed = urllib.parse.urlparse(request.base_url)
+    baseurl = '{}://{}'.format(parsed.scheme, parsed.hostname)
+    LOGGER.debug("using client_id %s", baseurl)
+    return baseurl

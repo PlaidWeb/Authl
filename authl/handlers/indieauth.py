@@ -109,7 +109,7 @@ class IndieAuth(Handler):
         state = utils.gen_token()
         self._pending[state] = (endpoint, callback_url)
 
-        client_id=utils.resolve_value(self._client_id)
+        client_id = utils.resolve_value(self._client_id)
         LOGGER.debug("Using client_id %s", client_id)
 
         url = endpoint + '?' + urllib.parse.urlencode({

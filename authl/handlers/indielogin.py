@@ -79,7 +79,7 @@ class IndieLogin(Handler):
             + urllib.parse.urlencode(
                 {
                     'me': id_url,
-                    'client_id': utils.resolve_value(client_id),
+                    'client_id': utils.resolve_value(self._client_id),
                     'redirect_uri': callback_url,
                     'state': state,
                 }

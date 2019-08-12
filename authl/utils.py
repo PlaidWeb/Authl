@@ -84,6 +84,7 @@ def request_url(url):
 
     return None
 
+
 def resolve_value(val):
     """ if given a callable, call it; otherwise, return it """
     if callable(val):
