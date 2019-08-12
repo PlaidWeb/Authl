@@ -40,12 +40,12 @@ class IndieAuth(Handler):
     def __init__(self, client_id, config):
         """ Construct an IndieAuth handler
 
-        :param client_id str: The client_id to send to the remote IndieAuth
-        provider
+        :param client_id: The client_id to send to the remote IndieAuth
+        provider. Can be a string or a function (e.g. lambda:flask.request.url_root)
 
-        :param max_pending int: The maximum number of pending login requests
+        :param max_pending: The maximum number of pending login requests
 
-        :param pending_ttl float: How long the user has to complete login, in seconds
+        :param pending_ttl: How long the user has to complete login, in seconds
         """
 
         self._pending = expiringdict.ExpiringDict(
@@ -109,9 +109,12 @@ class IndieAuth(Handler):
         state = utils.gen_token()
         self._pending[state] = (endpoint, callback_url)
 
+        client_id=utils.resolve_value(self._client_id)
+        LOGGER.debug("Using client_id %s", client_id)
+
         url = endpoint + '?' + urllib.parse.urlencode({
             'redirect_uri': callback_url,
-            'client_id': self._client_id,
+            'client_id': client_id,
             'state': state,
             'response_type': 'id',
             'me': id_url})
@@ -133,11 +136,12 @@ class IndieAuth(Handler):
         # Verify the auth code
         request = requests.post(endpoint, data={
             'code': get['code'],
-            'client_id': self._client_id,
+            'client_id': utils.resolve_value(self._client_id),
             'redirect_uri': callback_url
         })
 
         if request.status_code != 200:
+            LOGGER.error("Request returned code %d: %s", request.status_code, request.text)
             return disposition.Error("Unable to verify identity")
 
         response = json.loads(request.text)

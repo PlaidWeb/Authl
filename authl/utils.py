@@ -83,3 +83,9 @@ def request_url(url):
             LOGGER.info("%s failed: %s", attempt, err)
 
     return None
+
+def resolve_value(val):
+    """ if given a callable, call it; otherwise, return it """
+    if callable(val):
+        return val()
+    return val
