@@ -21,7 +21,7 @@ class IndieLogin(Handler):
 
     Arguments:
 
-    client_id -- the client ID to send to the IndieLogin endpoint
+    client_id -- the client ID to send to the IndieLogin endpoint; can be a callable
     max_pending -- the maximum number of pending connections to keep open (default: 128)
     pending_ttl -- how long to wait for a pending connection, in seconds (default: 600)
     endpoint -- the IndieLogin endpoint to authenticate against
@@ -56,10 +56,7 @@ class IndieLogin(Handler):
         )
         self._endpoint = endpoint or 'https://indielogin.com/auth'
 
-    def handles_url(self, url):
-        return False
-
-    def handles_page(self, headers, content, links):
+    def handles_page(self, url, headers, content, links):
         # Check to see if there's any appropriate links
         if links.get('authorization_endpoint'):
             return True
@@ -82,7 +79,7 @@ class IndieLogin(Handler):
             + urllib.parse.urlencode(
                 {
                     'me': id_url,
-                    'client_id': self._client_id,
+                    'client_id': utils.resolve_value(client_id),
                     'redirect_uri': callback_url,
                     'state': state,
                 }
@@ -110,7 +107,7 @@ class IndieLogin(Handler):
             {
                 'code': get['code'],
                 'redirect_uri': item['callback_uri'],
-                'client_id': self._client_id,
+                'client_id': utils.resolve_value(self._client_id),
             },
         )
 

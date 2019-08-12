@@ -35,7 +35,8 @@ authl.flask.setup(
         'EMAIL_FROM': 'nobody@example.com',
         'EMAIL_SUBJECT': 'Log in to authl test',
 
-        'INDIELOGIN_CLIENT_ID': 'http://localhost',
+        'INDIEAUTH_CLIENT_ID': authl.flask.client_id,
+        'INDIELOGIN_CLIENT_ID': authl.flask.client_id,
 
         'TEST_ENABLED': True,
 
