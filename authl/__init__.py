@@ -1,12 +1,10 @@
 """ Authl: A wrapper library to simplify the implementation of federated identity """
 
-import html
-import json
 import logging
-import re
 
-import requests
 from bs4 import BeautifulSoup
+
+from . import utils
 
 LOGGER = logging.getLogger(__name__)
 
@@ -37,11 +35,11 @@ class Authl:
                 LOGGER.debug("%s URL matches %s", url, handler)
                 return handler, pos, result
 
-        request = request_url(url)
+        request = utils.request_url(url)
         if request:
             soup = BeautifulSoup(request.text, 'html.parser')
             for pos, handler in enumerate(self._handlers):
-                if handler.handles_page(request.headers, soup, request.links):
+                if handler.handles_page(request.url, request.headers, soup, request.links):
                     LOGGER.debug("%s response matches %s", request.url, handler)
                     return handler, pos, request.url
 
@@ -56,68 +54,6 @@ class Authl:
     def handlers(self):
         """ get all of the registered handlers, for UX purposes """
         return [*self._handlers]
-
-
-def get_webfinger_profile(user, domain):
-    """ Get the webfinger profile page URL from a webfinger query """
-    resource = 'https://{}/.well-known/webfinger?resource={}'.format(
-        domain,
-        html.escape('acct:{}@{}'.format(user, domain)))
-    request = requests.get(resource)
-
-    if not 200 <= request.status_code < 300:
-        LOGGER.info("Webfinger query %s returned status code %d", resource, request.status_code)
-        LOGGER.debug("%s", request.text)
-        return None
-
-    try:
-        profile = json.loads(request.text)
-    except json.JSONDecodeError as err:
-        LOGGER.info("Profile decode of %s failed: %s", resource, err)
-        return None
-
-    try:
-        for link in profile['links']:
-            if link['rel'] == 'http://webfinger.net/rel/profile-page':
-                return link['href']
-    except Exception as err:  # pylint:disable=broad-except
-        LOGGER.info("Failed to decode %s profile: %s", resource, err)
-        return None
-
-    LOGGER.info("Could not find profile page for @%s@%s", user, domain)
-    return None
-
-
-def request_url(url):
-    """ Requests a URL, attempting to canonicize it as it goes """
-    # pylint:disable=broad-except
-
-    # webfinger addresses should be treated as the profile URL instead
-    webfinger = re.match(r'@([^@])+@(.*)$', url)
-    if webfinger:
-        url = get_webfinger_profile(webfinger.group(1), webfinger.group(2))
-    if not url:
-        return None
-
-    try:
-        return requests.get(url)
-    except requests.exceptions.MissingSchema:
-        LOGGER.info("Missing schema on URL %s", url)
-    except (requests.exceptions.InvalidSchema, requests.exceptions.InvalidURL):
-        LOGGER.info("Not a valid URL scheme: %s", url)
-        return None
-    except Exception as err:
-        LOGGER.info("%s failed: %s", url, err)
-
-    for prefix in ('https://', 'http://'):
-        try:
-            attempt = prefix + url
-            LOGGER.debug("attempting %s", attempt)
-            return requests.get(attempt)
-        except Exception as err:
-            LOGGER.info("%s failed: %s", attempt, err)
-
-    return None
 
 
 def from_config(config, secret_key):
@@ -141,22 +77,22 @@ def from_config(config, secret_key):
     handlers = []
     if config.get('EMAIL_FROM') or config.get('EMAIL_SENDMAIL'):
         from .handlers import email_addr
-
         handlers.append(email_addr.from_config(config))
 
     if config.get('MASTODON_NAME'):
         from .handlers import mastodon
-
         handlers.append(mastodon.from_config(config))
+
+    if config.get('INDIEAUTH_CLIENT_ID'):
+        from .handlers import indieauth
+        handlers.append(indieauth.from_config(config))
 
     if config.get('INDIELOGIN_CLIENT_ID'):
         from .handlers import indielogin
-
         handlers.append(indielogin.from_config(config))
 
     if config.get('TEST_ENABLED'):
         from .handlers import test_handler
-
         handlers.append(test_handler.TestHandler())
 
     return Authl(handlers)

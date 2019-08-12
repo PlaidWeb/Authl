@@ -7,25 +7,30 @@ from abc import ABC, abstractmethod
 class Handler(ABC):
     """ base class for authentication handlers """
 
-    @abstractmethod
     def handles_url(self, url):
         """ Returns True if we can handle this URL, by pattern match """
+        # pylint:disable=no-self-use,unused-argument
+        return False
 
-    @abstractmethod
-    def handles_page(self, headers, content, links):
+    def handles_page(self, url, headers, content, links):
         """ Returns True if we can handle the page based on page content
 
+        url -- the canonicized identity URL
         headers -- the raw headers from the page request, as a MultiDict (as
             provided by the requests library)
         content -- the page content, as a BeautifulSoup4 parse tree
         links -- the results of parsing the Link: headers, as a dict of
-            rel -> list of href/rel pairs (as provided by the requests library)
+            rel -> dict of 'url' and 'rel', as provided by the Requests library
         """
+        # pylint:disable=no-self-use,unused-argument
+        return False
 
     @abstractmethod
     def initiate_auth(self, id_url, callback_url):
-        """ Initiates a remote auth request for the URL, with the specified
-        return URL.
+        """ Initiates a remote auth request
+
+        :param str id_url: Canonicized identity URL
+        :param str callback_url: Callback URL for verification
 
         Returns a Disposition object to be handled by the frontend.
         """

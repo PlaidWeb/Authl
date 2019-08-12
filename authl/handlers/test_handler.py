@@ -14,9 +14,6 @@ class TestHandler(Handler):
             return url
         return None
 
-    def handles_page(self, headers, content, links):
-        return False
-
     def initiate_auth(self, id_url, callback_url):
         return disposition.Verified(id_url)
 

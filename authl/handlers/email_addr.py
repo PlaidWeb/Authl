@@ -100,9 +100,6 @@ class EmailAddress(Handler):
 
         return None
 
-    def handles_page(self, headers, content, links):
-        return None
-
     def initiate_auth(self, id_url, callback_url):
         # Extract the destination email from the identity URL
         dest_addr = urllib.parse.urlparse(id_url).path.lower()
