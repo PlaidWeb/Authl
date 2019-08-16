@@ -121,14 +121,13 @@ class Mastodon(oauth.OAuth):
         if info['redirect_uri'] != callback_url:
             raise ValueError("Got incorrect redirect_uri")
 
-        if 'client_secret' in info:
-            secrets = {'client_secret': info['client_secret']}
-            del info['client_secret']
-
         return Mastodon.Client(instance, {
-            **info,
+            'client_id': info['client_id'],
+            'redirect_uri': info['redirect_uri'],
             'scope': 'read:accounts'
-        }, secrets)
+        }, {
+            'client_secret': info['client_secret']
+        })
 
     def _get_identity(self, client, cb_response, auth_headers):
         request = requests.get(
