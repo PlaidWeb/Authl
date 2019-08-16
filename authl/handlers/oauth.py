@@ -21,15 +21,19 @@ class Client:
     :param str oauth_endpoint: Base endpoint for OAuth methods, e.g.
         https://example.com/oauth
 
-    :param auth_params: Parameters to pass along to the OAuth endpoint
+    :param auth_params: Public parameters to pass along to the OAuth endpoint
+    (client_id, scope, etc.)
+
+    :param secrets: Secret parameters to pass along to the OAuth token endpoint
+    (client_secret)
     """
     # pylint:disable=too-few-public-methods
 
-    def __init__(self, oauth_endpoint: str, params: typing.Dict[str, str]):
+    def __init__(self, oauth_endpoint: str, params: typing.Dict[str, str], secrets: typing.Dict[str,str]):
         # pylint:disable=too-many-arguments
         self.oauth_endpoint = oauth_endpoint
         self.params = params
-
+        self.secrets = secrets
 
 class OAuth(Handler):
     """ Abstract intermediate class for OAuth-based protocols """
@@ -79,6 +83,7 @@ class OAuth(Handler):
         # Get the actual auth token
         request = requests.post(client.oauth_endpoint + '/token',
                                 {**client.params,
+                                 **client.secrets,
                                  'grant_type': 'authorization_code',
                                  'code': get['code']})
         if request.status_code != 200:

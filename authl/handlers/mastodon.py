@@ -21,8 +21,8 @@ class Mastodon(oauth.OAuth):
         """ Mastodon OAuth client info """
         # pylint:disable=too-few-public-methods
 
-        def __init__(self, instance, params):
-            super().__init__(instance + '/oauth', params)
+        def __init__(self, instance, params, secrets):
+            super().__init__(instance + '/oauth', params, secrets)
             self.instance = instance
 
     @property
@@ -119,10 +119,14 @@ class Mastodon(oauth.OAuth):
         if info['redirect_uri'] != callback_url:
             raise ValueError("Got incorrect redirect_uri")
 
+        if 'client_secret' in info:
+            secrets = {'client_secret': info['client_secret']}
+            del info['client_secret']
+
         return Mastodon.Client(instance, {
             **info,
             'scope': 'read:accounts'
-        })
+        }, secrets)
 
     def _get_identity(self, client, auth_headers):
         request = requests.get(
