@@ -22,7 +22,9 @@ class Mastodon(oauth.OAuth):
         # pylint:disable=too-few-public-methods
 
         def __init__(self, instance, params, secrets):
-            super().__init__(instance + '/oauth', params, secrets)
+            super().__init__(instance + '/oauth',
+                             params,
+                             secrets)
             self.instance = instance
 
     @property
@@ -128,7 +130,7 @@ class Mastodon(oauth.OAuth):
             'scope': 'read:accounts'
         }, secrets)
 
-    def _get_identity(self, client, auth_headers):
+    def _get_identity(self, client, cb_response, auth_headers):
         request = requests.get(
             client.instance + '/api/v1/accounts/verify_credentials',
             headers=auth_headers)

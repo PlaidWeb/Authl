@@ -29,11 +29,17 @@ class Client:
     """
     # pylint:disable=too-few-public-methods
 
-    def __init__(self, oauth_endpoint: str, params: typing.Dict[str, str], secrets: typing.Dict[str,str]):
+    def __init__(self,
+                 oauth_endpoint: str,
+                 params: typing.Dict[str, str],
+                 secrets: typing.Dict[str, str]):
         # pylint:disable=too-many-arguments
-        self.oauth_endpoint = oauth_endpoint
+        self.auth_endpoint = oauth_endpoint + '/authorize'
+        self.token_endpoint = oauth_endpoint + '/token'
+        self.revoke_endpoint = oauth_endpoint + '/revoke'
         self.params = params
         self.secrets = secrets
+
 
 class OAuth(Handler):
     """ Abstract intermediate class for OAuth-based protocols """
@@ -45,9 +51,16 @@ class OAuth(Handler):
     @abstractmethod
     def _get_identity(self,
                       client: Client,
-                      auth_headers: typing.Dict[str, str]
-                      ) -> disposition.Disposition:
-        """ Given an OAuth client and token, get the identity check """
+                      cb_response: typing.Dict[str, str],
+                      auth_headers: typing.Dict[str, str]) -> disposition.Disposition:
+        """ Given an OAuth client and token, get the identity check
+
+        :param client: OAuth client configuration
+
+        :param cb_response: The original callback response data
+
+        :param auth_headers: The authorization headers
+        """
 
     def __init__(self, max_pending, pending_ttl):
         self._pending = expiringdict.ExpiringDict(
@@ -56,13 +69,17 @@ class OAuth(Handler):
 
     def initiate_auth(self, id_url, callback_url):
         state = utils.gen_token()
-        client = self._get_client(id_url, callback_url)
+        try:
+            client = self._get_client(id_url, callback_url)
+        except Exception as err:  # pylint:disable=broad-except
+            return disposition.Error("Failed to register OAuth client: " + str(err))
+
         if not client:
             return disposition.Error("Failed to register OAuth client")
 
         self._pending[state] = client
 
-        url = client.oauth_endpoint + '/authorize?' + urllib.parse.urlencode(
+        url = client.auth_endpoint + '?' + urllib.parse.urlencode(
             {**client.params,
              'state': state,
              'response_type': 'code'})
@@ -80,35 +97,39 @@ class OAuth(Handler):
         if 'code' not in get:
             return disposition.Error("Missing auth code")
 
-        # Get the actual auth token
-        request = requests.post(client.oauth_endpoint + '/token',
-                                {**client.params,
-                                 **client.secrets,
-                                 'grant_type': 'authorization_code',
-                                 'code': get['code']})
-        if request.status_code != 200:
-            LOGGER.warning('oauth/token: %d %s', request.status_code, request.text)
-            return disposition.Error("Could not retrieve access token")
+        if client.token_endpoint:
+            request = requests.post(client.token_endpoint,
+                                    {**client.params,
+                                     **client.secrets,
+                                     'grant_type': 'authorization_code',
+                                     'code': get['code']})
+            if request.status_code != 200:
+                LOGGER.warning('oauth/token: %d %s', request.status_code, request.text)
+                return disposition.Error("Could not retrieve access token")
 
-        response = json.loads(request.text)
-        if 'access_token' not in response:
-            LOGGER.warning("Response did not contain 'access_token': %s", response)
-            return disposition.Error("No access token provided")
+            response = json.loads(request.text)
+            if 'access_token' not in response:
+                LOGGER.warning("Response did not contain 'access_token': %s", response)
+                return disposition.Error("No access token provided")
 
-        token = response['access_token']
-        auth_headers = {'Authorization': 'Bearer ' + token}
+            token = response['access_token']
+            auth_headers = {'Authorization': 'Bearer ' + token}
+        else:
+            token = None
+            auth_headers = {}
 
-        result = self._get_identity(client, auth_headers)
+        result = self._get_identity(client, get, auth_headers)
 
         # try to clean up after ourselves
-        request = requests.post(client.oauth_endpoint + '/revoke', data={
-            **client.params,
-            'token': token
-        }, headers=auth_headers)
-        if request.status_code != 200:
-            LOGGER.warning("Unable to revoke OAuth token: %d %s",
-                           request.status_code,
-                           request.text)
-        LOGGER.info("Revocation response: %s", request.text)
+        if client.revoke_endpoint:
+            request = requests.post(client.revoke_endpoint, data={
+                **client.params,
+                'token': token
+            }, headers=auth_headers)
+            if request.status_code != 200:
+                LOGGER.warning("Unable to revoke OAuth token: %d %s",
+                               request.status_code,
+                               request.text)
+            LOGGER.info("Revocation response: %s", request.text)
 
         return result
