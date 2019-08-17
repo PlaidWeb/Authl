@@ -1,10 +1,12 @@
 """ Authl: A wrapper library to simplify the implementation of federated identity """
 
 import logging
+import typing
 
+import expiringdict
 from bs4 import BeautifulSoup
 
-from . import utils
+from . import handlers, utils
 
 LOGGER = logging.getLogger(__name__)
 
@@ -12,14 +14,14 @@ LOGGER = logging.getLogger(__name__)
 class Authl:
     """ Authentication wrapper """
 
-    def __init__(self, handlers=None):
+    def __init__(self, cfg_handlers: typing.List[handlers.Handler] = None):
         """ Initialize an Authl library instance.
 
-        handlers -- a collection of handlers for different authentication
+        :param cfg_handlers: a collection of handlers for different authentication
             mechanisms
 
         """
-        self._handlers = handlers or []
+        self._handlers = cfg_handlers or []
 
     def add_handler(self, handler):
         """ Add another handler to the configured handler list. It will be
@@ -56,43 +58,56 @@ class Authl:
         return [*self._handlers]
 
 
-def from_config(config, secret_key):
+def from_config(config: typing.Dict[str, typing.Any], token_store=None) -> Authl:
     """ Generate an AUthl handler set from provided configuration directives.
 
     Arguments:
 
-    config -- a configuration dictionary. See the individual handlers'
+    :param dict config: a configuration dictionary. See the individual handlers'
         from_config functions to see possible configuration values.
-    secret_key -- a signing key to use for the handlers which need one
+    :param token_store: A dict-like object which will store login tokens with
+        expiration. If None, a default will be used.
 
     Handlers will be enabled based on truthy values of the following keys
 
-        TEST_ENABLED -- enable the TestHandler handler
-        EMAIL_FROM -- enable the EmailAddress handler
+        EMAIL_FROM / EMAIL_SENDMAIL -- enable the EmailAddress handler
+        MASTODON_NAME -- enable the Mastodon handler
+        INDIEAUTH_CLIENT_ID -- enable the IndieAuth handler
         INDIELOGIN_CLIENT_ID -- enable the IndieLogin handler
+        TEST_ENABLED -- enable the test/loopback handler
+
+    If token_store is None, the following additional config parameters will be used:
+
+        MAX_PENDING -- the number of pending logins allowed at any given time
+        PENDING_TTL -- how long a login has to complete
 
     """
-    # pylint:disable=unused-argument
 
-    handlers = []
+    if not token_store:
+        token_store = expiringdict.ExpiringDict(
+            max_len=config.get('MAX_PENDING', 128),
+            max_age_seconds=config.get('PENDING_TTL', 600))
+
+    instance = Authl()
+
     if config.get('EMAIL_FROM') or config.get('EMAIL_SENDMAIL'):
         from .handlers import email_addr
-        handlers.append(email_addr.from_config(config))
+        instance.add_handler(email_addr.from_config(config, token_store))
 
     if config.get('MASTODON_NAME'):
         from .handlers import mastodon
-        handlers.append(mastodon.from_config(config))
+        instance.add_handler(mastodon.from_config(config, token_store))
 
     if config.get('INDIEAUTH_CLIENT_ID'):
         from .handlers import indieauth
-        handlers.append(indieauth.from_config(config))
+        instance.add_handler(indieauth.from_config(config, token_store))
 
     if config.get('INDIELOGIN_CLIENT_ID'):
         from .handlers import indielogin
-        handlers.append(indielogin.from_config(config))
+        instance.add_handler(indielogin.from_config(config, token_store))
 
     if config.get('TEST_ENABLED'):
         from .handlers import test_handler
-        handlers.append(test_handler.TestHandler())
+        instance.add_handler(test_handler.TestHandler())
 
-    return Authl(handlers)
+    return instance

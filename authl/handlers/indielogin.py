@@ -4,7 +4,6 @@ import json
 import logging
 import urllib.parse
 
-import expiringdict
 import requests
 
 from .. import disposition, utils
@@ -40,20 +39,19 @@ class IndieLogin(Handler):
         return """Uses a third-party <a href="https://indielogin.com/">IndieLogin</a>
         endpoint to securely log you in based on your personal profile page."""
 
-    def __init__(self, client_id, max_pending=None, pending_ttl=None, endpoint=None):
+    def __init__(self, client_id: str,
+                 token_store: dict,
+                 endpoint: str = None):
         """ Construct an IndieLogin handler, to work with indielogin.com. See
         https://indielogin.com/api for more information.
 
-        client_id -- the indielogin.com client id
-        max_pending -- the maximum number of pending login requests
-        pending_ttl -- how long the user has to complete login, in seconds
-        instance -- which IndieLogin instance to authenticate against
+        :param str client_id: the indielogin.com client id
+        :param TokenStore token_store: Storage for pending login tokens
+        :param str endpoint: Which IndieLogin instance to authenticate against
         """
 
         self._client_id = client_id
-        self._pending = expiringdict.ExpiringDict(
-            max_len=max_pending or 128, max_age_seconds=pending_ttl or 600
-        )
+        self._pending = token_store
         self._endpoint = endpoint or 'https://indielogin.com/auth'
 
     def handles_page(self, url, headers, content, links):
@@ -123,12 +121,12 @@ class IndieLogin(Handler):
         return disposition.Verified(result.get('me'))
 
 
-def from_config(config):
+def from_config(config, token_store):
     """ Instantiate an IndieLogin handler from a configuration dictionary.
 
     Possible configuration values:
 
-    INDIELOGIN_CLIENT_ID -- the client ID to send to the IndieLOgin service (required)
+    INDIELOGIN_CLIENT_ID -- the client ID to send to the IndieLogin service (required)
     INDIELOGIN_ENDPOINT -- the endpoint to use for the IndieLogin service
         (default: https://indielogin.com/auth)
     INDIELOGIN_OPEN_MAX -- the maximum number of open requests to track
@@ -137,7 +135,6 @@ def from_config(config):
 
     return IndieLogin(
         config['INDIELOGIN_CLIENT_ID'],
-        max_pending=config.get('INDIELOGIN_OPEN_MAX'),
-        pending_ttl=config.get('INDIELOGIN_OPEN_TTL'),
+        token_store,
         endpoint=config.get('INDIELOGIN_ENDPOINT'),
     )

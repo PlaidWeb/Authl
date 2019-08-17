@@ -49,7 +49,7 @@ class EmailAddress(Handler):
     def __init__(self,
                  sendmail,
                  notify_cdata,
-                 expires_time=None,
+                 token_store,
                  email_template_text=DEFAULT_TEMPLATE_TEXT,
                  please_wait_error=DEFAULT_WAIT_ERROR,
                  ):
@@ -78,11 +78,9 @@ class EmailAddress(Handler):
         self._sendmail = sendmail
         self._email_template_text = email_template_text
         self._wait_error = please_wait_error
-        self._lifetime = expires_time or 900
+        self._lifetime = token_store.max_age or 900
         self._cdata = notify_cdata
-        self._pending = expiringdict.ExpiringDict(
-            max_age_seconds=self._lifetime,
-            max_len=1024)
+        self._pending = token_store
         self._timeouts = expiringdict.ExpiringDict(
             max_age_seconds=86400,
             max_len=1024)
@@ -196,7 +194,7 @@ def simple_sendmail(connector, sender_address, subject):
     return sendmail
 
 
-def from_config(config):
+def from_config(config, token_store):
     """ Generate an EmailAddress handler from the provided configuration dictionary.
 
     Possible configuration values (all optional unless specified):
@@ -204,7 +202,6 @@ def from_config(config):
     EMAIL_SENDMAIL -- a function to call to send the email (see simple_sendmail)
     EMAIL_FROM -- the From: address to use when sending an email (required)
     EMAIL_SUBJECT -- the Subject: to use for a login email (required)
-    EMAIL_LOGIN_TIMEOUT -- How long (in seconds) the user has to follow the login link
     EMAIL_CHECK_MESSAGE -- The message to send back to the user
     EMAIL_TEMPLATE_FILE -- A path to a text file for the email message
     SMTP_HOST -- the email host (required if no EMAIL_SENDMAIL)
@@ -237,6 +234,6 @@ def from_config(config):
     return EmailAddress(
         send_func,
         {'message': check_message},
-        expires_time=config.get('EMAIL_LOGIN_TIMEOUT'),
+        token_store,
         email_template_text=email_template_text,
     )

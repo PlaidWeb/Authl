@@ -37,7 +37,7 @@ class IndieAuth(Handler):
         return """Supports login via an
         <a href="https://indieweb.org/IndieAuth">IndieAuth</a> provider. """
 
-    def __init__(self, client_id, config):
+    def __init__(self, client_id, token_store, config):
         """ Construct an IndieAuth handler
 
         :param client_id: The client_id to send to the remote IndieAuth
@@ -46,11 +46,11 @@ class IndieAuth(Handler):
         :param max_pending: The maximum number of pending login requests
 
         :param pending_ttl: How long the user has to complete login, in seconds
+
+        :param token_store: Storage for the tokens
         """
 
-        self._pending = expiringdict.ExpiringDict(
-            max_len=config.get('INDIEAUTH_MAX_PENDING', 128),
-            max_age_seconds=config.get('INDIEAUTH_PENDING_TTL', 600))
+        self._pending = token_store
 
         self._client_id = client_id
 
@@ -151,7 +151,7 @@ class IndieAuth(Handler):
         return disposition.Verified(response['me'], response)
 
 
-def from_config(config):
+def from_config(config, token_store):
     """ Generate an IndieAuth handler from the given config dictionary.
 
     Possible configuration values:
@@ -162,4 +162,4 @@ def from_config(config):
     INDIEAUTH_MAX_ENDPOINTS -- maximum number of endpoints to cache
     INDIEAUTH_ENDPOINT_TTL -- how long to cache an endpoint for
     """
-    return IndieAuth(config['INDIEAUTH_CLIENT_ID'], config)
+    return IndieAuth(config['INDIEAUTH_CLIENT_ID'], token_store, config)
