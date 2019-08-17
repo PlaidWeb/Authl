@@ -95,7 +95,7 @@ def setup(app,
 
     import flask
 
-    instance = from_config(config, app.secret_key)
+    instance = from_config(config)
     url_scheme = 'https' if force_ssl else None
 
     def set_cache(age):
@@ -205,7 +205,7 @@ def setup(app,
         )
 
     for sfx in ['', '/', '/<path:redir>']:
-        app.add_url_rule(login_path + sfx, login_name, login, methods=('GET','POST'))
+        app.add_url_rule(login_path + sfx, login_name, login, methods=('GET', 'POST'))
         app.add_url_rule(callback_path + '/<int:hid>' + sfx, callback_name, callback)
 
     def get_stylesheet():

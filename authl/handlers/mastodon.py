@@ -8,24 +8,26 @@ import urllib.parse
 
 import requests
 
-from .. import disposition
-from . import oauth
+from .. import disposition, utils
+from . import Handler
 
 LOGGER = logging.getLogger(__name__)
 
 
-class Mastodon(oauth.OAuth):
+class Mastodon(Handler):
     """ Handler for Mastodon and Mastodon-like services """
 
-    class Client(oauth.Client):
+    class Client:
         """ Mastodon OAuth client info """
         # pylint:disable=too-few-public-methods
 
         def __init__(self, instance, params, secrets):
-            super().__init__(instance + '/oauth',
-                             params,
-                             secrets)
             self.instance = instance
+            self.auth_endpoint = instance + '/oauth/authorize'
+            self.token_endpoint = instance + '/oauth/token'
+            self.revoke_endpoint = instance + '/oauth/revoke'
+            self.params = params
+            self.secrets = secrets
 
     @property
     def service_name(self):
@@ -42,15 +44,18 @@ class Mastodon(oauth.OAuth):
         <a href="https://joinmastodon.org/">Mastodon</a>
         instance."""
 
-    def __init__(self, name, homepage=None, max_pending=None, pending_ttl=None):
+    def __init__(self, name: str, token_store: dict, homepage: str = None):
         """ Instantiate a Mastodon handler.
 
-        name -- Human-readable website name
-        homepage -- Homepage for the website
+        :param str name: Human-readable website name
+
+        :param token_store: Storage for session tokens
+
+        :paramm str homepage: Homepage for the website
         """
-        super().__init__(max_pending, pending_ttl)
         self._name = name
         self._homepage = homepage
+        self._pending = token_store
 
     @staticmethod
     @functools.lru_cache(128)
@@ -129,7 +134,8 @@ class Mastodon(oauth.OAuth):
             'client_secret': info['client_secret']
         })
 
-    def _get_identity(self, client, cb_response, auth_headers):
+    @staticmethod
+    def _get_identity(client, auth_headers):
         request = requests.get(
             client.instance + '/api/v1/accounts/verify_credentials',
             headers=auth_headers)
@@ -151,8 +157,70 @@ class Mastodon(oauth.OAuth):
 
         return disposition.Verified(id_url, response)
 
+    def initiate_auth(self, id_url, callback_url):
+        state = utils.gen_token()
+        try:
+            client = self._get_client(id_url, callback_url)
+        except Exception as err:  # pylint:disable=broad-except
+            return disposition.Error("Failed to register OAuth client: " + str(err))
 
-def from_config(config):
+        if not client:
+            return disposition.Error("Failed to register OAuth client")
+
+        self._pending[state] = client
+
+        url = client.auth_endpoint + '?' + urllib.parse.urlencode(
+            {**client.params,
+             'state': state,
+             'response_type': 'code'})
+
+        return disposition.Redirect(url)
+
+    def check_callback(self, url, get, data):
+        state = get.get('state')
+        if not state:
+            return disposition.Error("No transaction ID provided")
+        if state not in self._pending:
+            return disposition.Error('Transaction invalid or expired')
+        client = self._pending[state]
+
+        if 'code' not in get:
+            return disposition.Error("Missing auth code")
+
+        request = requests.post(client.token_endpoint,
+                                {**client.params,
+                                 **client.secrets,
+                                 'grant_type': 'authorization_code',
+                                 'code': get['code']})
+        if request.status_code != 200:
+            LOGGER.warning('oauth/token: %d %s', request.status_code, request.text)
+            return disposition.Error("Could not retrieve access token")
+
+        response = json.loads(request.text)
+        if 'access_token' not in response:
+            LOGGER.warning("Response did not contain 'access_token': %s", response)
+            return disposition.Error("No access token provided")
+
+        token = response['access_token']
+        auth_headers = {'Authorization': 'Bearer ' + token}
+
+        result = self._get_identity(client, auth_headers)
+
+        # try to clean up after ourselves
+        request = requests.post(client.revoke_endpoint, data={
+            **client.params,
+            'token': token
+        }, headers=auth_headers)
+        if request.status_code != 200:
+            LOGGER.warning("Unable to revoke OAuth token: %d %s",
+                           request.status_code,
+                           request.text)
+        LOGGER.info("Revocation response: %s", request.text)
+
+        return result
+
+
+def from_config(config, token_store):
     """ Generate a Mastodon handler from the given config dictionary.
 
     Posible configuration values:
@@ -161,4 +229,4 @@ def from_config(config):
     MASTODON_HOMEPAGE -- your website's homepage (recommended)
     """
 
-    return Mastodon(config['MASTODON_NAME'], config.get('MASTODON_HOMEPAGE'))
+    return Mastodon(config['MASTODON_NAME'], token_store, config.get('MASTODON_HOMEPAGE'))

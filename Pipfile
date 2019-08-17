@@ -10,6 +10,7 @@ flake8 = "*"
 flask = "*"
 autopep8 = "*"
 isort = "*"
+mypy = "*"
 
 [packages]
 authl = {editable = true,path = "."}

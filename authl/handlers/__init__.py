@@ -3,6 +3,8 @@
 
 from abc import ABC, abstractmethod
 
+import expiringdict
+
 
 class Handler(ABC):
     """ base class for authentication handlers """

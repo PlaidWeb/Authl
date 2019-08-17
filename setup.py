@@ -53,9 +53,9 @@ setup(
 
     install_requires=[
         'beautifulsoup4',
+        'expiringdict',
         'requests',
         'validate_email',
-        'expiringdict',
     ],
 
     extras_require={'dev': [
@@ -63,6 +63,7 @@ setup(
         'flake8',
         'flask',
         'isort',
+        'mypy',
         'pylint',
         'twine',
     ]},
