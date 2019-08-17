@@ -37,6 +37,10 @@ class IndieAuth(Handler):
         return """Supports login via an
         <a href="https://indieweb.org/IndieAuth">IndieAuth</a> provider. """
 
+    @property
+    def cb_id(self):
+        return 'ia'
+
     def __init__(self, client_id, token_store, config):
         """ Construct an IndieAuth handler
 

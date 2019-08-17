@@ -43,12 +43,11 @@ function setUrl(url, repltext) {
         <div id="info">
             <p>This form allows you to log in using your existing identity from another website or
                 provider. The following sources are supported:</p>
-            <ul>
+            <ul class="handlers">
                 {% for handler in auth.handlers %}
-                <li><a href="#"
-                       onClick="setUrl('{{ handler.url_schemes[0][0] }}',
-                                       '{{ handler.url_schemes[0][1] }}')">{{
-                                        handler.service_name }}</a>
+                <li><button onclick="setUrl('{{ handler.url_schemes[0][0] }}',
+                                            '{{ handler.url_schemes[0][1] }}')">{{
+                        handler.service_name }}</button>
                     &mdash; <span class="description">{{handler.description|safe}}</span>
                 </li>
                 {% endfor %}

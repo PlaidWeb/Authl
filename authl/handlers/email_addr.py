@@ -46,6 +46,10 @@ class EmailAddress(Handler):
         return """Uses a good old-fashioned email address to log you in, by sending a
         "magic link" to the destination address."""
 
+    @property
+    def cb_id(self):
+        return 'e'
+
     def __init__(self,
                  sendmail,
                  notify_cdata,

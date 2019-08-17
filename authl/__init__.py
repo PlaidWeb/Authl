@@ -1,5 +1,6 @@
 """ Authl: A wrapper library to simplify the implementation of federated identity """
 
+import collections
 import logging
 import typing
 
@@ -21,17 +22,23 @@ class Authl:
             mechanisms
 
         """
-        self._handlers = cfg_handlers or []
+        self._handlers = collections.OrderedDict()
+        if cfg_handlers:
+            for handler in cfg_handlers:
+                self.add_handler(handler)
 
     def add_handler(self, handler):
         """ Add another handler to the configured handler list. It will be
         given the lowest priority. """
-        self._handlers.append(handler)
+        cb_id = handler.cb_id
+        if cb_id in self._handlers:
+            raise ValueError("Already have handler with id " + cb_id)
+        self._handlers[cb_id] = handler
 
     def get_handler_for_url(self, url):
         """ Get the appropriate handler for the specified identity URL.
         Returns a tuple of (handler, id, url). """
-        for pos, handler in enumerate(self._handlers):
+        for pos, handler in self._handlers.items():
             result = handler.handles_url(url)
             if result:
                 LOGGER.debug("%s URL matches %s", url, handler)
@@ -40,7 +47,7 @@ class Authl:
         request = utils.request_url(url)
         if request:
             soup = BeautifulSoup(request.text, 'html.parser')
-            for pos, handler in enumerate(self._handlers):
+            for pos, handler in self._handlers.items():
                 if handler.handles_page(request.url, request.headers, soup, request.links):
                     LOGGER.debug("%s response matches %s", request.url, handler)
                     return handler, pos, request.url
@@ -55,7 +62,7 @@ class Authl:
     @property
     def handlers(self):
         """ get all of the registered handlers, for UX purposes """
-        return [*self._handlers]
+        return self._handlers.values()
 
 
 def from_config(config: typing.Dict[str, typing.Any], token_store=None) -> Authl:
