@@ -180,8 +180,8 @@ def setup(app,
                 return load_template('authl.css'), {'Content-Type': 'text/css'}
             raise http_error.NotFound("Unknown asset " + asset)
 
-        if 'me' in request.args:
-            me_url = request.args['me']
+        me_url = request.form.get('me', request.args.get('me'))
+        if me_url:
             handler, hid, id_url = instance.get_handler_for_url(me_url)
             if handler:
                 cb_url = flask.url_for(callback_name,
@@ -205,7 +205,7 @@ def setup(app,
         )
 
     for sfx in ['', '/', '/<path:redir>']:
-        app.add_url_rule(login_path + sfx, login_name, login)
+        app.add_url_rule(login_path + sfx, login_name, login, methods=('GET','POST'))
         app.add_url_rule(callback_path + '/<int:hid>' + sfx, callback_name, callback)
 
     def get_stylesheet():
