@@ -206,7 +206,7 @@ def setup(app,
 
     for sfx in ['', '/', '/<path:redir>']:
         app.add_url_rule(login_path + sfx, login_name, login, methods=('GET', 'POST'))
-        app.add_url_rule(callback_path + '/<int:hid>' + sfx, callback_name, callback)
+        app.add_url_rule(callback_path + '/<hid>' + sfx, callback_name, callback)
 
     def get_stylesheet():
         if stylesheet is None:

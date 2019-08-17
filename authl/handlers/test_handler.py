@@ -21,6 +21,10 @@ class TestHandler(Handler):
         return disposition.Error("This shouldn't be possible")
 
     @property
+    def cb_id(self):
+        return 'TEST_DO_NOT_USE'
+
+    @property
     def service_name(self):
         return 'Loopback'
 

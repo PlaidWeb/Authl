@@ -39,6 +39,10 @@ class IndieLogin(Handler):
         return """Uses a third-party <a href="https://indielogin.com/">IndieLogin</a>
         endpoint to securely log you in based on your personal profile page."""
 
+    @property
+    def cb_id(self):
+        return 'il'
+
     def __init__(self, client_id: str,
                  token_store: dict,
                  endpoint: str = None):

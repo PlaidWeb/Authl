@@ -44,6 +44,10 @@ class Mastodon(Handler):
         <a href="https://joinmastodon.org/">Mastodon</a>
         instance."""
 
+    @property
+    def cb_id(self):
+        return 'md'
+
     def __init__(self, name: str, token_store: dict, homepage: str = None):
         """ Instantiate a Mastodon handler.
 

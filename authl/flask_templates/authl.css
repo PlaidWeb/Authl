@@ -33,6 +33,17 @@ input[type="url"] {
     font-weight: light;
     font-size: large;
 }
+.handlers button {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+    text-decoration: underline;
+    color: #500;
+    font-size: small;
+    cursor: pointer;
+    font-family: "Helvetica Neue", sans-serif;
+}
 .description {
     font-style: italic;
     color: #555;
