@@ -46,11 +46,12 @@ class Handler(ABC):
         and should be short and stable. """
 
     @abstractmethod
-    def initiate_auth(self, id_url: str, callback_url: str) -> disposition.Disposition:
+    def initiate_auth(self, id_url: str, callback_uri: str, redir: str) -> disposition.Disposition:
         """ Initiates a remote auth request
 
         :param str id_url: Canonicized identity URL
-        :param str callback_url: Callback URL for verification
+        :param str callback_uri: Callback URL for verification
+        :param str redir: Where to redirect the user to after verification
 
         Returns a Disposition object to be handled by the frontend.
         """

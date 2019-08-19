@@ -1,7 +1,6 @@
 """ Mastodon/Pleroma/Fediverse provider """
 
 import functools
-import json
 import logging
 import re
 import urllib.parse
@@ -82,7 +81,7 @@ class Mastodon(Handler):
                 LOGGER.debug("Instance endpoint returned error %d", request.status_code)
                 return None
 
-            info = json.dumps(request.text)
+            info = request.json()
             for key in ('uri', 'version', 'urls'):
                 if key not in info:
                     LOGGER.debug("Instance data missing key '%s'", key)
@@ -113,21 +112,21 @@ class Mastodon(Handler):
         return instance
 
     @functools.lru_cache(128)
-    def _get_client(self, id_url, callback_url):
+    def _get_client(self, id_url, callback_uri):
         """ Get the client data """
         instance = self._get_instance(id_url)
         request = requests.post(instance + '/api/v1/apps',
                                 data={
                                     'client_name': self._name,
-                                    'redirect_uris': callback_url,
+                                    'redirect_uris': callback_uri,
                                     'scopes': 'read:accounts',
                                     'website': self._homepage
                                 })
         if request.status_code != 200:
             return None
-        info = json.loads(request.text)
+        info = request.json()
 
-        if info['redirect_uri'] != callback_url:
+        if info['redirect_uri'] != callback_uri:
             raise ValueError("Got incorrect redirect_uri")
 
         return Mastodon.Client(instance, {
@@ -139,7 +138,7 @@ class Mastodon(Handler):
         })
 
     @staticmethod
-    def _get_identity(client, auth_headers):
+    def _get_identity(client, auth_headers, redir):
         request = requests.get(
             client.instance + '/api/v1/accounts/verify_credentials',
             headers=auth_headers)
@@ -147,7 +146,7 @@ class Mastodon(Handler):
             LOGGER.warning('verify_credentials: %d %s', request.status_code, request.text)
             return disposition.Error("Unable to get account credentials")
 
-        response = json.loads(request.text)
+        response = request.json()
         if 'url' not in response:
             LOGGER.warning("Response did not contain 'url': %s", response)
             return disposition.Error("No user URL provided")
@@ -159,19 +158,19 @@ class Mastodon(Handler):
                            client.instance, response['url'], id_url)
             return disposition.Error("Domains do not match")
 
-        return disposition.Verified(id_url, response)
+        return disposition.Verified(id_url, redir, response)
 
-    def initiate_auth(self, id_url, callback_url):
+    def initiate_auth(self, id_url, callback_uri, redir):
         state = utils.gen_token()
         try:
-            client = self._get_client(id_url, callback_url)
+            client = self._get_client(id_url, callback_uri)
         except Exception as err:  # pylint:disable=broad-except
             return disposition.Error("Failed to register OAuth client: " + str(err))
 
         if not client:
             return disposition.Error("Failed to register OAuth client")
 
-        self._pending[state] = client
+        self._pending[state] = (client, redir)
 
         url = client.auth_endpoint + '?' + urllib.parse.urlencode(
             {**client.params,
@@ -186,7 +185,7 @@ class Mastodon(Handler):
             return disposition.Error("No transaction ID provided")
         if state not in self._pending:
             return disposition.Error('Transaction invalid or expired')
-        client = self._pending[state]
+        client, redir = self._pending[state]
 
         if 'code' not in get:
             return disposition.Error("Missing auth code")
@@ -200,7 +199,7 @@ class Mastodon(Handler):
             LOGGER.warning('oauth/token: %d %s', request.status_code, request.text)
             return disposition.Error("Could not retrieve access token")
 
-        response = json.loads(request.text)
+        response = request.json()
         if 'access_token' not in response:
             LOGGER.warning("Response did not contain 'access_token': %s", response)
             return disposition.Error("No access token provided")
@@ -208,7 +207,7 @@ class Mastodon(Handler):
         token = response['access_token']
         auth_headers = {'Authorization': 'Bearer ' + token}
 
-        result = self._get_identity(client, auth_headers)
+        result = self._get_identity(client, auth_headers, redir)
 
         # try to clean up after ourselves
         request = requests.post(client.revoke_endpoint, data={

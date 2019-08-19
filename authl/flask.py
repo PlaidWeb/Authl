@@ -91,7 +91,7 @@ def setup(app,
     Return value: the configured Authl instance
 
     """
-    # pylint:disable=too-many-arguments,too-many-locals
+    # pylint:disable=too-many-arguments,too-many-locals,too-many-statements
 
     import flask
 
@@ -109,7 +109,6 @@ def setup(app,
 
     @set_cache(0)
     def handle_disposition(disp, redir):
-
         if isinstance(disp, disposition.Redirect):
             # A simple redirection
             return flask.redirect(disp.url)
@@ -125,7 +124,7 @@ def setup(app,
                 if response:
                     return response
 
-            return flask.redirect('/' + redir)
+            return flask.redirect('/' + disp.redir)
 
         if isinstance(disp, disposition.Notify):
             # The user needs to take some additional action
@@ -186,15 +185,19 @@ def setup(app,
             if handler:
                 cb_url = flask.url_for(callback_name,
                                        hid=hid,
-                                       redir=redir,
                                        _external=True,
                                        _scheme=url_scheme)
-                return handle_disposition(handler.initiate_auth(id_url, cb_url), redir)
+                return handle_disposition(handler.initiate_auth(id_url,
+                                                                cb_url,
+                                                                redir), redir)
 
             # No handler found, so flash an error message to login_form
             flask.flash('Unknown authorization method')
 
         return render_login_form(redir=redir)
+
+    for sfx in ['', '/', '/<path:redir>']:
+        app.add_url_rule(login_path + sfx, login_name, login, methods=('GET', 'POST'))
 
     def callback(hid, redir=''):
         from flask import request
@@ -203,10 +206,7 @@ def setup(app,
         return handle_disposition(
             handler.check_callback(request.url, request.args, request.form), redir
         )
-
-    for sfx in ['', '/', '/<path:redir>']:
-        app.add_url_rule(login_path + sfx, login_name, login, methods=('GET', 'POST'))
-        app.add_url_rule(callback_path + '/<hid>' + sfx, callback_name, callback)
+    app.add_url_rule(callback_path + '/<hid>', callback_name, callback)
 
     def get_stylesheet():
         if stylesheet is None:

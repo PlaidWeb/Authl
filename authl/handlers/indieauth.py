@@ -1,6 +1,5 @@
 """ IndieAuth login handler. """
 
-import json
 import logging
 import urllib.parse
 
@@ -105,19 +104,19 @@ class IndieAuth(Handler):
 
         return None
 
-    def initiate_auth(self, id_url, callback_url):
+    def initiate_auth(self, id_url, callback_uri, redir):
         endpoint = self._get_endpoint(id_url)
         if not endpoint:
             return disposition.Error("Failed to get IndieAuth endpoint")
 
         state = utils.gen_token()
-        self._pending[state] = (endpoint, callback_url)
+        self._pending[state] = (endpoint, callback_uri, redir)
 
         client_id = utils.resolve_value(self._client_id)
         LOGGER.debug("Using client_id %s", client_id)
 
         url = endpoint + '?' + urllib.parse.urlencode({
-            'redirect_uri': callback_url,
+            'redirect_uri': callback_uri,
             'client_id': client_id,
             'state': state,
             'response_type': 'id',
@@ -125,14 +124,14 @@ class IndieAuth(Handler):
         return disposition.Redirect(url)
 
     def check_callback(self, url, get, data):
-        # pylint:disable=duplicate-code
+        # pylint:disable=duplicate-code, too-many-return-statements
         state = get.get('state')
         if not state:
             return disposition.Error("No transaction ID provided")
         if state not in self._pending:
             return disposition.Error("Transaction invalid or expired")
 
-        endpoint, callback_url = self._pending[state]
+        endpoint, callback_uri, redir = self._pending[state]
 
         if 'code' not in get:
             return disposition.Error("Missing auth code")
@@ -141,18 +140,21 @@ class IndieAuth(Handler):
         request = requests.post(endpoint, data={
             'code': get['code'],
             'client_id': utils.resolve_value(self._client_id),
-            'redirect_uri': callback_url
+            'redirect_uri': callback_uri
         })
 
         if request.status_code != 200:
             LOGGER.error("Request returned code %d: %s", request.status_code, request.text)
             return disposition.Error("Unable to verify identity")
 
-        response = json.loads(request.text)
+        try:
+            response = request.json()
+        except ValueError:
+            return disposition.Error("Got invalid response JSON")
         if 'me' not in response:
             return disposition.Error("No identity provided in response")
 
-        return disposition.Verified(response['me'], response)
+        return disposition.Verified(response['me'], redir, response)
 
 
 def from_config(config, token_store):

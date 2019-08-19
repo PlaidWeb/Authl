@@ -8,6 +8,7 @@ Run it locally with:
  """
 
 import logging
+import os
 import uuid
 
 import flask
@@ -42,7 +43,10 @@ authl.flask.setup(
         'TEST_ENABLED': True,
 
         'MASTODON_NAME': 'authl testing',
-        'MASTODON_HOMEPAGE': 'https://github.com/PlaidWeb/Authl'
+        'MASTODON_HOMEPAGE': 'https://github.com/PlaidWeb/Authl',
+
+        'TWITTER_CLIENT_KEY': os.environ.get('TWITTER_CLIENT_KEY'),
+        'TWITTER_CLIENT_SECRET': os.environ.get('TWITTER_CLIENT_SECRET'),
     },
     tester_path='/check_url',
     on_verified=on_login

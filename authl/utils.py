@@ -2,7 +2,6 @@
 
 import base64
 import html
-import json
 import logging
 import re
 import uuid
@@ -36,9 +35,9 @@ def get_webfinger_profile(user, domain):
         return None
 
     try:
-        profile = json.loads(request.text)
-    except json.JSONDecodeError as err:
-        LOGGER.info("Profile decode of %s failed: %s", resource, err)
+        profile = request.json()
+    except ValueError:
+        LOGGER.info("Profile decode of %s failed", resource)
         return None
 
     try:
