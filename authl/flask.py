@@ -4,8 +4,10 @@ import functools
 import json
 import logging
 import os
+import typing
 import urllib.parse
 
+import flask
 import werkzeug.exceptions as http_error
 
 from . import disposition, from_config, utils
@@ -13,50 +15,54 @@ from . import disposition, from_config, utils
 LOGGER = logging.getLogger(__name__)
 
 
-def setup(app,
-          config,
-          login_name='authl.login',
-          login_path='/login',
-          callback_name='authl.callback',
-          callback_path='/cb',
-          tester_name='authl.test',
-          tester_path=None,
-          login_render_func=None,
-          notify_render_func=None,
-          session_auth_name='me',
-          force_ssl=False,
-          stylesheet=None,
-          on_verified=None,
-          make_permanent=True
+def setup(app: flask.Flask,
+          config: typing.Dict[str, typing.Any],
+          login_name: str = 'authl.login',
+          login_path: str = '/login',
+          callback_name: str = 'authl.callback',
+          callback_path: str = '/cb',
+          tester_name: str = 'authl.test',
+          tester_path: str = None,
+          login_render_func: typing.Callable = None,
+          notify_render_func: typing.Callable = None,
+          session_auth_name: str = 'me',
+          force_ssl: bool = False,
+          stylesheet: str = None,
+          on_verified: typing.Callable = None,
+          make_permanent: bool = True
           ):
     """ Setup Authl to work with a Flask application.
 
     The Flask application should be configured with a secret_key before this
     function is called.
 
-    Arguments:
-
-    app -- the application to attach to
-    config -- Configuration directives for Authl's handlers. See from_config
-        for more information.
-    login_name -- The endpoint name for the login handler, for flask.url_for()
-    login_path -- The mount point of the login route
-    callback_name -- The endpoint name for the callback handler, for
+    :param flask.Flask app: the application to attach to
+    :param dict config: Configuration directives for Authl's handlers. See
+        from_config for more information.
+    :param str login_name: The endpoint name for the login handler, for
         flask.url_for()
-    callback_path -- The mount point of the callback handler
-    tester_name -- The endpoint name for the URL tester, for flask.url_for()
-    tester_path -- The mount point of the URL tester
-    login_render_func -- The function to call to render the login page; if not
-        specified a default will be provided.
-    notify_render_func -- The function to call to render the user notification
+    :param str login_path: The mount point of the login route
+    :param str callback_name: The endpoint name for the callback handler, for
+        flask.url_for()
+    :param str callback_path: The mount point of the callback handler
+    :param str tester_name: The endpoint name for the URL tester, for
+        flask.url_for()
+    :param str tester_path: The mount point of the URL tester
+    :param function login_render_func: The function to call to render the login
         page; if not specified a default will be provided.
-    session_auth_name -- The session parameter to use for the authenticated user
-    force_ssl -- Whether to force authentication to switch to an SSL connection
-    stylesheet -- the URL to use for the default page stylesheet
-    on_verified -- A function to call on successful login (called after
-        setting the session value)
-    make_permanent -- Whether a session should persist past the browser window
-        closing
+    :param function notify_render_func: The function to call to render the user
+        notification page; if not specified a default will be provided.
+    :param str session_auth_name: The session parameter to use for the
+        authenticated user. Set to None if you want to use your own session
+        management.
+    :param bool force_ssl: Whether to force authentication to switch to an SSL
+        connection
+    :param str stylesheet: the URL to use for the default page stylesheet; if
+        not
+    :param function on_verified: A function to call on successful login (called
+        after setting the session value)
+    :param bool make_permanent: Whether a session should persist past the
+        browser window closing
 
     The login_render_func takes the following arguments:
 
@@ -93,8 +99,6 @@ def setup(app,
     """
     # pylint:disable=too-many-arguments,too-many-locals,too-many-statements
 
-    import flask
-
     instance = from_config(config)
     url_scheme = 'https' if force_ssl else None
 
@@ -108,7 +112,7 @@ def setup(app,
         return decorator
 
     @set_cache(0)
-    def handle_disposition(disp, redir):
+    def handle_disposition(disp: disposition.Disposition, redir: str):
         if isinstance(disp, disposition.Redirect):
             # A simple redirection
             return flask.redirect(disp.url)
@@ -116,8 +120,9 @@ def setup(app,
         if isinstance(disp, disposition.Verified):
             # The user is verified; log them in
             LOGGER.info("Successful login: %s", disp.identity)
-            flask.session.permanent = make_permanent
-            flask.session[session_auth_name] = disp.identity
+            if session_auth_name is not None:
+                flask.session.permanent = make_permanent
+                flask.session[session_auth_name] = disp.identity
 
             if on_verified:
                 response = on_verified(disp)
@@ -139,7 +144,7 @@ def setup(app,
         raise http_error.InternalServerError("Unknown disposition type " + type(disp))
 
     @functools.lru_cache(8)
-    def load_template(filename):
+    def load_template(filename: str) -> str:
         return utils.read_file(os.path.join(os.path.dirname(__file__), 'flask_templates', filename))
 
     @set_cache(0)
@@ -154,7 +159,7 @@ def setup(app,
                                             stylesheet=get_stylesheet())
 
     @set_cache(0)
-    def render_login_form(redir):
+    def render_login_form(redir: str):
         login_url = flask.url_for(login_name,
                                   redir=redir,
                                   _scheme=url_scheme,
@@ -170,7 +175,7 @@ def setup(app,
                                             stylesheet=get_stylesheet(),
                                             auth=instance)
 
-    def login(redir=''):
+    def login(redir: str = ''):
         from flask import request
 
         if 'asset' in request.args:
@@ -199,7 +204,7 @@ def setup(app,
     for sfx in ['', '/', '/<path:redir>']:
         app.add_url_rule(login_path + sfx, login_name, login, methods=('GET', 'POST'))
 
-    def callback(hid, redir=''):
+    def callback(hid: str, redir: str = ''):
         from flask import request
 
         handler = instance.get_handler_by_id(hid)
@@ -208,26 +213,25 @@ def setup(app,
         )
     app.add_url_rule(callback_path + '/<hid>', callback_name, callback)
 
-    def get_stylesheet():
+    def get_stylesheet() -> str:
         if stylesheet is None:
             return flask.url_for(login_name, asset='css')
         return stylesheet
 
-    def find_service():
-        from flask import request
-
-        url = request.args.get('url')
-        if not url:
-            return json.dumps(None)
-
-        handler, _, canon_url = instance.get_handler_for_url(url)
-        if handler:
-            return json.dumps({'name': handler.service_name,
-                               'url': canon_url})
-
-        return json.dumps(None)
-
     if tester_path:
+        def find_service():
+            from flask import request
+
+            url = request.args.get('url')
+            if not url:
+                return json.dumps(None)
+
+            handler, _, canon_url = instance.get_handler_for_url(url)
+            if handler:
+                return json.dumps({'name': handler.service_name,
+                                   'url': canon_url})
+
+            return json.dumps(None)
         app.add_url_rule(tester_path, tester_name, find_service)
 
     return instance
