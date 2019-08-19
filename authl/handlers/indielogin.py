@@ -1,6 +1,5 @@
 """ Implementation that uses IndieLogin.com """
 
-import json
 import logging
 import urllib.parse
 
@@ -68,12 +67,12 @@ class IndieLogin(Handler):
 
         return False
 
-    def initiate_auth(self, id_url, callback_url):
-        LOGGER.info('Initiate auth: %s %s', id_url, callback_url)
+    def initiate_auth(self, id_url, callback_uri, redir):
+        LOGGER.info('Initiate auth: %s %s', id_url, callback_uri)
 
         # register a new transaction ID
         state = utils.gen_token()
-        self._pending[state] = {'id_url': id_url, 'callback_uri': callback_url}
+        self._pending[state] = (callback_uri, redir)
 
         auth_url = (
             self._endpoint
@@ -82,7 +81,7 @@ class IndieLogin(Handler):
                 {
                     'me': id_url,
                     'client_id': utils.resolve_value(self._client_id),
-                    'redirect_uri': callback_url,
+                    'redirect_uri': callback_uri,
                     'state': state,
                 }
             )
@@ -102,18 +101,21 @@ class IndieLogin(Handler):
         if 'code' not in get:
             return disposition.Error('Missing auth code')
 
-        item = self._pending[state]
+        callback_uri, redir = self._pending[state]
         del self._pending[state]
         req = requests.post(
             self._endpoint,
             {
                 'code': get['code'],
-                'redirect_uri': item['callback_uri'],
+                'redirect_uri': callback_uri,
                 'client_id': utils.resolve_value(self._client_id),
             },
         )
 
-        result = json.loads(req.text)
+        try:
+            result = req.json()
+        except ValueError:
+            return disposition.Error("Got invalid response JSON")
 
         if req.status_code != 200:
             return disposition.Error(
@@ -122,7 +124,7 @@ class IndieLogin(Handler):
                 )
             )
 
-        return disposition.Verified(result.get('me'))
+        return disposition.Verified(result.get('me'), redir)
 
 
 def from_config(config, token_store):

@@ -102,7 +102,7 @@ class EmailAddress(Handler):
 
         return None
 
-    def initiate_auth(self, id_url, callback_url):
+    def initiate_auth(self, id_url, callback_uri, redir):
         # Extract the destination email from the identity URL
         dest_addr = urllib.parse.urlparse(id_url).path.lower()
 
@@ -115,7 +115,7 @@ class EmailAddress(Handler):
                 minutes=int(math.ceil(wait_time / 60))))
 
         token = utils.gen_token()
-        link_url = (callback_url + ('&' if '?' in callback_url else '?') +
+        link_url = (callback_uri + ('&' if '?' in callback_uri else '?') +
                     urllib.parse.urlencode({'t': token}))
 
         msg = email.message.EmailMessage()
@@ -128,7 +128,7 @@ class EmailAddress(Handler):
 
         self._sendmail(msg)
 
-        self._pending[token] = dest_addr
+        self._pending[token] = (dest_addr, redir)
         self._timeouts[dest_addr] = now + self._lifetime / 2
         LOGGER.debug("Timeout for %s = %f", dest_addr, self._timeouts[dest_addr])
 
@@ -141,7 +141,7 @@ class EmailAddress(Handler):
         if not token or token not in self._pending:
             return disposition.Error('Invalid or expired sign-in token')
 
-        email_addr = self._pending[token]
+        email_addr, redir = self._pending[token]
         del self._pending[token]
 
         if not email_addr or not validate_email.validate_email(email_addr):
@@ -150,7 +150,7 @@ class EmailAddress(Handler):
         if email_addr in self._timeouts:
             del self._timeouts[email_addr]
 
-        return disposition.Verified('mailto:' + email_addr)
+        return disposition.Verified('mailto:' + email_addr, redir)
 
 
 def smtplib_connector(hostname, port, username=None, password=None, use_ssl=True):

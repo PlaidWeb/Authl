@@ -20,11 +20,12 @@ class Verified(Disposition):
     client to the actual view
 
     Profile will just be a MultiDict with whatever other junk the provider
-    includes in the profile, which is probably useful for some use case
+    includes in the profile, which is probably useful for some use case.
     """
 
-    def __init__(self, identity, profile=None):
+    def __init__(self, identity, redir, profile=None):
         self.identity = identity
+        self.redir = redir
         self.profile = profile or {}
 
 

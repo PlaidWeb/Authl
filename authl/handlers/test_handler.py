@@ -14,8 +14,8 @@ class TestHandler(Handler):
             return url
         return None
 
-    def initiate_auth(self, id_url, callback_url):
-        return disposition.Verified(id_url)
+    def initiate_auth(self, id_url, callback_uri, redir):
+        return disposition.Verified(id_url, redir)
 
     def check_callback(self, url, get, data):
         return disposition.Error("This shouldn't be possible")

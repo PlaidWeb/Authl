@@ -55,6 +55,7 @@ setup(
         'beautifulsoup4',
         'expiringdict',
         'requests',
+        'requests_oauthlib',
         'validate_email',
     ],
 
