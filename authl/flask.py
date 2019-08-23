@@ -138,7 +138,6 @@ def setup(app,
         # unhandled disposition
         raise http_error.InternalServerError("Unknown disposition type " + type(disp))
 
-    @functools.lru_cache(8)
     def load_template(filename):
         return utils.read_file(os.path.join(os.path.dirname(__file__), 'flask_templates', filename))
 
@@ -153,23 +152,28 @@ def setup(app,
                                             cdata=cdata,
                                             stylesheet=get_stylesheet())
 
-    @set_cache(0)
     def render_login_form(redir):
         login_url = flask.url_for(login_name,
                                   redir=redir,
                                   _scheme=url_scheme,
                                   _external=bool(url_scheme))
+        test_url = tester_path and flask.url_for(tester_name,
+                                                 _external=True,
+                                                 _scheme=url_scheme)
         if login_render_func:
             result = login_render_func(login_url=login_url,
+                                       test_url=test_url,
                                        auth=instance)
             if result:
                 return result
 
         return flask.render_template_string(load_template('login.html'),
                                             login_url=login_url,
+                                            test_url=test_url,
                                             stylesheet=get_stylesheet(),
                                             auth=instance)
 
+    @set_cache(0)
     def login(redir=''):
         from flask import request
 

@@ -19,6 +19,43 @@ function setUrl(url, repltext) {
         profile_url.setSelectionRange(index, index + repltext.length);
     }
 }
+
+//{% if test_url %}
+var test_timeout = null;
+function testUri() {
+    var uri = document.getElementById('me').value;
+    var label = document.getElementById('uri-type');
+
+    if (test_timeout !== null) {
+        clearTimeout(test_timeout);
+        test_timeout = null;
+    }
+
+    label.className = "pending";
+    label.innerHTML = "";
+    test_timeout = setTimeout(function() {
+        fetch("{{test_url}}?url=" + encodeURIComponent(uri)).then(function(response) {
+            if (response.status !== 200) {
+                label.className = "error";
+                console.log(response);
+                return;
+            }
+
+            response.json().then(function(data) {
+                if (data) {
+                    label.className = "resolved";
+                    label.innerHTML = "Will log in using <span>" + data.name + "</span>";
+                } else {
+                    label.className = "error";
+                    label.innerHTML = "Unknown login type";
+                }
+            });
+
+        });
+    }, 250);
+
+}
+//{% endif %}
 </script>
 </head>
 
@@ -26,9 +63,9 @@ function setUrl(url, repltext) {
     <div id="login">
         <h1>Identify Yourself</h1>
         <form method="POST" action="{{login_url}}" novalidate>
-            <input id="me" type="url" name="me" size="30" placeholder="Your ID here" autofocus>
+            <input id="me" type="url" name="me" size="30" placeholder="Your ID here" oninput="testUri()" autofocus>
             <button>Go!</button>
-            <label for="me" id="url_type"></label>
+            <label for="me" id="uri-type"></label>
             {% with messages = get_flashed_messages() %}
             {% if messages %}
             <ul class="flashes">
