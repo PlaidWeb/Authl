@@ -37,7 +37,7 @@ function testUri() {
         fetch("{{test_url}}?url=" + encodeURIComponent(uri)).then(function(response) {
             if (response.status !== 200) {
                 label.className = "error";
-                console.log(response);
+                label.innerHTML = "Got error " + response.status + " checking the URL";
                 return;
             }
 

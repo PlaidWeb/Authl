@@ -1,11 +1,12 @@
 """ Flask wrapper for Authl """
 
-import functools
 import json
 import logging
 import os
+import typing
 import urllib.parse
 
+import flask
 import werkzeug.exceptions as http_error
 
 from . import disposition, from_config, utils
@@ -13,55 +14,53 @@ from . import disposition, from_config, utils
 LOGGER = logging.getLogger(__name__)
 
 
-def setup(app,
-          config,
-          login_name='authl.login',
-          login_path='/login',
-          callback_name='authl.callback',
-          callback_path='/cb',
-          tester_name='authl.test',
-          tester_path=None,
-          login_render_func=None,
-          notify_render_func=None,
-          session_auth_name='me',
-          force_ssl=False,
-          stylesheet=None,
-          on_verified=None,
-          make_permanent=True
+def setup(app: flask.Flask,
+          config: typing.Dict[str, typing.Any],
+          login_name: str = 'authl.login',
+          login_path: str = '/login',
+          callback_name: str = 'authl.callback',
+          callback_path: str = '/cb',
+          tester_name: str = 'authl.test',
+          tester_path: str = None,
+          login_render_func: typing.Callable = None,
+          notify_render_func: typing.Callable = None,
+          session_auth_name: str = 'me',
+          force_ssl: bool = False,
+          stylesheet: str = None,
+          on_verified: typing.Callable = None,
+          make_permanent: bool = True
           ):
     """ Setup Authl to work with a Flask application.
 
     The Flask application should be configured with a secret_key before this
     function is called.
 
-    Arguments:
-
-    app -- the application to attach to
-    config -- Configuration directives for Authl's handlers. See from_config
+    :param app: the application to attach to
+    :param config: Configuration directives for Authl's handlers. See from_config
         for more information.
-    login_name -- The endpoint name for the login handler, for flask.url_for()
-    login_path -- The mount point of the login route
-    callback_name -- The endpoint name for the callback handler, for
+    :param login_name: The endpoint name for the login handler, for flask.url_for()
+    :param login_path: The mount point of the login route
+    :param callback_name: The endpoint name for the callback handler, for
         flask.url_for()
-    callback_path -- The mount point of the callback handler
-    tester_name -- The endpoint name for the URL tester, for flask.url_for()
-    tester_path -- The mount point of the URL tester
-    login_render_func -- The function to call to render the login page; if not
+    :param callback_path: The mount point of the callback handler
+    :param tester_name: The endpoint name for the URL tester, for flask.url_for()
+    :param tester_path: The mount point of the URL tester
+    :param login_render_func: The function to call to render the login page; if not
         specified a default will be provided.
-    notify_render_func -- The function to call to render the user notification
+    :param notify_render_func: The function to call to render the user notification
         page; if not specified a default will be provided.
-    session_auth_name -- The session parameter to use for the authenticated user
-    force_ssl -- Whether to force authentication to switch to an SSL connection
-    stylesheet -- the URL to use for the default page stylesheet
-    on_verified -- A function to call on successful login (called after
+    :param session_auth_name: The session parameter to use for the authenticated user
+    :param force_ssl: Whether to force authentication to switch to an SSL connection
+    :param stylesheet: the URL to use for the default page stylesheet
+    :param on_verified: A function to call on successful login (called after
         setting the session value)
-    make_permanent -- Whether a session should persist past the browser window
+    :param make_permanent: Whether a session should persist past the browser window
         closing
 
     The login_render_func takes the following arguments:
 
-        login_url -- the URL to use for the login form
-        auth -- the Authl object
+        :param login_url: the URL to use for the login form
+        :param auth: the Authl object
 
     If login_render_func returns a false value, the default login form will be
     used instead. This is useful for providing a conditional override, or as a
@@ -69,7 +68,7 @@ def setup(app,
 
     The render_notify_func takes the following arguments:
 
-        cdata -- the client data for the handler
+        :param cdata: the client data for the handler
 
     The on_verified function receives the disposition.Verified object, and may
     return a Flask response of its own, ideally a flask.redirect(). This can be
@@ -83,17 +82,16 @@ def setup(app,
     to check. It returns a JSON object that describes the detected handler, with
     the following attributes:
 
-        name -- the service name
-        url -- a canonicized version of the URL
+        :param name: the service name
+        :param url: a canonicized version of the URL
 
     The URL tester endpoint will only be mounted if tester_path is specified.
+    This will also enable a small asynchronous preview in the default login form.
 
     Return value: the configured Authl instance
 
     """
     # pylint:disable=too-many-arguments,too-many-locals,too-many-statements
-
-    import flask
 
     instance = from_config(config)
     url_scheme = 'https' if force_ssl else None
