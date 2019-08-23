@@ -35,27 +35,33 @@ def setup(app: flask.Flask,
     The Flask application should be configured with a secret_key before this
     function is called.
 
-    :param app: the application to attach to
-    :param config: Configuration directives for Authl's handlers. See from_config
-        for more information.
-    :param login_name: The endpoint name for the login handler, for flask.url_for()
-    :param login_path: The mount point of the login route
-    :param callback_name: The endpoint name for the callback handler, for
+    :param flask.Flask app: the application to attach to
+    :param dict config: Configuration directives for Authl's handlers. See
+        from_config for more information.
+    :param str login_name: The endpoint name for the login handler, for
         flask.url_for()
-    :param callback_path: The mount point of the callback handler
-    :param tester_name: The endpoint name for the URL tester, for flask.url_for()
-    :param tester_path: The mount point of the URL tester
-    :param login_render_func: The function to call to render the login page; if not
-        specified a default will be provided.
-    :param notify_render_func: The function to call to render the user notification
+    :param str login_path: The mount point of the login route
+    :param str callback_name: The endpoint name for the callback handler, for
+        flask.url_for()
+    :param str callback_path: The mount point of the callback handler
+    :param str tester_name: The endpoint name for the URL tester, for
+        flask.url_for()
+    :param str tester_path: The mount point of the URL tester
+    :param function login_render_func: The function to call to render the login
         page; if not specified a default will be provided.
-    :param session_auth_name: The session parameter to use for the authenticated user
-    :param force_ssl: Whether to force authentication to switch to an SSL connection
-    :param stylesheet: the URL to use for the default page stylesheet
-    :param on_verified: A function to call on successful login (called after
-        setting the session value)
-    :param make_permanent: Whether a session should persist past the browser window
-        closing
+    :param function notify_render_func: The function to call to render the user
+        notification page; if not specified a default will be provided.
+    :param str session_auth_name: The session parameter to use for the
+        authenticated user. Set to None if you want to use your own session
+        management.
+    :param bool force_ssl: Whether to force authentication to switch to an SSL
+        connection
+    :param str stylesheet: the URL to use for the default page stylesheet; if
+        not
+    :param function on_verified: A function to call on successful login (called
+        after setting the session value)
+    :param bool make_permanent: Whether a session should persist past the
+        browser window closing
 
     The login_render_func takes the following arguments:
 
@@ -106,7 +112,7 @@ def setup(app: flask.Flask,
         return decorator
 
     @set_cache(0)
-    def handle_disposition(disp, redir):
+    def handle_disposition(disp: disposition.Disposition, redir: str):
         if isinstance(disp, disposition.Redirect):
             # A simple redirection
             return flask.redirect(disp.url)
@@ -114,8 +120,9 @@ def setup(app: flask.Flask,
         if isinstance(disp, disposition.Verified):
             # The user is verified; log them in
             LOGGER.info("Successful login: %s", disp.identity)
-            flask.session.permanent = make_permanent
-            flask.session[session_auth_name] = disp.identity
+            if session_auth_name is not None:
+                flask.session.permanent = make_permanent
+                flask.session[session_auth_name] = disp.identity
 
             if on_verified:
                 response = on_verified(disp)
@@ -136,7 +143,7 @@ def setup(app: flask.Flask,
         # unhandled disposition
         raise http_error.InternalServerError("Unknown disposition type " + type(disp))
 
-    def load_template(filename):
+    def load_template(filename: str) -> str:
         return utils.read_file(os.path.join(os.path.dirname(__file__), 'flask_templates', filename))
 
     @set_cache(0)
@@ -150,7 +157,7 @@ def setup(app: flask.Flask,
                                             cdata=cdata,
                                             stylesheet=get_stylesheet())
 
-    def render_login_form(redir):
+    def render_login_form(redir: str):
         login_url = flask.url_for(login_name,
                                   redir=redir,
                                   _scheme=url_scheme,
@@ -171,8 +178,7 @@ def setup(app: flask.Flask,
                                             stylesheet=get_stylesheet(),
                                             auth=instance)
 
-    @set_cache(0)
-    def login(redir=''):
+    def login(redir: str = ''):
         from flask import request
 
         if 'asset' in request.args:
@@ -201,7 +207,7 @@ def setup(app: flask.Flask,
     for sfx in ['', '/', '/<path:redir>']:
         app.add_url_rule(login_path + sfx, login_name, login, methods=('GET', 'POST'))
 
-    def callback(hid, redir=''):
+    def callback(hid: str, redir: str = ''):
         from flask import request
 
         handler = instance.get_handler_by_id(hid)
@@ -210,26 +216,25 @@ def setup(app: flask.Flask,
         )
     app.add_url_rule(callback_path + '/<hid>', callback_name, callback)
 
-    def get_stylesheet():
+    def get_stylesheet() -> str:
         if stylesheet is None:
             return flask.url_for(login_name, asset='css')
         return stylesheet
 
-    def find_service():
-        from flask import request
-
-        url = request.args.get('url')
-        if not url:
-            return json.dumps(None)
-
-        handler, _, canon_url = instance.get_handler_for_url(url)
-        if handler:
-            return json.dumps({'name': handler.service_name,
-                               'url': canon_url})
-
-        return json.dumps(None)
-
     if tester_path:
+        def find_service():
+            from flask import request
+
+            url = request.args.get('url')
+            if not url:
+                return json.dumps(None)
+
+            handler, _, canon_url = instance.get_handler_for_url(url)
+            if handler:
+                return json.dumps({'name': handler.service_name,
+                                   'url': canon_url})
+
+            return json.dumps(None)
         app.add_url_rule(tester_path, tester_name, find_service)
 
     return instance
