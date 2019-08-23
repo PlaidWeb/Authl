@@ -63,10 +63,12 @@ def setup(app: flask.Flask,
     :param bool make_permanent: Whether a session should persist past the
         browser window closing
 
-    The login_render_func takes the following arguments:
+    The login_render_func takes the following arguments; note that more may
+    be added so it should also take a **kwargs for future compatibility:
 
-        :param login_url: the URL to use for the login form
         :param auth: the Authl object
+        :param login_url: the URL to use for the login form
+        :param tester_url: the URL to use for the test callback
 
     If login_render_func returns a false value, the default login form will be
     used instead. This is useful for providing a conditional override, or as a
