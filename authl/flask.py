@@ -165,8 +165,7 @@ def setup(app: flask.Flask,
                                   _scheme=url_scheme,
                                   _external=bool(url_scheme))
         test_url = tester_path and flask.url_for(tester_name,
-                                                 _external=True,
-                                                 _scheme=url_scheme)
+                                                 _external=True)
         if login_render_func:
             result = login_render_func(login_url=login_url,
                                        test_url=test_url,
