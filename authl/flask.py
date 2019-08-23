@@ -1,6 +1,5 @@
 """ Flask wrapper for Authl """
 
-import functools
 import json
 import logging
 import os
@@ -66,8 +65,8 @@ def setup(app: flask.Flask,
 
     The login_render_func takes the following arguments:
 
-        login_url -- the URL to use for the login form
-        auth -- the Authl object
+        :param login_url: the URL to use for the login form
+        :param auth: the Authl object
 
     If login_render_func returns a false value, the default login form will be
     used instead. This is useful for providing a conditional override, or as a
@@ -75,7 +74,7 @@ def setup(app: flask.Flask,
 
     The render_notify_func takes the following arguments:
 
-        cdata -- the client data for the handler
+        :param cdata: the client data for the handler
 
     The on_verified function receives the disposition.Verified object, and may
     return a Flask response of its own, ideally a flask.redirect(). This can be
@@ -89,10 +88,11 @@ def setup(app: flask.Flask,
     to check. It returns a JSON object that describes the detected handler, with
     the following attributes:
 
-        name -- the service name
-        url -- a canonicized version of the URL
+        :param name: the service name
+        :param url: a canonicized version of the URL
 
     The URL tester endpoint will only be mounted if tester_path is specified.
+    This will also enable a small asynchronous preview in the default login form.
 
     Return value: the configured Authl instance
 
@@ -143,7 +143,6 @@ def setup(app: flask.Flask,
         # unhandled disposition
         raise http_error.InternalServerError("Unknown disposition type " + type(disp))
 
-    @functools.lru_cache(8)
     def load_template(filename: str) -> str:
         return utils.read_file(os.path.join(os.path.dirname(__file__), 'flask_templates', filename))
 
@@ -158,20 +157,24 @@ def setup(app: flask.Flask,
                                             cdata=cdata,
                                             stylesheet=get_stylesheet())
 
-    @set_cache(0)
     def render_login_form(redir: str):
         login_url = flask.url_for(login_name,
                                   redir=redir,
                                   _scheme=url_scheme,
                                   _external=bool(url_scheme))
+        test_url = tester_path and flask.url_for(tester_name,
+                                                 _external=True,
+                                                 _scheme=url_scheme)
         if login_render_func:
             result = login_render_func(login_url=login_url,
+                                       test_url=test_url,
                                        auth=instance)
             if result:
                 return result
 
         return flask.render_template_string(load_template('login.html'),
                                             login_url=login_url,
+                                            test_url=test_url,
                                             stylesheet=get_stylesheet(),
                                             auth=instance)
 

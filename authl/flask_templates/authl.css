@@ -26,7 +26,7 @@ h1 {
 form, #notify {
     display: inline-block;
     font-size: large;
-    margin: 1em;
+    margin: 1em 1em 2em;
 }
 input[type="url"] {
     font-family: "Helvetica Neue", sans-serif;
@@ -78,3 +78,56 @@ a:link {
     margin: 0 1em;
     padding: 0;
 }
+
+#uri-type {
+    display: block;
+    font-size: small;
+    font-style: italic;
+    position: absolute;
+    z-index: 5;
+    text-shadow:  1px  0px 0px white,
+                 -1px  0px 0px white,
+                  0px  1px 0px white,
+                  0px -1px 0px white;
+}
+
+#uri-type.resolved {
+    color: #060;
+}
+
+#uri-type.error {
+    color: #900;
+}
+
+#uri-type span {
+    font-weight: bold;
+}
+
+#uri-type.pending:before {
+    position: absolute;
+    display: inline-block;
+    content: '❉';
+    font-style: normal;
+    font-size: 120%;
+    vertical-align: top;
+    color: white;
+    text-shadow: 1px  0px 0px rgba(0,0,0,0.5),
+                -1px  0px 0px rgba(0,0,0,0.5),
+                 0px  1px 0px rgba(0,0,0,0.5),
+                 0px -1px 0px rgba(0,0,0,0.5);
+    z-index: -3;
+    -webkit-animation: spin 2s linear infinite; /* Safari */
+    animation: spin 2s linear infinite;
+}
+
+/* Safari */
+@-webkit-keyframes spin {
+  0% { -webkit-transform: rotate(0deg); }
+  100% { -webkit-transform: rotate(360deg); }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
