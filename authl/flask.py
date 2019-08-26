@@ -69,6 +69,8 @@ def setup(app: flask.Flask,
         :param auth: the Authl object
         :param login_url: the URL to use for the login form
         :param tester_url: the URL to use for the test callback
+        :param redir: The redirection destination that the login URL will
+            redirect them to
 
     If login_render_func returns a false value, the default login form will be
     used instead. This is useful for providing a conditional override, or as a
@@ -181,7 +183,8 @@ def setup(app: flask.Flask,
         if login_render_func:
             result = login_render_func(login_url=login_url,
                                        test_url=test_url,
-                                       auth=instance)
+                                       auth=instance,
+                                       redir=destination)
             if result:
                 return result
 
