@@ -144,19 +144,19 @@ class Mastodon(Handler):
             headers=auth_headers)
         if request.status_code != 200:
             LOGGER.warning('verify_credentials: %d %s', request.status_code, request.text)
-            return disposition.Error("Unable to get account credentials")
+            return disposition.Error("Unable to get account credentials", redir)
 
         response = request.json()
         if 'url' not in response:
             LOGGER.warning("Response did not contain 'url': %s", response)
-            return disposition.Error("No user URL provided")
+            return disposition.Error("No user URL provided", redir)
 
         # canonicize the URL and also make sure the domain matches
         id_url = urllib.parse.urljoin(client.instance, response['url'])
         if urllib.parse.urlparse(id_url).netloc != urllib.parse.urlparse(client.instance).netloc:
             LOGGER.warning("Instance %s returned response of %s -> %s",
                            client.instance, response['url'], id_url)
-            return disposition.Error("Domains do not match")
+            return disposition.Error("Domains do not match", redir)
 
         return disposition.Verified(id_url, redir, response)
 
@@ -165,10 +165,10 @@ class Mastodon(Handler):
         try:
             client = self._get_client(id_url, callback_uri)
         except Exception as err:  # pylint:disable=broad-except
-            return disposition.Error("Failed to register OAuth client: " + str(err))
+            return disposition.Error("Failed to register OAuth client: " + str(err), redir)
 
         if not client:
-            return disposition.Error("Failed to register OAuth client")
+            return disposition.Error("Failed to register OAuth client", redir)
 
         self._pending[state] = (client, redir)
 
@@ -182,13 +182,13 @@ class Mastodon(Handler):
     def check_callback(self, url, get, data):
         state = get.get('state')
         if not state:
-            return disposition.Error("No transaction ID provided")
+            return disposition.Error("No transaction ID provided", None)
         if state not in self._pending:
-            return disposition.Error('Transaction invalid or expired')
+            return disposition.Error('Transaction invalid or expired', None)
         client, redir = self._pending[state]
 
         if 'code' not in get:
-            return disposition.Error("Missing auth code")
+            return disposition.Error("Missing auth code", redir)
 
         request = requests.post(client.token_endpoint,
                                 {**client.params,
@@ -197,12 +197,12 @@ class Mastodon(Handler):
                                  'code': get['code']})
         if request.status_code != 200:
             LOGGER.warning('oauth/token: %d %s', request.status_code, request.text)
-            return disposition.Error("Could not retrieve access token")
+            return disposition.Error("Could not retrieve access token", redir)
 
         response = request.json()
         if 'access_token' not in response:
             LOGGER.warning("Response did not contain 'access_token': %s", response)
-            return disposition.Error("No access token provided")
+            return disposition.Error("No access token provided", redir)
 
         token = response['access_token']
         auth_headers = {'Authorization': 'Bearer ' + token}
@@ -212,6 +212,7 @@ class Mastodon(Handler):
         # try to clean up after ourselves
         request = requests.post(client.revoke_endpoint, data={
             **client.params,
+            **client.secrets,
             'token': token
         }, headers=auth_headers)
         if request.status_code != 200:

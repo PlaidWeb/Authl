@@ -113,8 +113,20 @@ def setup(app: flask.Flask,
             return wrapped_func
         return decorator
 
+    def redir_dest_to_path(destination: str):
+        """ Convert a redirection destination to a path fragment """
+        if destination.startswith('/'):
+            return destination[1:]
+        return destination
+
+    def redir_path_to_dest(path: str):
+        """ Convert a path fragment to a redirection destination """
+        if path.startswith('/'):
+            return path
+        return '/' + path
+
     @set_cache(0)
-    def handle_disposition(disp: disposition.Disposition, redir: str):
+    def handle_disposition(disp: disposition.Disposition):
         if isinstance(disp, disposition.Redirect):
             # A simple redirection
             return flask.redirect(disp.url)
@@ -131,7 +143,7 @@ def setup(app: flask.Flask,
                 if response:
                     return response
 
-            return flask.redirect('/' + disp.redir)
+            return flask.redirect(disp.redir)
 
         if isinstance(disp, disposition.Notify):
             # The user needs to take some additional action
@@ -140,7 +152,7 @@ def setup(app: flask.Flask,
         if isinstance(disp, disposition.Error):
             # The user's login failed
             flask.flash(disp.message)
-            return render_login_form(redir=redir)
+            return render_login_form(destination=disp.redir)
 
         # unhandled disposition
         raise http_error.InternalServerError("Unknown disposition type " + type(disp))
@@ -159,9 +171,9 @@ def setup(app: flask.Flask,
                                             cdata=cdata,
                                             stylesheet=get_stylesheet())
 
-    def render_login_form(redir: str):
+    def render_login_form(destination: str):
         login_url = flask.url_for(login_name,
-                                  redir=redir,
+                                  redir=redir_dest_to_path(destination),
                                   _scheme=url_scheme,
                                   _external=bool(url_scheme))
         test_url = tester_path and flask.url_for(tester_name,
@@ -188,6 +200,8 @@ def setup(app: flask.Flask,
                 return load_template('authl.css'), {'Content-Type': 'text/css'}
             raise http_error.NotFound("Unknown asset " + asset)
 
+        dest = redir_path_to_dest(redir)
+
         me_url = request.form.get('me', request.args.get('me'))
         if me_url:
             handler, hid, id_url = instance.get_handler_for_url(me_url)
@@ -196,25 +210,25 @@ def setup(app: flask.Flask,
                                        hid=hid,
                                        _external=True,
                                        _scheme=url_scheme)
-                return handle_disposition(handler.initiate_auth(id_url,
-                                                                cb_url,
-                                                                redir), redir)
+                return handle_disposition(handler.initiate_auth(
+                    id_url,
+                    cb_url,
+                    dest))
 
             # No handler found, so flash an error message to login_form
             flask.flash('Unknown authorization method')
 
-        return render_login_form(redir=redir)
+        return render_login_form(destination=dest)
 
     for sfx in ['', '/', '/<path:redir>']:
         app.add_url_rule(login_path + sfx, login_name, login, methods=('GET', 'POST'))
 
-    def callback(hid: str, redir: str = ''):
+    def callback(hid: str):
         from flask import request
 
         handler = instance.get_handler_by_id(hid)
         return handle_disposition(
-            handler.check_callback(request.url, request.args, request.form), redir
-        )
+            handler.check_callback(request.url, request.args, request.form))
     app.add_url_rule(callback_path + '/<hid>', callback_name, callback)
 
     def get_stylesheet() -> str:

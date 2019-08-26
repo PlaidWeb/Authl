@@ -112,7 +112,7 @@ class EmailAddress(Handler):
             self._timeouts[dest_addr] = now + wait_time
             return disposition.Error(self._wait_error.format(
                 email=html.escape(dest_addr),
-                minutes=int(math.ceil(wait_time / 60))))
+                minutes=int(math.ceil(wait_time / 60))), redir)
 
         token = utils.gen_token()
         link_url = (callback_uri + ('&' if '?' in callback_uri else '?') +
@@ -139,13 +139,13 @@ class EmailAddress(Handler):
         print(token, self._pending)
 
         if not token or token not in self._pending:
-            return disposition.Error('Invalid or expired sign-in token')
+            return disposition.Error('Invalid or expired sign-in token', None)
 
         email_addr, redir = self._pending[token]
         del self._pending[token]
 
         if not email_addr or not validate_email.validate_email(email_addr):
-            return disposition.Error('Invalid email address ' + html.escape(str(email_addr)))
+            return disposition.Error('Invalid email address ' + html.escape(str(email_addr)), redir)
 
         if email_addr in self._timeouts:
             del self._timeouts[email_addr]
