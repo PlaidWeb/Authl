@@ -93,16 +93,17 @@ class IndieLogin(Handler):
 
         state = get.get('state')
         if not state:
-            return disposition.Error('No transaction ID provided')
+            return disposition.Error('No transaction ID provided', None)
         if state not in self._pending:
             LOGGER.warning('state=%s pending=%s', state, self._pending)
-            return disposition.Error('Transaction invalid or expired')
-
-        if 'code' not in get:
-            return disposition.Error('Missing auth code')
+            return disposition.Error('Transaction invalid or expired', None)
 
         callback_uri, redir = self._pending[state]
         del self._pending[state]
+
+        if 'code' not in get:
+            return disposition.Error('Missing auth code', redir)
+
         req = requests.post(
             self._endpoint,
             {
@@ -115,13 +116,13 @@ class IndieLogin(Handler):
         try:
             result = req.json()
         except ValueError:
-            return disposition.Error("Got invalid response JSON")
+            return disposition.Error("Got invalid response JSON", redir)
 
         if req.status_code != 200:
             return disposition.Error(
                 'Got error {code}: {text}'.format(
                     code=req.status_code, text=result.get('error_description')
-                )
+                ), redir
             )
 
         return disposition.Verified(result.get('me'), redir)

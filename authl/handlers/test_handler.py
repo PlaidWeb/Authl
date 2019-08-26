@@ -15,10 +15,12 @@ class TestHandler(Handler):
         return None
 
     def initiate_auth(self, id_url, callback_uri, redir):
+        if id_url == 'test:error':
+            return disposition.Error("Error identity requested", redir)
         return disposition.Verified(id_url, redir)
 
     def check_callback(self, url, get, data):
-        return disposition.Error("This shouldn't be possible")
+        return disposition.Error("This shouldn't be possible", None)
 
     @property
     def cb_id(self):

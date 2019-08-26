@@ -44,7 +44,13 @@ class Notify(Disposition):
 
 class Error(Disposition):
     """ A disposition that indicates that authorization failed, hopefully with
-    an informative message. """
+    an informative message.
 
-    def __init__(self, message):
+    :param str message: The error message to display
+    :param str redir: The original redirection target of the auth attempt. If
+        this is not available for whatever reason, set this to `None`.
+    """
+
+    def __init__(self, message, redir):
         self.message = message
+        self.redir = redir or '/'

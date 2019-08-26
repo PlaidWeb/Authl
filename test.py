@@ -53,9 +53,23 @@ authl.flask.setup(
 )
 
 
+@app.route('/logout/')
+@app.route('/logout/<path:redir>')
+def logout(redir=''):
+    """ Log out from the thing """
+    LOGGER.info("Logging out")
+    LOGGER.info("Redir: %s", redir)
+    LOGGER.info("Request path: %s", flask.request.path)
+
+    flask.session.clear()
+    return flask.redirect('/' + redir)
+
+
 @app.route('/')
-@app.route('/some-page')
-def index():
+@app.route('/page')
+@app.route('/page/')
+@app.route('/page/<path:page>')
+def index(page=''):
     """ Just displays a very basic login form """
     LOGGER.info("Session: %s", flask.session)
     LOGGER.info("Request path: %s", flask.request.path)
@@ -68,15 +82,3 @@ def index():
 
     return 'You are not logged in. Want to <a href="{login}">log in</a>?'.format(
         login=flask.url_for('authl.login', redir=flask.request.path[1:]))
-
-
-@app.route('/logout/')
-@app.route('/logout/<path:redir>')
-def logout(redir=''):
-    """ Log out from the thing """
-    LOGGER.info("Logging out")
-    LOGGER.info("Redir: %s", redir)
-    LOGGER.info("Request path: %s", flask.request.path)
-
-    flask.session.clear()
-    return flask.redirect('/' + redir)

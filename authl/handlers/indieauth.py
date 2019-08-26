@@ -107,7 +107,7 @@ class IndieAuth(Handler):
     def initiate_auth(self, id_url, callback_uri, redir):
         endpoint = self._get_endpoint(id_url)
         if not endpoint:
-            return disposition.Error("Failed to get IndieAuth endpoint")
+            return disposition.Error("Failed to get IndieAuth endpoint", redir)
 
         state = utils.gen_token()
         self._pending[state] = (endpoint, callback_uri, redir)
@@ -127,14 +127,14 @@ class IndieAuth(Handler):
         # pylint:disable=duplicate-code, too-many-return-statements
         state = get.get('state')
         if not state:
-            return disposition.Error("No transaction ID provided")
+            return disposition.Error("No transaction ID provided", None)
         if state not in self._pending:
-            return disposition.Error("Transaction invalid or expired")
+            return disposition.Error("Transaction invalid or expired", None)
 
         endpoint, callback_uri, redir = self._pending[state]
 
         if 'code' not in get:
-            return disposition.Error("Missing auth code")
+            return disposition.Error("Missing auth code", redir)
 
         # Verify the auth code
         request = requests.post(endpoint, data={
@@ -145,14 +145,14 @@ class IndieAuth(Handler):
 
         if request.status_code != 200:
             LOGGER.error("Request returned code %d: %s", request.status_code, request.text)
-            return disposition.Error("Unable to verify identity")
+            return disposition.Error("Unable to verify identity", redir)
 
         try:
             response = request.json()
         except ValueError:
-            return disposition.Error("Got invalid response JSON")
+            return disposition.Error("Got invalid response JSON", redir)
         if 'me' not in response:
-            return disposition.Error("No identity provided in response")
+            return disposition.Error("No identity provided in response", redir)
 
         return disposition.Verified(response['me'], redir, response)
 

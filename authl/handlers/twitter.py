@@ -51,7 +51,7 @@ class Twitter(Handler):
     def initiate_auth(self, id_url, callback_uri, redir):
         match = Twitter.twitter_regex.match(id_url)
         if not match:
-            return disposition.Error("Got invalid Twitter URL")
+            return disposition.Error("Got invalid Twitter URL", redir)
 
         username = match.group(2)
         oauth_session = OAuth1Session(
@@ -77,14 +77,15 @@ class Twitter(Handler):
     def check_callback(self, url, get, data):
         token = get.get('oauth_token')
         if not token:
-            return disposition.Error("No transaction ID provided")
+            return disposition.Error("No transaction ID provided", None)
         if token not in self._pending:
-            return disposition.Error("Transaction invalid or expired")
-
-        if not get.get('oauth_verifier'):
-            return disposition.Error("Twitter authorization declined")
+            return disposition.Error("Transaction invalid or expired", None)
 
         params, callback_uri, redir = self._pending[token]
+        del self._pending[token]
+
+        if not get.get('oauth_verifier'):
+            return disposition.Error("Twitter authorization declined", redir)
 
         oauth_session = OAuth1Session(
             client_key=self._client_key,
@@ -105,7 +106,9 @@ class Twitter(Handler):
         user_info = requests.get(
             'https://api.twitter.com/1.1/account/verify_credentials.json', auth=auth).json()
         if 'errors' in user_info:
-            return disposition.Error("Could not retrieve credentials: %r" % user_info.get('errors'))
+            return disposition.Error(
+                "Could not retrieve credentials: %r" % user_info.get('errors'),
+                redir)
 
         user_id = user_info.get('id_str')
         username = user_info.get('screen_name')
