@@ -18,7 +18,7 @@ def gen_token():
 
 def read_file(filename):
     """ Given a filename, read the entire thing into a string """
-    with open(filename) as file:
+    with open(filename, encoding='utf-8') as file:
         return file.read()
 
 
