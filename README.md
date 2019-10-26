@@ -14,17 +14,18 @@ The basic API works, and provides an easy drop-in set of endpoints for [Flask](h
 Currently supported authentication mechanisms:
 
 * Directly authenticating against email using a magic link
-* Federated authentication against [IndieLogin](https://indielogin.com)
-* Federated authentcation against [Mastodon](https://joinmastodon.org)
+* Federated authentication against [Mastodon](https://joinmastodon.org/)
+* Federated authentication against [IndieAuth](https://indieauth.net/)
+* Federated authentication against [IndieLogin](https://indielogin.com/)
+* Silo authentication against [Twitter](https://twitter.com/)
 * Test/loopback authentication for development purposes
 
 Planned functionality:
 
 * Pluggable OAuth mechanism to easily support additional identity providers such as:
-    * IndieAuth
     * OpenID Connect (Google et al)
-    * Twitter
     * Facebook
+    * GitHub
 * OpenID 1.x (Wordpress, LiveJournal, Dreamwidth, etc.)
 * A more flexible configuration system
 
