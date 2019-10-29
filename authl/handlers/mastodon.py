@@ -180,6 +180,7 @@ class Mastodon(Handler):
         return disposition.Redirect(url)
 
     def check_callback(self, url, get, data):
+        # pylint:disable=too-many-return-statements
         if 'error' in get:
             return disposition.Error(get.get('error_description'), 'Error signing into Mastodon')
 

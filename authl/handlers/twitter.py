@@ -76,7 +76,7 @@ class Twitter(Handler):
 
     def check_callback(self, url, get, data):
         if 'denied' in get:
-            return disposition.Error("Access denied")
+            return disposition.Error("Access denied", None)
 
         token = get.get('oauth_token')
         if not token:
