@@ -180,6 +180,9 @@ class Mastodon(Handler):
         return disposition.Redirect(url)
 
     def check_callback(self, url, get, data):
+        if 'error' in get:
+            return disposition.Error(get.get('error_description'), 'Error signing into Mastodon')
+
         state = get.get('state')
         if not state:
             return disposition.Error("No transaction ID provided", None)
