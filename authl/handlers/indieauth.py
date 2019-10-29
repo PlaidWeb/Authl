@@ -13,6 +13,39 @@ from . import Handler
 LOGGER = logging.getLogger(__name__)
 
 
+def find_endpoint(id_url=None, links=None, content=None):
+    """ Given an identity URL, discover its IndieAuth endpoint
+
+    :param str id_url: an identity URL to check
+    :param links: a request.links object from a requests operation
+    :param BeautifulSoup content: a BeautifulSoup parse tree of an HTML document
+    """
+    def _link_endpoint(links):
+        if not links:
+            return None
+
+        LOGGER.debug("checking indieauth by link header")
+        if 'authorization_endpoint' in links:
+            return links['authorization_endpoint']['url']
+        return None
+
+    def _content_endpoint(content):
+        if not content:
+            return None
+
+        LOGGER.debug("checking indieauth by link tag")
+        link = content.find('link', rel='authorization_endpoint')
+        if link:
+            return link.get('href')
+        return None
+
+    request = utils.request_url(id_url) if id_url and not links or not content else None
+    if request:
+        links = request.links
+        content = BeautifulSoup(request.text, 'html.parser')
+    return (_link_endpoint(links) or _content_endpoint(content))
+
+
 class IndieAuth(Handler):
     """ Directly support login via IndieAuth, without requiring third-party
     IndieLogin brokerage.
@@ -61,24 +94,9 @@ class IndieAuth(Handler):
             max_len=config.get('INDIEAUTH_MAX_ENDPOINTS', 128),
             max_age_seconds=config.get('INDIEAUTH_ENDPOINT_TTL', 3600))
 
-    @staticmethod
-    def _link_endpoint(links):
-        LOGGER.debug("checking indieauth by link header")
-        if 'authorization_endpoint' in links:
-            return links['authorization_endpoint']['url']
-        return None
-
-    @staticmethod
-    def _content_endpoint(content):
-        LOGGER.debug("checking indieauth by link tag")
-        link = content.find('link', rel='authorization_endpoint')
-        if link:
-            return link.get('href')
-        return None
-
     def handles_page(self, url, headers, content, links):
         """ If we have the appropriate link rels, register the endpoint now """
-        endpoint = self._link_endpoint(links) or self._content_endpoint(content)
+        endpoint = find_endpoint(links=links, content=content)
 
         if endpoint:
             LOGGER.info("%s: has IndieAuth endpoint %s", url, endpoint)
@@ -91,18 +109,11 @@ class IndieAuth(Handler):
             # We already have it cached, yay
             return self._endpoints[id_url]
 
-        # It wasn't cached for some reason so let's just try again
-        # This entire branch may be unnecessary; when we finally have tests with
-        # coverage we can verify this
-        request = utils.request_url(id_url)
-        if request:
-            endpoint = (self._link_endpoint(request.links)
-                        or self._content_endpoint(BeautifulSoup(request.text, 'html.parser')))
-            if endpoint:
-                self._endpoints[id_url] = endpoint
-                return endpoint
-
-        return None
+        # need to discover it
+        endpoint = find_endpoint(id_url)
+        if endpoint:
+            self._endpoints[id_url] = endpoint
+        return endpoint
 
     def initiate_auth(self, id_url, callback_uri, redir):
         endpoint = self._get_endpoint(id_url)
