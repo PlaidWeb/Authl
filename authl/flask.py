@@ -83,8 +83,8 @@ class AuthlFlask:
         :param str login_name: The endpoint name for the login handler, for
             flask.url_for()
         :param str login_path: The mount point of the login route
-        :param str callback_name: The endpoint name for the callback handler, for
-            flask.url_for()
+        :param str callback_name: The endpoint name for the callback handler,
+            for flask.url_for()
         :param str callback_path: The mount point of the callback handler
         :param str tester_name: The endpoint name for the URL tester, for
             flask.url_for()
@@ -108,24 +108,25 @@ class AuthlFlask:
         The login_render_func takes the following arguments; note that more may
         be added so it should also take a **kwargs for future compatibility:
 
-            :param auth: the Authl object
+            :param auth: the authl.Authl object
             :param login_url: the URL to use for the login form
             :param tester_url: the URL to use for the test callback
             :param redir: The redirection destination that the login URL will
                 redirect them to
 
-        If login_render_func returns a false value, the default login form will be
-        used instead. This is useful for providing a conditional override, or as a
-        rudimentary hook for analytics on the login flow or the like.
+        If login_render_func returns a false value, the default login form will
+        be used instead. This is useful for providing a conditional override, or
+        as a rudimentary hook for analytics on the login flow or the like.
 
         The render_notify_func takes the following arguments:
 
             :param cdata: the client data for the handler
 
-        The on_verified function receives the disposition.Verified object, and may
-        return a Flask response of its own, ideally a flask.redirect(). This can be
-        used to capture more information about the user (such as their display name)
-        or to redirect certain users to an administrative screen of some sort.
+        The on_verified function receives the disposition.Verified object, and
+        may return a Flask response of its own, ideally a flask.redirect(). This
+        can be used to capture more information about the user (such as their
+        display name) or to redirect certain users to an administrative screen
+        of some sort.
 
         The login endpoint takes a query parameter of 'me' which is the URL to
         authenticate against.
