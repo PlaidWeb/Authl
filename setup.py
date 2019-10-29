@@ -54,6 +54,7 @@ setup(
     install_requires=[
         'beautifulsoup4',
         'expiringdict',
+        'read_only_property',
         'requests',
         'requests_oauthlib',
         'validate_email',

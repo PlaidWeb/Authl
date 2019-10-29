@@ -62,6 +62,12 @@
             ],
             "version": "==3.1.0"
         },
+        "read-only-property": {
+            "hashes": [
+                "sha256:347f28042fe95cd78ab57ab5d6ab50fc74e9757b1530e8b129b046990250183d"
+            ],
+            "version": "==0.1"
+        },
         "requests": {
             "hashes": [
                 "sha256:11e007a8a2aa0323f5a921e9e6a2d7e4e67d9877e85773fba9ba6419025cbeb4",

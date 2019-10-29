@@ -8,6 +8,7 @@ import urllib.parse
 
 import flask
 import werkzeug.exceptions as http_error
+from rop import read_only_properties
 
 from . import disposition, from_config, utils
 
@@ -16,8 +17,7 @@ LOGGER = logging.getLogger(__name__)
 
 def setup(app: flask.Flask, config: typing.Dict[str, typing.Any], *args, **kwargs):
     """ Simple/legacy API for backwards compatibility. """
-    flask_authl = FlaskAuthl(app, config, *args, **kwargs)
-    return flask_authl.instance
+    return AuthlFlask(app, config, *args, **kwargs).instance
 
 
 def set_cache(age: int) -> typing.Callable:
@@ -50,11 +50,13 @@ def redir_path_to_dest(path: str):
     return '/' + path
 
 
-class FlaskAuthl:
+@read_only_properties('login_name', 'callback_name', 'tester_name')
+class AuthlFlask:
     """ Container that wraps an Authl instance for a Flask application """
     # pylint:disable=too-many-instance-attributes
 
-    def __init__(self, app: flask.Flask,
+    def __init__(self,
+                 app: flask.Flask,
                  config: typing.Dict[str, typing.Any],
                  login_name: str = 'authl.login',
                  login_path: str = '/login',
