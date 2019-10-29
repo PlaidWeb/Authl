@@ -75,6 +75,9 @@ class Twitter(Handler):
             'https://api.twitter.com/oauth/authorize?' + urllib.parse.urlencode(params))
 
     def check_callback(self, url, get, data):
+        if 'denied' in get:
+            return disposition.Error("Access denied")
+
         token = get.get('oauth_token')
         if not token:
             return disposition.Error("No transaction ID provided", None)
