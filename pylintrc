@@ -1,2 +1,5 @@
+[MESSAGES CONTROL]
+disable=import-outside-toplevel
+
 [SIMILARITIES]
 ignore-imports=yes
