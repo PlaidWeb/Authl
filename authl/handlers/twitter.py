@@ -35,7 +35,7 @@ class Twitter(Handler):
         self._pending = utils.LRUDict()
         self._timeout = timeout or 600
 
-        self._sessions =  {}
+        self._sessions = {}
 
     # regex to match a twitter URL and optionally extract the username
     twitter_regex = re.compile(r'(https?://)?[^/]*\.?twitter\.com/?@?(.*)')
