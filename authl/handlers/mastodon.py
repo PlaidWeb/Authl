@@ -184,7 +184,6 @@ class Mastodon(Handler):
         return disposition.Redirect(url)
 
     def check_callback(self, url, get, data):
-        # pylint:disable=too-many-return-statements
         state = get.get('state')
         if not state:
             return disposition.Error("No transaction ID provided", None)
@@ -198,27 +197,23 @@ class Mastodon(Handler):
         if 'error' in get:
             return disposition.Error("Error signing into Mastodon", redir)
 
-        if 'code' not in get:
-            return disposition.Error("Missing auth code", redir)
+        try:
+            request = requests.post(client.token_endpoint,
+                                    {**client.params,
+                                     **client.secrets,
+                                     'grant_type': 'authorization_code',
+                                     'code': get['code']})
+            if request.status_code != 200:
+                LOGGER.warning('oauth/token: %d %s', request.status_code, request.text)
+                return disposition.Error("Could not retrieve access token", redir)
 
-        request = requests.post(client.token_endpoint,
-                                {**client.params,
-                                 **client.secrets,
-                                 'grant_type': 'authorization_code',
-                                 'code': get['code']})
-        if request.status_code != 200:
-            LOGGER.warning('oauth/token: %d %s', request.status_code, request.text)
-            return disposition.Error("Could not retrieve access token", redir)
+            response = request.json()
+            token = response['access_token']
+            auth_headers = {'Authorization': 'Bearer ' + token}
 
-        response = request.json()
-        if 'access_token' not in response:
-            LOGGER.warning("Response did not contain 'access_token': %s", response)
-            return disposition.Error("No access token provided", redir)
-
-        token = response['access_token']
-        auth_headers = {'Authorization': 'Bearer ' + token}
-
-        result = self._get_identity(client, auth_headers, redir)
+            result = self._get_identity(client, auth_headers, redir)
+        except KeyError as key:
+            result = disposition.Error("Missing " + str(key), redir)
 
         # try to clean up after ourselves
         request = requests.post(client.revoke_endpoint, data={
