@@ -43,7 +43,7 @@ def find_endpoint(id_url=None, links=None, content=None):
     if request:
         links = request.links
         content = BeautifulSoup(request.text, 'html.parser')
-    return (_link_endpoint(links) or _content_endpoint(content))
+    return _link_endpoint(links) or _content_endpoint(content)
 
 
 class IndieAuth(Handler):
