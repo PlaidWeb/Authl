@@ -4,7 +4,10 @@ import html
 import logging
 import re
 
+import itsdangerous
 import requests
+
+from . import disposition
 
 LOGGER = logging.getLogger(__name__)
 
@@ -82,3 +85,22 @@ def resolve_value(val):
     if callable(val):
         return val()
     return val
+
+
+def unpack_token(token_store, token: str, timeout: int) -> tuple:
+    """ Given a token_store, a token, and a timeout, try to unpack the data.
+    The token ***must*** be packed in the form of (client_data,redir).
+
+    On error, raises a disposition.Error which should be returned directly.
+    It is up to the handler to catch and return this!
+    """
+    try:
+        try:
+            cdata, redir = token_store.loads(token, max_age=timeout)
+        except itsdangerous.SignatureExpired:
+            _, redir = token_store.loads(token)
+            raise disposition.Error("Login has expired", redir)
+    except itsdangerous.BadData:
+        raise disposition.Error("Invalid login", None)
+
+    return cdata, redir

@@ -6,10 +6,9 @@ import logging
 import math
 import urllib.parse
 
-import itsdangerous
 import validate_email
 
-from .. import disposition
+from .. import disposition, utils
 from . import Handler
 
 LOGGER = logging.getLogger(__name__)
@@ -127,13 +126,9 @@ class EmailAddress(Handler):
             return disposition.Error('Missing token', None)
 
         try:
-            try:
-                email_addr, redir = self._token_store.loads(token, max_age=self._lifetime)
-            except itsdangerous.SignatureExpired:
-                _, redir = self._token_store.loads(token)
-                return disposition.Error("Link has expired", redir)
-        except itsdangerous.BadData:
-            return disposition.Error("Invalid link", None)
+            email_addr, redir = utils.unpack_token(self._token_store, token, self._lifetime)
+        except disposition.Disposition as disp:
+            return disp
 
         if not email_addr or not validate_email.validate_email(email_addr):
             return disposition.Error('Invalid email address ' + html.escape(str(email_addr)), redir)

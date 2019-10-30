@@ -5,10 +5,9 @@ import logging
 import re
 import urllib.parse
 
-import itsdangerous
 import requests
 
-from .. import disposition
+from .. import disposition, utils
 from . import Handler
 
 LOGGER = logging.getLogger(__name__)
@@ -186,22 +185,18 @@ class Mastodon(Handler):
 
     def check_callback(self, url, get, data):
         # pylint:disable=too-many-return-statements
-        if 'error' in get:
-            return disposition.Error(get.get('error_description'), 'Error signing into Mastodon')
-
         state = get.get('state')
         if not state:
             return disposition.Error("No transaction ID provided", None)
 
         try:
-            try:
-                client_tuple, redir = self._token_store.loads(state, max_age=self._timeout)
-                client = Mastodon.Client(*client_tuple)
-            except itsdangerous.SignatureExpired:
-                _, redir = self._token_store.loads(state)
-                return disposition.Error('Transaction expired', redir)
-        except itsdangerous.BadData:
-            return disposition.Error('Invalid transaction', None)
+            client_tuple, redir = utils.unpack_token(self._token_store, state, self._timeout)
+        except disposition.Disposition as disp:
+            return disp
+        client = Mastodon.Client(*client_tuple)
+
+        if 'error' in get:
+            return disposition.Error("Error signing into Mastodon", redir)
 
         if 'code' not in get:
             return disposition.Error("Missing auth code", redir)
