@@ -3,7 +3,6 @@
 import logging
 import urllib.parse
 
-import expiringdict
 import requests
 from bs4 import BeautifulSoup
 
@@ -73,32 +72,29 @@ class IndieAuth(Handler):
     def cb_id(self):
         return 'ia'
 
-    def __init__(self, client_id, token_store, config):
+    def __init__(self, client_id, token_store, timeout: int = None):
         """ Construct an IndieAuth handler
 
         :param client_id: The client_id to send to the remote IndieAuth
         provider. Can be a string or a function (e.g. lambda:flask.request.url_root)
 
-        :param max_pending: The maximum number of pending login requests
-
-        :param pending_ttl: How long the user has to complete login, in seconds
-
         :param token_store: Storage for the tokens
+
+        :param int timeout: Maximum time to wait for login to complete (default: 600)
         """
 
-        self._pending = token_store
-
         self._client_id = client_id
+        self._token_store = token_store
+        self._timeout = timeout or 600
 
-        self._endpoints = expiringdict.ExpiringDict(
-            max_len=config.get('INDIEAUTH_MAX_ENDPOINTS', 128),
-            max_age_seconds=config.get('INDIEAUTH_ENDPOINT_TTL', 3600))
+        self._endpoints = utils.LRUDict()
 
     def handles_page(self, url, headers, content, links):
         """ If we have the appropriate link rels, register the endpoint now """
         endpoint = find_endpoint(links=links, content=content)
 
         if endpoint:
+            # cache this for later so we don't have to look it up again
             LOGGER.info("%s: has IndieAuth endpoint %s", url, endpoint)
             self._endpoints[url] = endpoint
 
@@ -106,13 +102,12 @@ class IndieAuth(Handler):
 
     def _get_endpoint(self, id_url):
         if id_url in self._endpoints:
-            # We already have it cached, yay
             return self._endpoints[id_url]
 
-        # need to discover it
         endpoint = find_endpoint(id_url)
         if endpoint:
             self._endpoints[id_url] = endpoint
+
         return endpoint
 
     def initiate_auth(self, id_url, callback_uri, redir):
@@ -120,8 +115,7 @@ class IndieAuth(Handler):
         if not endpoint:
             return disposition.Error("Failed to get IndieAuth endpoint", redir)
 
-        state = utils.gen_token()
-        self._pending[state] = (endpoint, callback_uri, redir)
+        state = self._token_store.dumps(((endpoint, callback_uri), redir))
 
         client_id = utils.resolve_value(self._client_id)
         LOGGER.debug("Using client_id %s", client_id)
@@ -135,37 +129,35 @@ class IndieAuth(Handler):
         return disposition.Redirect(url)
 
     def check_callback(self, url, get, data):
-        # pylint:disable=duplicate-code, too-many-return-statements
         state = get.get('state')
         if not state:
-            return disposition.Error("No transaction ID provided", None)
-        if state not in self._pending:
-            return disposition.Error("Transaction invalid or expired", None)
-
-        endpoint, callback_uri, redir = self._pending[state]
-
-        if 'code' not in get:
-            return disposition.Error("Missing auth code", redir)
-
-        # Verify the auth code
-        request = requests.post(endpoint, data={
-            'code': get['code'],
-            'client_id': utils.resolve_value(self._client_id),
-            'redirect_uri': callback_uri
-        })
-
-        if request.status_code != 200:
-            LOGGER.error("Request returned code %d: %s", request.status_code, request.text)
-            return disposition.Error("Unable to verify identity", redir)
+            return disposition.Error("No transaction provided", None)
 
         try:
-            response = request.json()
-        except ValueError:
-            return disposition.Error("Got invalid response JSON", redir)
-        if 'me' not in response:
-            return disposition.Error("No identity provided in response", redir)
+            (endpoint, callback_uri), redir = utils.unpack_token(self._token_store,
+                                                                 state, self._timeout)
+        except disposition.Disposition as disp:
+            return disp
 
-        return disposition.Verified(response['me'], redir, response)
+        try:
+            # Verify the auth code
+            request = requests.post(endpoint, data={
+                'code': get['code'],
+                'client_id': utils.resolve_value(self._client_id),
+                'redirect_uri': callback_uri
+            })
+
+            if request.status_code != 200:
+                LOGGER.error("Request returned code %d: %s", request.status_code, request.text)
+                return disposition.Error("Unable to verify identity", redir)
+
+            try:
+                response = request.json()
+            except ValueError:
+                return disposition.Error("Got invalid response JSON", redir)
+            return disposition.Verified(response['me'], redir, response)
+        except KeyError as key:
+            return disposition.Error("Missing " + str(key), redir)
 
 
 def from_config(config, token_store):
@@ -174,9 +166,8 @@ def from_config(config, token_store):
     Possible configuration values:
 
     INDIEAUTH_CLIENT_ID -- the client ID (URL) of your website (required)
-    INDIEAUTH_MAX_PENDING -- maximum pending transactions
     INDIEAUTH_PENDING_TTL -- timemout for a pending transction
-    INDIEAUTH_MAX_ENDPOINTS -- maximum number of endpoints to cache
-    INDIEAUTH_ENDPOINT_TTL -- how long to cache an endpoint for
     """
-    return IndieAuth(config['INDIEAUTH_CLIENT_ID'], token_store, config)
+    return IndieAuth(config['INDIEAUTH_CLIENT_ID'],
+                     token_store,
+                     timeout=config.get('INDIEAUTH_PENDING_TTL'))

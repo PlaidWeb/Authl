@@ -100,13 +100,13 @@ def from_config(config: typing.Dict[str, typing.Any], secret_key: str) -> Authl:
         from .handlers import mastodon
         instance.add_handler(mastodon.from_config(config, token_store))
 
-    # if config.get('INDIEAUTH_CLIENT_ID'):
-    #     from .handlers import indieauth
-    #     instance.add_handler(indieauth.from_config(config, token_store))
+    if config.get('INDIEAUTH_CLIENT_ID'):
+        from .handlers import indieauth
+        instance.add_handler(indieauth.from_config(config, token_store))
 
-    # if config.get('INDIELOGIN_CLIENT_ID'):
-    #     from .handlers import indielogin
-    #     instance.add_handler(indielogin.from_config(config, token_store))
+    if config.get('INDIELOGIN_CLIENT_ID'):
+        from .handlers import indielogin
+        instance.add_handler(indielogin.from_config(config, token_store))
 
     # if config.get('TWITTER_CLIENT_KEY'):
     #     from .handlers import twitter

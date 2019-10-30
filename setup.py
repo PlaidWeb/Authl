@@ -1,4 +1,4 @@
-"""Setup for AUthl packaging"""
+"""Setup for Authl packaging"""
 
 from distutils.util import convert_path
 from os import path

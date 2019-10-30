@@ -16,13 +16,6 @@ class IndieLogin(Handler):
     This allows anyone with an IndieAuth endpoint or a rel="me" attribute that
     points to a supported third-party authentication mechanism (e.g. GitHub or
     email). See https://indielogin.com for more information.
-
-    Arguments:
-
-    client_id -- the client ID to send to the IndieLogin endpoint; can be a callable
-    max_pending -- the maximum number of pending connections to keep open (default: 128)
-    pending_ttl -- how long to wait for a pending connection, in seconds (default: 600)
-    endpoint -- the IndieLogin endpoint to authenticate against
     """
 
     @property
@@ -44,18 +37,21 @@ class IndieLogin(Handler):
 
     def __init__(self, client_id: str,
                  token_store: dict,
+                 timeout: int = None,
                  endpoint: str = None):
         """ Construct an IndieLogin handler, to work with indielogin.com. See
         https://indielogin.com/api for more information.
 
         :param str client_id: the indielogin.com client id
-        :param TokenStore token_store: Storage for pending login tokens
+        :param token_store: Login token generator
+        :param int timeout: How long to wait for a login to complete (default: 600)
         :param str endpoint: Which IndieLogin instance to authenticate against
         """
 
         self._client_id = client_id
-        self._pending = token_store
+        self._token_store = token_store
         self._endpoint = endpoint or 'https://indielogin.com/auth'
+        self._timeout = timeout or 600
 
     def handles_page(self, url, headers, content, links):
         # Check to see if there's any appropriate links
@@ -71,8 +67,7 @@ class IndieLogin(Handler):
         LOGGER.info('Initiate auth: %s %s', id_url, callback_uri)
 
         # register a new transaction ID
-        state = utils.gen_token()
-        self._pending[state] = (callback_uri, redir)
+        state = self._token_store.dumps((callback_uri, redir))
 
         auth_url = (
             self._endpoint
@@ -94,12 +89,11 @@ class IndieLogin(Handler):
         state = get.get('state')
         if not state:
             return disposition.Error('No transaction ID provided', None)
-        if state not in self._pending:
-            LOGGER.warning('state=%s pending=%s', state, self._pending)
-            return disposition.Error('Transaction invalid or expired', None)
 
-        callback_uri, redir = self._pending[state]
-        del self._pending[state]
+        try:
+            callback_uri, redir = utils.unpack_token(self._token_store, state, self._timeout)
+        except disposition.Disposition as disp:
+            return disp
 
         if 'code' not in get:
             return disposition.Error('Missing auth code', redir)
@@ -136,12 +130,12 @@ def from_config(config, token_store):
     INDIELOGIN_CLIENT_ID -- the client ID to send to the IndieLogin service (required)
     INDIELOGIN_ENDPOINT -- the endpoint to use for the IndieLogin service
         (default: https://indielogin.com/auth)
-    INDIELOGIN_OPEN_MAX -- the maximum number of open requests to track
     INDIELOGIN_OPEN_TTL -- the time-to-live of an open request, in seconds
     """
 
     return IndieLogin(
         config['INDIELOGIN_CLIENT_ID'],
         token_store,
+        timeout=config.get('INDIELOGIN_OPEN_TTL'),
         endpoint=config.get('INDIELOGIN_ENDPOINT'),
     )
