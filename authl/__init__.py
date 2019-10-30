@@ -82,11 +82,6 @@ def from_config(config: typing.Dict[str, typing.Any], secret_key: str) -> Authl:
         INDIELOGIN_CLIENT_ID -- enable the IndieLogin handler
         TEST_ENABLED -- enable the test/loopback handler
 
-    If token_store is None, the following additional config parameters will be used:
-
-        MAX_PENDING -- the number of pending logins allowed at any given time
-        PENDING_TTL -- how long a login has to complete
-
     """
 
     token_store = itsdangerous.URLSafeTimedSerializer(secret_key)
