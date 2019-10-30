@@ -96,9 +96,9 @@ def from_config(config: typing.Dict[str, typing.Any], secret_key: str) -> Authl:
         from .handlers import email_addr
         instance.add_handler(email_addr.from_config(config, token_store))
 
-    # if config.get('MASTODON_NAME'):
-    #     from .handlers import mastodon
-    #     instance.add_handler(mastodon.from_config(config, token_store))
+    if config.get('MASTODON_NAME'):
+        from .handlers import mastodon
+        instance.add_handler(mastodon.from_config(config, token_store))
 
     # if config.get('INDIEAUTH_CLIENT_ID'):
     #     from .handlers import indieauth

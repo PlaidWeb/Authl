@@ -5,9 +5,10 @@ import logging
 import re
 import urllib.parse
 
+import itsdangerous
 import requests
 
-from .. import disposition, utils
+from .. import disposition
 from . import Handler
 
 LOGGER = logging.getLogger(__name__)
@@ -28,6 +29,10 @@ class Mastodon(Handler):
             self.params = params
             self.secrets = secrets
 
+        def to_tuple(self):
+            """ Convert this to a JSON-serializable tuple """
+            return self.instance, self.params, self.secrets
+
     @property
     def service_name(self):
         return "Mastodon"
@@ -47,7 +52,7 @@ class Mastodon(Handler):
     def cb_id(self):
         return 'md'
 
-    def __init__(self, name: str, token_store: dict, homepage: str = None):
+    def __init__(self, name: str, token_store: dict, timeout: int = None, homepage: str = None):
         """ Instantiate a Mastodon handler.
 
         :param str name: Human-readable website name
@@ -58,7 +63,8 @@ class Mastodon(Handler):
         """
         self._name = name
         self._homepage = homepage
-        self._pending = token_store
+        self._token_store = token_store
+        self._timeout = timeout or 600
 
     @staticmethod
     @functools.lru_cache(128)
@@ -161,7 +167,6 @@ class Mastodon(Handler):
         return disposition.Verified(id_url, redir, response)
 
     def initiate_auth(self, id_url, callback_uri, redir):
-        state = utils.gen_token()
         try:
             client = self._get_client(id_url, callback_uri)
         except Exception as err:  # pylint:disable=broad-except
@@ -170,7 +175,7 @@ class Mastodon(Handler):
         if not client:
             return disposition.Error("Failed to register OAuth client", redir)
 
-        self._pending[state] = (client, redir)
+        state = self._token_store.dumps((client.to_tuple(), redir))
 
         url = client.auth_endpoint + '?' + urllib.parse.urlencode(
             {**client.params,
@@ -187,9 +192,16 @@ class Mastodon(Handler):
         state = get.get('state')
         if not state:
             return disposition.Error("No transaction ID provided", None)
-        if state not in self._pending:
-            return disposition.Error('Transaction invalid or expired', None)
-        client, redir = self._pending[state]
+
+        try:
+            try:
+                client_tuple, redir = self._token_store.loads(state, max_age=self._timeout)
+                client = Mastodon.Client(*client_tuple)
+            except itsdangerous.SignatureExpired:
+                _, redir = self._token_store.loads(state)
+                return disposition.Error('Transaction expired', redir)
+        except itsdangerous.BadData:
+            return disposition.Error('Invalid transaction', None)
 
         if 'code' not in get:
             return disposition.Error("Missing auth code", redir)
@@ -235,6 +247,9 @@ def from_config(config, token_store):
 
     MASTODON_NAME -- the name of your website (required)
     MASTODON_HOMEPAGE -- your website's homepage (recommended)
+    MASTODON_TIMEOUT -- the maximum time to wait for login to complete
     """
 
-    return Mastodon(config['MASTODON_NAME'], token_store, config.get('MASTODON_HOMEPAGE'))
+    return Mastodon(config['MASTODON_NAME'], token_store,
+                    timeout=config.get('MASTODON_TIMEOUT'),
+                    homepage=config.get('MASTODON_HOMEPAGE'))
