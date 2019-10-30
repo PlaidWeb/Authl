@@ -102,7 +102,7 @@ def unpack_token(token_store, token: str, timeout: int) -> tuple:
             _, redir = token_store.loads(token)
             raise disposition.Error("Login has expired", redir)
     except itsdangerous.BadData:
-        raise disposition.Error("Invalid login", None)
+        raise disposition.Error("Invalid token", None)
 
     return cdata, redir
 

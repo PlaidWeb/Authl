@@ -1,12 +1,13 @@
 """ Twitter login handler """
 
 import re
+import time
 import urllib.parse
 
 import requests
 from requests_oauthlib import OAuth1, OAuth1Session
 
-from .. import disposition
+from .. import disposition, utils
 from . import Handler
 
 
@@ -28,10 +29,13 @@ class Twitter(Handler):
     def url_schemes(self):
         return [('https://twitter.com/%', 'username')]
 
-    def __init__(self, token_store, client_key, client_secret):
+    def __init__(self, client_key: str, client_secret: str, timeout: int = None):
         self._client_key = client_key
         self._client_secret = client_secret
-        self._pending = token_store
+        self._pending = utils.LRUDict()
+        self._timeout = timeout or 600
+
+        self._sessions =  {}
 
     # regex to match a twitter URL and optionally extract the username
     twitter_regex = re.compile(r'(https?://)?[^/]*\.?twitter\.com/?@?(.*)')
@@ -69,25 +73,25 @@ class Twitter(Handler):
         if username:
             params['screen_name'] = username
 
-        self._pending[token] = (params, callback_uri, redir)
+        self._pending[token] = (params, callback_uri, redir, time.time())
 
         return disposition.Redirect(
             'https://api.twitter.com/oauth/authorize?' + urllib.parse.urlencode(params))
 
     def check_callback(self, url, get, data):
         if 'denied' in get:
-            return disposition.Error("Access denied", None)
+            token = get['denied']
+        elif 'oauth_token' in get:
+            token = get['oauth_token']
+        if not token or token not in self._pending:
+            return disposition.Error("Invalid transaction", None)
 
-        token = get.get('oauth_token')
-        if not token:
-            return disposition.Error("No transaction ID provided", None)
-        if token not in self._pending:
-            return disposition.Error("Transaction invalid or expired", None)
-
-        params, callback_uri, redir = self._pending[token]
+        params, callback_uri, redir, start_time = self._pending[token]
         del self._pending[token]
+        if time.time() - start_time > self._timeout:
+            return disposition.Error("Login timed out", redir)
 
-        if not get.get('oauth_verifier'):
+        if 'denied' in get or 'oauth_verifier' not in get:
             return disposition.Error("Twitter authorization declined", redir)
 
         oauth_session = OAuth1Session(
@@ -123,19 +127,21 @@ class Twitter(Handler):
             user_info)
 
 
-def from_config(config, token_store):
+def from_config(config):
     """ Generate a Twitter handler from the given config dictionary.
 
     Posible configuration values:
 
     TWITTER_CLIENT_KEY -- The Twitter app's client_key
     TWITTER_CLIENT_SECRET -- The Twitter app's client_secret
+    TWITTER_TIMEOUT -- How long to wait for the user to log in
 
-    It is ***HIGHLY RECOMMENDED*** that these configuration values be provided
+    It is ***HIGHLY RECOMMENDED*** that the client key and secret be provided
     via environment variables or some other mechanism that doesn't involve
     checking these values into source control and exposing them on the
     file system.
     """
 
-    return Twitter(token_store, config['TWITTER_CLIENT_KEY'],
-                   config['TWITTER_CLIENT_SECRET'])
+    return Twitter(config['TWITTER_CLIENT_KEY'],
+                   config['TWITTER_CLIENT_SECRET'],
+                   config.get('TWITTER_TIMEOUT'))

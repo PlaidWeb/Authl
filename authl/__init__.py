@@ -108,9 +108,9 @@ def from_config(config: typing.Dict[str, typing.Any], secret_key: str) -> Authl:
         from .handlers import indielogin
         instance.add_handler(indielogin.from_config(config, token_store))
 
-    # if config.get('TWITTER_CLIENT_KEY'):
-    #     from .handlers import twitter
-    #     instance.add_handler(twitter.from_config(config, token_store))
+    if config.get('TWITTER_CLIENT_KEY'):
+        from .handlers import twitter
+        instance.add_handler(twitter.from_config(config))
 
     if config.get('TEST_ENABLED'):
         from .handlers import test_handler
