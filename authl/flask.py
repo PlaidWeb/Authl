@@ -146,7 +146,7 @@ class AuthlFlask:
         """
         # pylint:disable=too-many-arguments,too-many-locals,too-many-statements
 
-        self.instance = from_config(config)
+        self.instance = from_config(config, app.secret_key)
 
         self.login_name = login_name
         self.callback_name = callback_name

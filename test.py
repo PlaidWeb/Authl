@@ -19,7 +19,6 @@ logging.basicConfig(level=logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
 
 app = flask.Flask('authl-test')
-
 app.secret_key = str(uuid.uuid4())
 
 

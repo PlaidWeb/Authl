@@ -1,19 +1,12 @@
 """ Utility functions """
 
-import base64
 import html
 import logging
 import re
-import uuid
 
 import requests
 
 LOGGER = logging.getLogger(__name__)
-
-
-def gen_token():
-    """ Generate a random URL-safe token string """
-    return base64.urlsafe_b64encode(uuid.uuid4().bytes).decode().replace('=', '')
 
 
 def read_file(filename):
