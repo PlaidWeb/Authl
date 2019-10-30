@@ -4,7 +4,7 @@ import collections
 import logging
 import typing
 
-import expiringdict
+import itsdangerous
 from bs4 import BeautifulSoup
 
 from . import handlers, utils
@@ -65,15 +65,14 @@ class Authl:
         return self._handlers.values()
 
 
-def from_config(config: typing.Dict[str, typing.Any], token_store=None) -> Authl:
+def from_config(config: typing.Dict[str, typing.Any], secret_key: str) -> Authl:
     """ Generate an AUthl handler set from provided configuration directives.
 
     Arguments:
 
     :param dict config: a configuration dictionary. See the individual handlers'
         from_config functions to see possible configuration values.
-    :param token_store: A dict-like object which will store login tokens with
-        expiration. If None, a default will be used.
+    :param std secret_key: a signing key used to keep authentication secrets.
 
     Handlers will be enabled based on truthy values of the following keys
 
@@ -90,11 +89,7 @@ def from_config(config: typing.Dict[str, typing.Any], token_store=None) -> Authl
 
     """
 
-    if not token_store:
-        token_store = expiringdict.ExpiringDict(
-            max_len=config.get('MAX_PENDING', 128),
-            max_age_seconds=config.get('PENDING_TTL', 600))
-
+    token_store = itsdangerous.URLSafeTimedSerializer(secret_key)
     instance = Authl()
 
     if config.get('EMAIL_FROM') or config.get('EMAIL_SENDMAIL'):
@@ -115,7 +110,7 @@ def from_config(config: typing.Dict[str, typing.Any], token_store=None) -> Authl
 
     if config.get('TWITTER_CLIENT_KEY'):
         from .handlers import twitter
-        instance.add_handler(twitter.from_config(config, token_store))
+        instance.add_handler(twitter.from_config(config))
 
     if config.get('TEST_ENABLED'):
         from .handlers import test_handler

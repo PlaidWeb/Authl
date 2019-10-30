@@ -146,7 +146,7 @@ class AuthlFlask:
         """
         # pylint:disable=too-many-arguments,too-many-locals,too-many-statements
 
-        self.instance = from_config(config)
+        self.instance = from_config(config, app.secret_key)
 
         self.login_name = login_name
         self.callback_name = callback_name
@@ -285,8 +285,11 @@ class AuthlFlask:
         from flask import request
 
         handler = self.instance.get_handler_by_id(hid)
-        return self._handle_disposition(
-            handler.check_callback(request.url, request.args, request.form))
+        try:
+            return self._handle_disposition(
+                handler.check_callback(request.url, request.args, request.form))
+        except disposition.Disposition as disp:
+            return self._handle_disposition(disp)
 
     @property
     def stylesheet(self) -> str:

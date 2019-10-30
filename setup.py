@@ -1,4 +1,4 @@
-"""Setup for AUthl packaging"""
+"""Setup for Authl packaging"""
 
 from distutils.util import convert_path
 from os import path
@@ -53,7 +53,7 @@ setup(
 
     install_requires=[
         'beautifulsoup4',
-        'expiringdict',
+        'itsdangerous',
         'read_only_property',
         'requests',
         'requests_oauthlib',

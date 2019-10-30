@@ -19,7 +19,6 @@ logging.basicConfig(level=logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
 
 app = flask.Flask('authl-test')
-
 app.secret_key = str(uuid.uuid4())
 
 
@@ -36,8 +35,10 @@ authl.flask.setup(
         'EMAIL_FROM': 'nobody@example.com',
         'EMAIL_SUBJECT': 'Log in to authl test',
         'EMAIL_CHECK_MESSAGE': 'Use the link printed to the test console',
+        'EMAIL_EXPIRE_TIME': 10,
 
         'INDIEAUTH_CLIENT_ID': authl.flask.client_id,
+        'INDIEAUTH_PENDING_TTL': 10,
         'INDIELOGIN_CLIENT_ID': authl.flask.client_id,
 
         'TEST_ENABLED': True,

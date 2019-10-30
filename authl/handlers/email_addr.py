@@ -4,10 +4,8 @@ import email
 import html
 import logging
 import math
-import time
 import urllib.parse
 
-import expiringdict
 import validate_email
 
 from .. import disposition, utils
@@ -54,6 +52,7 @@ class EmailAddress(Handler):
                  sendmail,
                  notify_cdata,
                  token_store,
+                 expires_time=None,
                  email_template_text=DEFAULT_TEMPLATE_TEXT,
                  please_wait_error=DEFAULT_WAIT_ERROR,
                  ):
@@ -82,12 +81,9 @@ class EmailAddress(Handler):
         self._sendmail = sendmail
         self._email_template_text = email_template_text
         self._wait_error = please_wait_error
-        self._lifetime = token_store.max_age or 900
         self._cdata = notify_cdata
-        self._pending = token_store
-        self._timeouts = expiringdict.ExpiringDict(
-            max_age_seconds=86400,
-            max_len=1024)
+        self._token_store = token_store
+        self._lifetime = expires_time or 900
 
     def handles_url(self, url):
         """ Validating email by regex: not even once """
@@ -106,15 +102,8 @@ class EmailAddress(Handler):
         # Extract the destination email from the identity URL
         dest_addr = urllib.parse.urlparse(id_url).path.lower()
 
-        now = time.time()
-        if dest_addr in self._timeouts and self._timeouts[dest_addr] > now:
-            wait_time = (self._timeouts[dest_addr] - now) * 1.2
-            self._timeouts[dest_addr] = now + wait_time
-            return disposition.Error(self._wait_error.format(
-                email=html.escape(dest_addr),
-                minutes=int(math.ceil(wait_time / 60))), redir)
+        token = self._token_store.dumps((dest_addr, redir))
 
-        token = utils.gen_token()
         link_url = (callback_uri + ('&' if '?' in callback_uri else '?') +
                     urllib.parse.urlencode({'t': token}))
 
@@ -128,27 +117,21 @@ class EmailAddress(Handler):
 
         self._sendmail(msg)
 
-        self._pending[token] = (dest_addr, redir)
-        self._timeouts[dest_addr] = now + self._lifetime / 2
-        LOGGER.debug("Timeout for %s = %f", dest_addr, self._timeouts[dest_addr])
-
         return disposition.Notify(self._cdata)
 
     def check_callback(self, url, get, data):
         token = get.get('t')
-        print(token, self._pending)
 
-        if not token or token not in self._pending:
-            return disposition.Error('Invalid or expired sign-in token', None)
+        if not token:
+            return disposition.Error('Missing token', None)
 
-        email_addr, redir = self._pending[token]
-        del self._pending[token]
+        try:
+            email_addr, redir = utils.unpack_token(self._token_store, token, self._lifetime)
+        except disposition.Disposition as disp:
+            return disp
 
         if not email_addr or not validate_email.validate_email(email_addr):
             return disposition.Error('Invalid email address ' + html.escape(str(email_addr)), redir)
-
-        if email_addr in self._timeouts:
-            del self._timeouts[email_addr]
 
         return disposition.Verified('mailto:' + email_addr, redir)
 
@@ -208,6 +191,7 @@ def from_config(config, token_store):
     EMAIL_SUBJECT -- the Subject: to use for a login email (required)
     EMAIL_CHECK_MESSAGE -- The message to send back to the user
     EMAIL_TEMPLATE_FILE -- A path to a text file for the email message
+    EMAIL_EXPIRE_TIME -- How long a login email is valid for
     SMTP_HOST -- the email host (required if no EMAIL_SENDMAIL)
     SMTP_PORT -- the email port (required if no EMAIL_SENDMAIL)
     SMTP_USE_SSL -- whether to use SSL for the SMTP connection
@@ -239,5 +223,6 @@ def from_config(config, token_store):
         send_func,
         {'message': check_message},
         token_store,
+        expires_time=config.get('EMAIL_EXPIRE_TIME'),
         email_template_text=email_template_text,
     )

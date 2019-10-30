@@ -2,7 +2,7 @@
 # pylint:disable=too-few-public-methods
 
 
-class Disposition:
+class Disposition(BaseException):
     """ Base class for all response dispositions """
 
 
@@ -11,6 +11,7 @@ class Redirect(Disposition):
     URL """
 
     def __init__(self, url):
+        super().__init__()
         self.url = url
 
 
@@ -24,6 +25,7 @@ class Verified(Disposition):
     """
 
     def __init__(self, identity, redir, profile=None):
+        super().__init__()
         self.identity = identity
         self.redir = redir
         self.profile = profile or {}
@@ -38,6 +40,7 @@ class Notify(Disposition):
     """
 
     def __init__(self, cdata, args=None):
+        super().__init__()
         self.cdata = cdata
         self.args = args or {}
 
@@ -52,5 +55,6 @@ class Error(Disposition):
     """
 
     def __init__(self, message, redir):
+        super().__init__()
         self.message = message
         self.redir = redir or '/'
