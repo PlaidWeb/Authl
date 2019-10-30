@@ -18,7 +18,8 @@ sign = itsdangerous.URLSafeSerializer('key')  # pylint:disable=invalid=-name
 
 
 @app.route('/', methods=('GET', 'POST'))
-def endpoint():
+@app.route('/<path:path>', methods=('GET', 'POST'))
+def endpoint(path=''):
     get = flask.request.args
     post = flask.request.form
     if 'code' in post:
@@ -42,21 +43,21 @@ def endpoint():
 <html><head>
 <title>rogue login</title>
 </head><body>
-<form action="{{url_for('endpoint')}}" method="POST">
+<form action="{{url_for('endpoint',path=path)}}" method="POST">
 <input type="hidden" name="state" value="{{get.state}}">
 <input type="hidden" name="redirect_uri" value="{{get.redirect_uri}}">
 Who do you want to be today? <input type="text" name="me" value="{{get.me}}">
 <input type="submit" value="Go">
 </form></body>
 </html>
-''', get=get)
+''', get=get, path=path)
 
     return flask.render_template_string('''<!DOCTYPE html>
 <html><head>
 <title>rogue access point</title>
-<link rel="authorization_endpoint" href="{{url_for('endpoint',_external=True)}}">
+<link rel="authorization_endpoint" href="{{url_for('endpoint',path=path,_external=True)}}">
 </head><body>
 <p>
-Use <code>{{url_for('endpoint',_external=True)}}</code> as the test identity.
+Use <code>{{url_for('endpoint',path=path,_external=True)}}</code> as the test identity.
 </p>
-</body></html>''')
+</body></html>''', path=path)
