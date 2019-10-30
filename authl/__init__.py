@@ -92,9 +92,9 @@ def from_config(config: typing.Dict[str, typing.Any], secret_key: str) -> Authl:
     token_store = itsdangerous.URLSafeTimedSerializer(secret_key)
     instance = Authl()
 
-    # if config.get('EMAIL_FROM') or config.get('EMAIL_SENDMAIL'):
-    #     from .handlers import email_addr
-    #     instance.add_handler(email_addr.from_config(config, token_store))
+    if config.get('EMAIL_FROM') or config.get('EMAIL_SENDMAIL'):
+        from .handlers import email_addr
+        instance.add_handler(email_addr.from_config(config, token_store))
 
     # if config.get('MASTODON_NAME'):
     #     from .handlers import mastodon
