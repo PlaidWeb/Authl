@@ -7,27 +7,17 @@ Run with e.g.
 FLASK_APP=test/rogue_indieauth.py pipenv run flask run -p 6789
 """
 
-import flask
-import itsdangerous
 import urllib.parse
 
-app = flask.Flask(__name__) #pylint:disable=invalid-name
+import flask
+import itsdangerous
 
-sign =  itsdangerous.URLSafeSerializer('key') #pylint:disable=invalid=-name
+app = flask.Flask(__name__)  # pylint:disable=invalid-name
 
-@app.route('/')
-def homepage():
-    return flask.render_template_string('''<!DOCTYPE html>
-<html><head>
-<title>rogue access point</title>
-<link rel="authorization_endpoint" href="{{url_for('endpoint',_external=True)}}">
-</head><body>
-<p>
-Use <code>{{url_for('homepage',_external=True)}}</code> as the test identity.
-</p>
-</body></html>''')
+sign = itsdangerous.URLSafeSerializer('key')  # pylint:disable=invalid=-name
 
-@app.route('/auth', methods=('GET','POST'))
+
+@app.route('/', methods=('GET', 'POST'))
 def endpoint():
     get = flask.request.args
     post = flask.request.form
@@ -35,7 +25,7 @@ def endpoint():
         return flask.jsonify({
             'me': sign.loads(post['code']),
             'scope': 'read',
-            })
+        })
 
     if 'me' in post:
         redir = post['redirect_uri']
@@ -43,7 +33,7 @@ def endpoint():
             'code': sign.dumps(post['me']),
             'state': post.get('state'),
             'me': post['me']
-            })
+        })
 
         return flask.redirect(redir + ('&' if '?' in redir else '?') + args)
 
@@ -61,4 +51,12 @@ Who do you want to be today? <input type="text" name="me" value="{{get.me}}">
 </html>
 ''', get=get)
 
-    return "This can't be viewed directly"
+    return flask.render_template_string('''<!DOCTYPE html>
+<html><head>
+<title>rogue access point</title>
+<link rel="authorization_endpoint" href="{{url_for('endpoint',_external=True)}}">
+</head><body>
+<p>
+Use <code>{{url_for('endpoint',_external=True)}}</code> as the test identity.
+</p>
+</body></html>''')

@@ -45,6 +45,63 @@ def find_endpoint(id_url=None, links=None, content=None):
     return _link_endpoint(links) or _content_endpoint(content)
 
 
+def verify_id(request_id: str, response_id: str) -> str:
+    """ Given an ID from an identity request and its verification response,
+    ensure that the verification response is a valid URL for the request.
+
+    Returns a normalized version of the response ID, or None if the URL could
+    not be verified.
+    """
+
+    orig = urllib.parse.urlparse(request_id)
+    resp = urllib.parse.urlparse(response_id)
+    LOGGER.debug('orig=%s resp=%s', orig, resp)
+
+    # scheme must match or be upgraded to https
+    if not (resp.scheme == orig.scheme or
+            (orig.scheme == 'http' and resp.scheme == 'https')):
+        LOGGER.debug("scheme mismatch %s %s", orig.scheme, resp.scheme)
+        return None
+
+    # host must match
+    if orig.netloc != resp.netloc:
+        LOGGER.debug("netloc mismatch %s %s", orig.netloc, resp.netloc)
+        return None
+
+    # path must be more specific; provisional, see
+    # https://github.com/indieweb/indieauth/issues/35
+    orig_path = orig.path.split('/')
+    resp_path = resp.path.split('/')
+
+    LOGGER.debug("orig_path: %s", orig_path)
+    LOGGER.debug("resp_path: %s", resp_path)
+
+    # normalize the response path
+    norm_path = ['']
+    for part in resp_path:
+        if part == '..':
+            norm_path.pop()
+            if not norm_path:
+                LOGGER.debug("path attempted escape")
+                return None
+        elif part not in ('', '.'):
+            norm_path.append(part)
+    # allow a trailing slash
+    if resp_path[-1] == '':
+        norm_path.append('')
+
+    LOGGER.debug("norm_path: %s", norm_path)
+
+    if norm_path[:len(orig_path)] != orig_path:
+        LOGGER.debug("path mismatch")
+        return None
+
+    # construct the resulting URL
+    valid = urllib.parse.urlunparse(resp._replace(path='/'.join(norm_path)))
+    LOGGER.debug("valid URL: %s", valid)
+    return valid
+
+
 class IndieAuth(Handler):
     """ Directly support login via IndieAuth, without requiring third-party
     IndieLogin brokerage.
@@ -115,7 +172,7 @@ class IndieAuth(Handler):
         if not endpoint:
             return disposition.Error("Failed to get IndieAuth endpoint", redir)
 
-        state = self._token_store.dumps(((endpoint, callback_uri), redir))
+        state = self._token_store.dumps(((id_url, endpoint, callback_uri), redir))
 
         client_id = utils.resolve_value(self._client_id)
         LOGGER.debug("Using client_id %s", client_id)
@@ -129,13 +186,14 @@ class IndieAuth(Handler):
         return disposition.Redirect(url)
 
     def check_callback(self, url, get, data):
+        # pylint:disable=too-many-return-statements
         state = get.get('state')
         if not state:
             return disposition.Error("No transaction provided", None)
 
         try:
-            (endpoint, callback_uri), redir = utils.unpack_token(self._token_store,
-                                                                 state, self._timeout)
+            (id_url, endpoint, callback_uri), redir = utils.unpack_token(self._token_store,
+                                                                         state, self._timeout)
         except disposition.Disposition as disp:
             return disp
 
@@ -155,7 +213,12 @@ class IndieAuth(Handler):
                 response = request.json()
             except ValueError:
                 return disposition.Error("Got invalid response JSON", redir)
-            return disposition.Verified(response['me'], redir, response)
+
+            response_id = verify_id(id_url, response['me'])
+            if not response_id:
+                return disposition.Error("Identity URL does not match", redir)
+
+            return disposition.Verified(response_id, redir, response)
         except KeyError as key:
             return disposition.Error("Missing " + str(key), redir)
 
