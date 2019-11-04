@@ -49,7 +49,6 @@ def redir_path_to_dest(path: str):
         return path
     return '/' + path
 
-
 @read_only_properties('login_name', 'callback_name', 'tester_name')
 class AuthlFlask:
     """ Container that wraps an Authl instance for a Flask application """
@@ -70,7 +69,8 @@ class AuthlFlask:
                  force_ssl: bool = False,
                  stylesheet: str = None,
                  on_verified: typing.Callable = None,
-                 make_permanent: bool = True
+                 make_permanent: bool = True,
+                 token_storage = flask.session,
                  ):
         """ Setup Authl to work with a Flask application.
 
@@ -104,6 +104,8 @@ class AuthlFlask:
             after setting the session value)
         :param bool make_permanent: Whether a session should persist past the
             browser window closing
+        :param token_storage: The mechanism to use for token storage, for login
+            methods that need it. Defaults to using the Flask session.
 
         The login_render_func takes the following arguments; note that more may
         be added so it should also take a **kwargs for future compatibility:
@@ -146,7 +148,7 @@ class AuthlFlask:
         """
         # pylint:disable=too-many-arguments,too-many-locals,too-many-statements
 
-        self.instance = from_config(config, app.secret_key)
+        self.instance = from_config(config, app.secret_key, token_storage)
 
         self.login_name = login_name
         self.callback_name = callback_name

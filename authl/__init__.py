@@ -65,7 +65,9 @@ class Authl:
         return self._handlers.values()
 
 
-def from_config(config: typing.Dict[str, typing.Any], secret_key: str) -> Authl:
+def from_config(config: typing.Dict[str, typing.Any],
+    secret_key: str,
+    state_storage: dict = None) -> Authl:
     """ Generate an AUthl handler set from provided configuration directives.
 
     Arguments:
@@ -73,6 +75,8 @@ def from_config(config: typing.Dict[str, typing.Any], secret_key: str) -> Authl:
     :param dict config: a configuration dictionary. See the individual handlers'
         from_config functions to see possible configuration values.
     :param std secret_key: a signing key used to keep authentication secrets.
+    :param dict state_storage: a dict-like object that will store persistent
+        state for methods that need it
 
     Handlers will be enabled based on truthy values of the following keys
 
@@ -84,28 +88,28 @@ def from_config(config: typing.Dict[str, typing.Any], secret_key: str) -> Authl:
 
     """
 
-    token_store = itsdangerous.URLSafeTimedSerializer(secret_key)
+    serializer = itsdangerous.URLSafeTimedSerializer(secret_key)
     instance = Authl()
 
     if config.get('EMAIL_FROM') or config.get('EMAIL_SENDMAIL'):
         from .handlers import email_addr
-        instance.add_handler(email_addr.from_config(config, token_store))
+        instance.add_handler(email_addr.from_config(config, serializer))
 
     if config.get('MASTODON_NAME'):
         from .handlers import mastodon
-        instance.add_handler(mastodon.from_config(config, token_store))
+        instance.add_handler(mastodon.from_config(config, serializer))
 
     if config.get('INDIEAUTH_CLIENT_ID'):
         from .handlers import indieauth
-        instance.add_handler(indieauth.from_config(config, token_store))
+        instance.add_handler(indieauth.from_config(config, serializer))
 
     if config.get('INDIELOGIN_CLIENT_ID'):
         from .handlers import indielogin
-        instance.add_handler(indielogin.from_config(config, token_store))
+        instance.add_handler(indielogin.from_config(config, serializer))
 
     if config.get('TWITTER_CLIENT_KEY'):
         from .handlers import twitter
-        instance.add_handler(twitter.from_config(config))
+        instance.add_handler(twitter.from_config(config, state_storage))
 
     if config.get('TEST_ENABLED'):
         from .handlers import test_handler

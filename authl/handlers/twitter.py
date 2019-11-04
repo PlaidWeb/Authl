@@ -29,13 +29,11 @@ class Twitter(Handler):
     def url_schemes(self):
         return [('https://twitter.com/%', 'username')]
 
-    def __init__(self, client_key: str, client_secret: str, timeout: int = None):
+    def __init__(self, client_key: str, client_secret: str, timeout: int = None, storage: dict = None):
         self._client_key = client_key
         self._client_secret = client_secret
-        self._pending = utils.LRUDict()
+        self._pending = {} if storage is None else storage
         self._timeout = timeout or 600
-
-        self._sessions = {}
 
     # regex to match a twitter URL and optionally extract the username
     twitter_regex = re.compile(r'(https?://)?[^/]*\.?twitter\.com/?@?(.*)')
@@ -127,7 +125,7 @@ class Twitter(Handler):
             user_info)
 
 
-def from_config(config):
+def from_config(config, storage):
     """ Generate a Twitter handler from the given config dictionary.
 
     Posible configuration values:
@@ -144,4 +142,5 @@ def from_config(config):
 
     return Twitter(config['TWITTER_CLIENT_KEY'],
                    config['TWITTER_CLIENT_SECRET'],
-                   config.get('TWITTER_TIMEOUT'))
+                   config.get('TWITTER_TIMEOUT'),
+                   storage)
