@@ -67,6 +67,10 @@ def verify_id(request_id: str, response_id: str) -> str:
     orig_path = orig.path.split('/')
     resp_path = resp.path.split('/')
 
+    # Remove trailing empty path components from the original path
+    if not orig_path[-1]:
+        orig_path.pop()
+
     LOGGER.debug("orig_path: %s", orig_path)
     LOGGER.debug("resp_path: %s", resp_path)
 

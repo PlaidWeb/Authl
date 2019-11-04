@@ -80,54 +80,39 @@ a:link {
 }
 
 #uri-type {
-    display: block;
-    font-size: small;
-    font-style: italic;
-    position: absolute;
-    z-index: 5;
+    background: #eee;
+    color: #555;
+    font-size: large;
     text-shadow:  1px  0px 0px white,
                  -1px  0px 0px white,
                   0px  1px 0px white,
                   0px -1px 0px white;
+    position: relative;
+    font-weight: bold;
+    border-radius: 0.5ex;
+    border: solid rgba(0,0,0,0.5) 1px;
+    padding: 4px;
+    animation: progress 3s linear infinite;
 }
 
 #uri-type.resolved {
+    background: #cfc;
     color: #060;
 }
 
 #uri-type.error {
     color: #900;
+    background-color: #ff0;
+    text-shadow: none;
 }
 
-#uri-type span {
-    font-weight: bold;
+#uri-type.pending {
+    color: black;
+    background: repeating-linear-gradient(-45deg, white, white 1ex, #ccf 1ex, #ccf 2ex);
 }
 
-#uri-type.pending:before {
-    position: absolute;
-    display: inline-block;
-    content: '❉';
-    font-style: normal;
-    font-size: 120%;
-    vertical-align: top;
-    color: white;
-    text-shadow: 1px  0px 0px rgba(0,0,0,0.5),
-                -1px  0px 0px rgba(0,0,0,0.5),
-                 0px  1px 0px rgba(0,0,0,0.5),
-                 0px -1px 0px rgba(0,0,0,0.5);
-    z-index: -3;
-    -webkit-animation: spin 2s linear infinite; /* Safari */
-    animation: spin 2s linear infinite;
-}
-
-/* Safari */
-@-webkit-keyframes spin {
-  0% { -webkit-transform: rotate(0deg); }
-  100% { -webkit-transform: rotate(360deg); }
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+@keyframes progress {
+  0% { background-position: 0 0; }
+  100% { background-position: 14.14ex 0; }
 }
 
