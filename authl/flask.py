@@ -49,6 +49,7 @@ def redir_path_to_dest(path: str):
         return path
     return '/' + path
 
+
 @read_only_properties('login_name', 'callback_name', 'tester_name')
 class AuthlFlask:
     """ Container that wraps an Authl instance for a Flask application """
@@ -70,7 +71,7 @@ class AuthlFlask:
                  stylesheet: str = None,
                  on_verified: typing.Callable = None,
                  make_permanent: bool = True,
-                 token_storage = flask.session,
+                 token_storage=flask.session,
                  ):
         """ Setup Authl to work with a Flask application.
 

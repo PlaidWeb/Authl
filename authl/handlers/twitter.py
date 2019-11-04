@@ -7,7 +7,7 @@ import urllib.parse
 import requests
 from requests_oauthlib import OAuth1, OAuth1Session
 
-from .. import disposition, utils
+from .. import disposition
 from . import Handler
 
 
@@ -29,7 +29,10 @@ class Twitter(Handler):
     def url_schemes(self):
         return [('https://twitter.com/%', 'username')]
 
-    def __init__(self, client_key: str, client_secret: str, timeout: int = None, storage: dict = None):
+    def __init__(self, client_key: str,
+                 client_secret: str,
+                 timeout: int = None,
+                 storage: dict = None):
         self._client_key = client_key
         self._client_secret = client_secret
         self._pending = {} if storage is None else storage

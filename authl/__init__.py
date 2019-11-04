@@ -66,8 +66,8 @@ class Authl:
 
 
 def from_config(config: typing.Dict[str, typing.Any],
-    secret_key: str,
-    state_storage: dict = None) -> Authl:
+                secret_key: str,
+                state_storage: dict = None) -> Authl:
     """ Generate an AUthl handler set from provided configuration directives.
 
     Arguments:
