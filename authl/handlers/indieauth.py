@@ -57,12 +57,6 @@ def verify_id(request_id: str, response_id: str) -> str:
     resp = urllib.parse.urlparse(response_id)
     LOGGER.debug('orig=%s resp=%s', orig, resp)
 
-    # scheme must match or be upgraded to https
-    if not (resp.scheme == orig.scheme or
-            (orig.scheme == 'http' and resp.scheme == 'https')):
-        LOGGER.debug("scheme mismatch %s %s", orig.scheme, resp.scheme)
-        return None
-
     # host must match
     if orig.netloc != resp.netloc:
         LOGGER.debug("netloc mismatch %s %s", orig.netloc, resp.netloc)
