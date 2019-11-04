@@ -32,12 +32,13 @@ function testUri() {
     }
 
     if (uri == '') {
-        label.innerHTML = '';
+        label.className = '';
+        label.innerHTML = 'Go!';
         return;
     }
 
     label.className = "pending";
-    label.innerHTML = "";
+    label.innerHTML = "Checking&hellip;";
     test_timeout = setTimeout(function() {
         fetch("{{test_url}}?url=" + encodeURIComponent(uri)).then(function(response) {
             if (response.status !== 200) {
@@ -49,10 +50,10 @@ function testUri() {
             response.json().then(function(data) {
                 if (data) {
                     label.className = "resolved";
-                    label.innerHTML = "Will log in using <span>" + data.name + "</span>";
+                    label.innerHTML = data.name;
                 } else {
                     label.className = "error";
-                    label.innerHTML = "Unknown login type";
+                    label.innerHTML = "Unknown login method";
                 }
             });
 
@@ -60,6 +61,10 @@ function testUri() {
     }, 250);
 
 }
+window.addEventListener('DOMContentLoaded', function() {
+    testUri();
+    document.getElementById('me').addEventListener('input', testUri);
+});
 //{% endif %}
 </script>
 </head>
@@ -68,9 +73,8 @@ function testUri() {
     <div id="login">
         <h1>Identify Yourself</h1>
         <form method="POST" action="{{login_url}}" novalidate>
-            <input id="me" type="url" name="me" size="30" placeholder="Your ID here" oninput="testUri()" autofocus>
-            <button>Go!</button>
-            <label for="me" id="uri-type"></label>
+            <input id="me" type="url" name="me" size="40" placeholder="Your ID here" autofocus>
+            <button id="uri-type">Go!</button>
             {% with messages = get_flashed_messages() %}
             {% if messages %}
             <ul class="flashes">
