@@ -213,7 +213,7 @@ class IndieAuth(Handler):
                 LOGGER.error("%s: Got invalid JSON response from %s: %s (content-type: %s)",
                              id_url, endpoint,
                              request.text,
-                             request.headers.get('content-type'))
+                             request.headersversion('content-type'))
                 return disposition.Error("Got invalid response JSON", redir)
 
             response_id = verify_id(id_url, response['me'])
