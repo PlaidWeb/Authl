@@ -201,7 +201,7 @@ class IndieAuth(Handler):
                 'code': get['code'],
                 'client_id': utils.resolve_value(self._client_id),
                 'redirect_uri': callback_uri
-            })
+            }, headers={'accept': 'application/json'})
 
             if request.status_code != 200:
                 LOGGER.error("Request returned code %d: %s", request.status_code, request.text)
@@ -210,8 +210,10 @@ class IndieAuth(Handler):
             try:
                 response = request.json()
             except ValueError:
-                LOGGER.error("%s: Got invalid JSON response from %s: %s",
-                             id_url, endpoint, request.text)
+                LOGGER.error("%s: Got invalid JSON response from %s: %s (content-type: %s)",
+                             id_url, endpoint,
+                             request.text,
+                             request.headers.get('content-type'))
                 return disposition.Error("Got invalid response JSON", redir)
 
             response_id = verify_id(id_url, response['me'])
