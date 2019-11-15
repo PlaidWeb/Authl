@@ -210,6 +210,8 @@ class IndieAuth(Handler):
             try:
                 response = request.json()
             except ValueError:
+                LOGGER.error("%s: Got invalid JSON response from %s: %s",
+                             id_url, endpoint, request.text)
                 return disposition.Error("Got invalid response JSON", redir)
 
             response_id = verify_id(id_url, response['me'])
