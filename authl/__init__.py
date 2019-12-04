@@ -7,7 +7,7 @@ import typing
 import itsdangerous
 from bs4 import BeautifulSoup
 
-from . import handlers, utils, disposition
+from . import handlers, utils
 
 LOGGER = logging.getLogger(__name__)
 
