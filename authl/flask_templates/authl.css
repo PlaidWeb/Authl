@@ -1,5 +1,5 @@
 body {
-    background: #ccccff;
+    background: #ccf;
     font-family: "Helvetica Neue", sans-serif;
 }
 #login {
@@ -98,6 +98,11 @@ a:link {
 #uri-type.pending {
     color: black;
     background: repeating-linear-gradient(-45deg, white, white 1ex, #ccf 1ex, #ccf 2ex);
+}
+
+#uri-type.maybe {
+    color: #307;
+    background: #edf
 }
 
 #uri-type:disabled {

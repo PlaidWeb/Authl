@@ -56,21 +56,27 @@ async function testUri() {
         return;
     }
 
-    response = await fetch("{{test_url}}?url=" + encodeURIComponent(uri));
-    if (response.status !== 200) {
-        label.className = "error";
-        label.innerHTML = "Got error " + response.status + " checking the URL";
-        return;
-    }
+    try {
+        response = await fetch("{{test_url}}?url=" + encodeURIComponent(uri));
+        if (response.status !== 200) {
+            label.className = "maybe";
+            label.innerHTML = "Couldn't check login type: " + response.status;
+            return;
+        }
 
-    data = await response.json();
-    console.debug("tester response", data);
-    if (data) {
-        label.className = "resolved";
-        label.innerHTML = data.name;
-    } else {
-        label.className = "error";
-        label.innerHTML = "Unknown login method";
+        data = await response.json();
+        console.debug("tester response", data);
+        if (data) {
+            label.className = "resolved";
+            label.innerHTML = data.name;
+        } else {
+            label.className = "error";
+            label.innerHTML = "Unknown login method";
+        }
+    } catch (error) {
+        console.log(error);
+        label.className = "maybe";
+        label.innerHTML = "Couldn't check login type";
     }
 
     /*{% else %} URI tester is disabled */
