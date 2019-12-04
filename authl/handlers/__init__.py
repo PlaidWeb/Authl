@@ -27,7 +27,7 @@ class Handler(ABC):
         return False
 
     def handles_page(self, url: str, headers, content, links) -> bool:
-        """ Returns True if we can handle the page based on page content
+        """ Returns True/truthy if we can handle the page based on page content
 
         url -- the canonicized identity URL
         headers -- the raw headers from the page request, as a MultiDict (as
