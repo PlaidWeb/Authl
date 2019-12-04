@@ -22,7 +22,7 @@ class Authl:
             mechanisms
 
         """
-        self._handlers = collections.OrderedDict()
+        self._handlers: typing.Dict[str, handlers.Handler] = collections.OrderedDict()
         if cfg_handlers:
             for handler in cfg_handlers:
                 self.add_handler(handler)
@@ -66,7 +66,7 @@ class Authl:
 
 
 def from_config(config: typing.Dict[str, typing.Any],
-                secret_key: str,
+                secret_key: typing.Union[str, bytes],
                 state_storage: dict = None) -> Authl:
     """ Generate an AUthl handler set from provided configuration directives.
 

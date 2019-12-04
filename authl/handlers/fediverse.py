@@ -3,6 +3,7 @@
 import functools
 import logging
 import re
+import typing
 import urllib.parse
 
 import requests
@@ -51,14 +52,17 @@ class Fediverse(Handler):
     def cb_id(self):
         return 'md'
 
-    def __init__(self, name: str, token_store: dict, timeout: int = None, homepage: str = None):
+    def __init__(self, name: str,
+                 token_store: typing.Dict[str, typing.Any],
+                 timeout: typing.Optional[int] = None,
+                 homepage: typing.Optional[str] = None):
         """ Instantiate a Fediverse handler.
 
         :param str name: Human-readable website name
-
+        :param str homepage: Homepage for the website
         :param token_store: Storage for session tokens
+        :param int timeout: How long to allow a user to wait to log in, in seconds
 
-        :paramm str homepage: Homepage for the website
         """
         self._name = name
         self._homepage = homepage
@@ -117,7 +121,7 @@ class Fediverse(Handler):
         return instance
 
     @functools.lru_cache(128)
-    def _get_client(self, id_url, callback_uri):
+    def _get_client(self, id_url, callback_uri) -> typing.Optional['Fediverse.Client']:
         """ Get the client data """
         instance = self._get_instance(id_url)
         request = requests.post(instance + '/api/v1/apps',
@@ -143,7 +147,7 @@ class Fediverse(Handler):
         })
 
     @staticmethod
-    def _get_identity(client, auth_headers, redir):
+    def _get_identity(client, auth_headers, redir) -> disposition.Disposition:
         request = requests.get(
             client.instance + '/api/v1/accounts/verify_credentials',
             headers=auth_headers)
@@ -240,7 +244,7 @@ def from_config(config, token_store):
     Fediverse_TIMEOUT -- the maximum time to wait for login to complete
     """
 
-    def get_cfg(key, dfl=None):
+    def get_cfg(key: str, dfl=None):
         for pfx in ('FEDIVERSE_', 'MASTODON_'):
             if pfx + key in config:
                 if pfx != 'FEDIVERSE_':

@@ -5,6 +5,7 @@ import logging
 import os
 import typing
 import urllib.parse
+import uuid
 
 import flask
 import werkzeug.exceptions as http_error
@@ -154,7 +155,9 @@ class AuthlFlask:
         """
         # pylint:disable=too-many-arguments,too-many-locals,too-many-statements
 
-        self.instance = from_config(config, app.secret_key, token_storage)
+        self.instance = from_config(config,
+                                    app.secret_key or uuid.uuid4().bytes,
+                                    token_storage)
 
         self._session = token_storage
         self.login_name = login_name
@@ -165,8 +168,8 @@ class AuthlFlask:
         self._notify_render_func = notify_render_func
         self._session_auth_name = session_auth_name
         self.force_ssl = force_ssl
-        if stylesheet:
-            self.stylesheet = stylesheet
+        if stylesheet is not None:
+            setattr(self, 'stylesheet', str(stylesheet))
         self._on_verified = on_verified
         self.make_permanent = make_permanent
         self._prefill_key = token_private_namespace + '.prefill'
@@ -228,7 +231,7 @@ class AuthlFlask:
             return self.render_login_form(destination=disp.redir, error=disp.message)
 
         # unhandled disposition
-        raise http_error.InternalServerError("Unknown disposition type " + type(disp))
+        raise http_error.InternalServerError("Unknown disposition type " + str(type(disp)))
 
     @set_cache(0)
     def _render_notify(self, cdata):
