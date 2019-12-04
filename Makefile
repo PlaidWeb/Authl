@@ -15,7 +15,7 @@ flake8:
 
 .PHONY: mypy
 mypy:
-	pipenv run mypy -p authl --ignore-missing-imports
+	pipenv run mypy -p authl -m test --ignore-missing-imports
 
 .PHONY: preflight
 preflight:

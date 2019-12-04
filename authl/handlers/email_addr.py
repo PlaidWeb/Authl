@@ -191,7 +191,7 @@ def from_config(config, token_store):
     EMAIL_SUBJECT -- the Subject: to use for a login email (required)
     EMAIL_CHECK_MESSAGE -- The message to send back to the user
     EMAIL_TEMPLATE_FILE -- A path to a text file for the email message
-    EMAIL_EXPIRE_TIME -- How long a login email is valid for
+    EMAIL_EXPIRE_TIME -- How long a login email is valid for, in seconds
     SMTP_HOST -- the email host (required if no EMAIL_SENDMAIL)
     SMTP_PORT -- the email port (required if no EMAIL_SENDMAIL)
     SMTP_USE_SSL -- whether to use SSL for the SMTP connection
