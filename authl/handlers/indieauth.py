@@ -1,6 +1,7 @@
 """ IndieAuth login handler. """
 
 import logging
+import typing
 import urllib.parse
 
 import requests
@@ -45,7 +46,7 @@ def find_endpoint(id_url=None, links=None, content=None):
     return _link_endpoint(links) or _content_endpoint(content)
 
 
-def verify_id(request_id: str, response_id: str) -> str:
+def verify_id(request_id: str, response_id: str) -> typing.Optional[str]:
     """ Given an ID from an identity request and its verification response,
     ensure that the verification response is a valid URL for the request.
 
