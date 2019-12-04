@@ -18,36 +18,43 @@ function setUrl(url, repltext) {
     if (index >= 0) {
         profile_url.setSelectionRange(index, index + repltext.length);
     }
+
+    var label = document.getElementById('uri-type');
+    label.disabled = true;
+    label.className = "";
+    label.innerHTML = "Go!";
 }
 
-//{% if test_url %}
 var test_timeout = null;
 function testUri() {
     var uri = document.getElementById('me').value;
     var label = document.getElementById('uri-type');
 
+    /*{% if test_url %} URI tester is enabled */
     if (test_timeout !== null) {
         clearTimeout(test_timeout);
         test_timeout = null;
     }
 
-    if (uri == '') {
-        label.className = '';
-        label.innerHTML = 'Go!';
+    if (!uri) {
+        label.disabled = true;
+        label.className = "";
+        label.innerHTML = "Go!";
         return;
     }
 
     label.className = "pending";
     label.innerHTML = "Checking&hellip;";
-    test_timeout = setTimeout(function() {
-        fetch("{{test_url}}?url=" + encodeURIComponent(uri)).then(function(response) {
+    label.disabled = false;
+    test_timeout = setTimeout(() => {
+        fetch("{{test_url}}?url=" + encodeURIComponent(uri)).then(response => {
             if (response.status !== 200) {
                 label.className = "error";
                 label.innerHTML = "Got error " + response.status + " checking the URL";
                 return;
             }
 
-            response.json().then(function(data) {
+            response.json().then(data => {
                 if (data) {
                     label.className = "resolved";
                     label.innerHTML = data.name;
@@ -59,13 +66,21 @@ function testUri() {
 
         });
     }, 250);
-
+    /*{% else %} URI tester is disabled */
+    label.className = "";
+    label.innerHTML = "Go!";
+    /*{% endif %}*/
 }
-window.addEventListener('DOMContentLoaded', function() {
-    testUri();
+
+window.addEventListener('DOMContentLoaded', () => {
+    /*{% if request.args.fill %}*/testUri();/*{% endif %}*/
     document.getElementById('me').addEventListener('input', testUri);
+    [].forEach.call(document.getElementById('handlers').getElementsByClassName("handler"),
+        link => link.addEventListener('click', e => {
+            setUrl(link.getAttribute('data-url'), link.getAttribute('data-repl'));
+            e.preventDefault();
+        }));
 });
-//{% endif %}
 </script>
 </head>
 
@@ -73,7 +88,7 @@ window.addEventListener('DOMContentLoaded', function() {
     <div id="login">
         <h1>Identify Yourself</h1>
         <form method="POST" action="{{login_url}}" novalidate>
-            <input id="me" type="url" name="me" size="40" placeholder="Your ID here" autofocus>
+            <input id="me" type="url" name="me" size="40" placeholder="Your ID here" value="{{request.args.fill}}" autofocus>
             <button id="uri-type">Go!</button>
             {% with messages = get_flashed_messages() %}
             {% if messages %}
@@ -89,13 +104,15 @@ window.addEventListener('DOMContentLoaded', function() {
         <div id="info">
             <p>This form allows you to log in using your existing identity from another website or
                 provider. The following sources are supported:</p>
-            <ul class="handlers">
+            <ul class="handlers" id="handlers">
                 {% for handler in auth.handlers %}
-                <li><button onclick="setUrl('{{ handler.url_schemes[0][0] }}',
-                                            '{{ handler.url_schemes[0][1] }}')">{{
-                        handler.service_name }}</button>
+                {% for url,filler in handler.url_schemes[:1] %}
+                <li><a class="handler" href="?fill={{url.replace('%',filler)|urlencode}}"
+                    data-url="{{url}}"
+                    data-repl="{{filler}}">{{handler.service_name}}</a>
                     &mdash; <span class="description">{{handler.description|safe}}</span>
                 </li>
+                {% endfor %}
                 {% endfor %}
             </ul>
         </div>

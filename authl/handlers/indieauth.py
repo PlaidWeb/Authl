@@ -116,7 +116,7 @@ class IndieAuth(Handler):
     @property
     def url_schemes(self):
         # pylint:disable=duplicate-code
-        return [('%', 'https://website.name')]
+        return [('%', 'https://domain.example.com')]
 
     @property
     def description(self):

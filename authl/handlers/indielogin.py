@@ -24,7 +24,7 @@ class IndieLogin(Handler):
 
     @property
     def url_schemes(self):
-        return [('%', 'https://website.name')]
+        return [('%', 'https://domain.example.com')]
 
     @property
     def description(self):

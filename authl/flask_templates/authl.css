@@ -33,17 +33,6 @@ input[type="url"] {
     font-weight: light;
     font-size: large;
 }
-.handlers button {
-    margin: 0;
-    padding: 0;
-    background: transparent;
-    border: none;
-    text-decoration: underline;
-    color: #500;
-    font-size: small;
-    cursor: pointer;
-    font-family: "Helvetica Neue", sans-serif;
-}
 .description {
     font-style: italic;
     color: #555;
@@ -109,6 +98,10 @@ a:link {
 #uri-type.pending {
     color: black;
     background: repeating-linear-gradient(-45deg, white, white 1ex, #ccf 1ex, #ccf 2ex);
+}
+
+#uri-type:disabled {
+    opacity: 50%;
 }
 
 @keyframes progress {
