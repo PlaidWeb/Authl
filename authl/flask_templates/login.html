@@ -84,7 +84,7 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('me').addEventListener('input', testUri);
     [].forEach.call(document.getElementById('handlers').getElementsByClassName("handler"),
         link => link.addEventListener('click', e => {
-            setUrl(link.getAttribute('data-url'), link.getAttribute('data-repl'));
+            setUrl(link.getAttribute('data-url'), link.getAttribute('data-example'));
             e.preventDefault();
         }));
 });
@@ -113,10 +113,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 provider. The following sources are supported:</p>
             <ul class="handlers" id="handlers">
                 {% for handler in auth.handlers %}
-                {% for url,filler in handler.url_schemes[:1] %}
-                <li><a class="handler" href="?fill={{url.replace('%',filler)|urlencode}}"
+                {% for url,example in handler.url_schemes[:1] %}
+                <li><a class="handler" href="?fill={{url.replace('%',example)|urlencode}}"
                     data-url="{{url}}"
-                    data-repl="{{filler}}">{{handler.service_name}}</a>
+                    data-examplw="{{example}}">{{handler.service_name}}</a>
                     &mdash; <span class="description">{{handler.description|safe}}</span>
                 </li>
                 {% endfor %}
