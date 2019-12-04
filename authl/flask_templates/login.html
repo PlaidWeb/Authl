@@ -25,15 +25,15 @@ function setUrl(url, repltext) {
     label.innerHTML = "Go!";
 }
 
-var test_timeout = null;
-function testUri() {
+var pending = null;
+async function testUri() {
     var uri = document.getElementById('me').value;
     var label = document.getElementById('uri-type');
 
     /*{% if test_url %} URI tester is enabled */
-    if (test_timeout !== null) {
-        clearTimeout(test_timeout);
-        test_timeout = null;
+    if (pending !== null) {
+        // We have a pending delay; cancel it
+        pending(false);
     }
 
     if (!uri) {
@@ -44,28 +44,35 @@ function testUri() {
     }
 
     label.className = "pending";
-    label.innerHTML = "Checking&hellip;";
+    label.innerHTML = "Checking…";
     label.disabled = false;
-    test_timeout = setTimeout(() => {
-        fetch("{{test_url}}?url=" + encodeURIComponent(uri)).then(response => {
-            if (response.status !== 200) {
-                label.className = "error";
-                label.innerHTML = "Got error " + response.status + " checking the URL";
-                return;
-            }
 
-            response.json().then(data => {
-                if (data) {
-                    label.className = "resolved";
-                    label.innerHTML = data.name;
-                } else {
-                    label.className = "error";
-                    label.innerHTML = "Unknown login method";
-                }
-            });
+    delay = await new Promise(resolve => {
+        pending = resolve;
+        setTimeout(() => resolve(true), 250);
+    });
 
-        });
-    }, 250);
+    if (!delay) {
+        return;
+    }
+
+    response = await fetch("{{test_url}}?url=" + encodeURIComponent(uri));
+    if (response.status !== 200) {
+        label.className = "error";
+        label.innerHTML = "Got error " + response.status + " checking the URL";
+        return;
+    }
+
+    data = await response.json();
+    console.debug("tester response", data);
+    if (data) {
+        label.className = "resolved";
+        label.innerHTML = data.name;
+    } else {
+        label.className = "error";
+        label.innerHTML = "Unknown login method";
+    }
+
     /*{% else %} URI tester is disabled */
     label.className = "";
     label.innerHTML = "Go!";
