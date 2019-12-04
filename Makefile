@@ -1,4 +1,4 @@
-all: format pylint flake8
+all: format mypy pylint flake8
 
 .PHONY: format
 format:
@@ -12,6 +12,10 @@ pylint:
 .PHONY: flake8
 flake8:
 	pipenv run flake8
+
+.PHONY: mypy
+mypy:
+	pipenv run mypy -p authl --ignore-missing-imports
 
 .PHONY: preflight
 preflight:
@@ -36,7 +40,7 @@ build: preflight pylint flake8
 
 .PHONY: clean
 clean:
-	rm -rf build dist
+	rm -rf build dist .mypy_cache
 
 .PHONY: upload
 upload: clean build
