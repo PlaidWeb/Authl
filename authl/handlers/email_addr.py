@@ -41,8 +41,8 @@ class EmailAddress(Handler):
 
     @property
     def description(self):
-        return """Uses a good old-fashioned email address to log you in, by sending a
-        "magic link" to the destination address."""
+        return """Uses email to log you in, by sending a "magic link" to the
+        destination address."""
 
     @property
     def cb_id(self):

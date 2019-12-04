@@ -19,7 +19,8 @@ The basic API works, and provides an easy drop-in set of endpoints for
 Currently supported authentication mechanisms:
 
 * Directly authenticating against email using a magic link
-* Federated authentication against [Mastodon](https://joinmastodon.org/)
+* Federated authentication against Fediverse providers
+    ([Mastodon](https://joinmastodon.org/), [Pleroma](https://pleroma.social))
 * Federated authentication against [IndieAuth](https://indieauth.net/)
 * Federated authentication against [IndieLogin](https://indielogin.com/)
 * Silo authentication against [Twitter](https://twitter.com/)

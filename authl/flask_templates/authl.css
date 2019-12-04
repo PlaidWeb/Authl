@@ -43,20 +43,11 @@ a:link {
 .description a:link {
     color: #944;
 }
-.flashes {
+.error {
     color: #700;
-    list-style-type: none;
     font-size: small;
     margin: 0;
     padding: 0;
-}
-.flashes li {
-    margin: 0;
-    padding: 0;
-    display: inline;
-}
-.flashes li + li::before {
-    content: ' | ';
 }
 
 #powered {

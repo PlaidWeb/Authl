@@ -1,4 +1,4 @@
-""" Mastodon/Pleroma/Fediverse provider """
+""" Fediverse/Pleroma/Fediverse provider """
 
 import functools
 import logging
@@ -13,11 +13,11 @@ from . import Handler
 LOGGER = logging.getLogger(__name__)
 
 
-class Mastodon(Handler):
-    """ Handler for Mastodon and Mastodon-like services """
+class Fediverse(Handler):
+    """ Handler for Fediverse services (Mastodon, Pleroma) """
 
     class Client:
-        """ Mastodon OAuth client info """
+        """ Fediverse OAuth client info """
         # pylint:disable=too-few-public-methods
 
         def __init__(self, instance, params, secrets):
@@ -34,7 +34,7 @@ class Mastodon(Handler):
 
     @property
     def service_name(self):
-        return "Mastodon"
+        return "Fediverse"
 
     @property
     def url_schemes(self):
@@ -43,16 +43,16 @@ class Mastodon(Handler):
 
     @property
     def description(self):
-        return """Identifies you using your choice of
-        <a href="https://joinmastodon.org/">Mastodon</a>
-        instance."""
+        return """Identifies you using your choice of Fediverse instance
+        (currently supported: <a href="https://joinmastodon.org/">Mastodon</a>,
+        <a href="https://pleroma.social/">Pleroma</a>)"""
 
     @property
     def cb_id(self):
         return 'md'
 
     def __init__(self, name: str, token_store: dict, timeout: int = None, homepage: str = None):
-        """ Instantiate a Mastodon handler.
+        """ Instantiate a Fediverse handler.
 
         :param str name: Human-readable website name
 
@@ -80,7 +80,7 @@ class Mastodon(Handler):
         instance = 'https://' + domain
 
         try:
-            LOGGER.debug("Trying Mastodon instance: %s", instance)
+            LOGGER.debug("Trying Fediverse instance: %s", instance)
             request = requests.get(instance + '/api/v1/instance')
             if request.status_code != 200:
                 LOGGER.debug("Instance endpoint returned error %d", request.status_code)
@@ -92,10 +92,10 @@ class Mastodon(Handler):
                     LOGGER.debug("Instance data missing key '%s'", key)
                     return None
 
-            LOGGER.info("Found Mastodon instance: %s", instance)
+            LOGGER.info("Found Fediverse instance: %s", instance)
             return instance
         except Exception as error:  # pylint:disable=broad-except
-            LOGGER.debug("Mastodon probe failed: %s", error)
+            LOGGER.debug("Fediverse probe failed: %s", error)
 
         return None
 
@@ -104,10 +104,10 @@ class Mastodon(Handler):
 
         instance = self._get_instance(url)
         if not instance:
-            LOGGER.debug("Not a Mastodon instance: %s", url)
+            LOGGER.debug("Not a Fediverse instance: %s", url)
             return None
 
-        # This seems to be a Mastodon endpoint; try to figure out the username
+        # This seems to be a Fediverse endpoint; try to figure out the username
         for tmpl in ('@(.*)@', '.*/@(.*)$', '.*/user/(.*)%'):
             match = re.match(tmpl, url)
             if match:
@@ -134,7 +134,7 @@ class Mastodon(Handler):
         if info['redirect_uri'] != callback_uri:
             raise ValueError("Got incorrect redirect_uri")
 
-        return Mastodon.Client(instance, {
+        return Fediverse.Client(instance, {
             'client_id': info['client_id'],
             'redirect_uri': info['redirect_uri'],
             'scope': 'read:accounts'
@@ -192,10 +192,10 @@ class Mastodon(Handler):
             client_tuple, redir = utils.unpack_token(self._token_store, state, self._timeout)
         except disposition.Disposition as disp:
             return disp
-        client = Mastodon.Client(*client_tuple)
+        client = Fediverse.Client(*client_tuple)
 
         if 'error' in get:
-            return disposition.Error("Error signing into Mastodon", redir)
+            return disposition.Error("Error signing into Fediverse", redir)
 
         try:
             request = requests.post(client.token_endpoint,
@@ -231,15 +231,24 @@ class Mastodon(Handler):
 
 
 def from_config(config, token_store):
-    """ Generate a Mastodon handler from the given config dictionary.
+    """ Generate a Fediverse handler from the given config dictionary.
 
     Posible configuration values:
 
-    MASTODON_NAME -- the name of your website (required)
-    MASTODON_HOMEPAGE -- your website's homepage (recommended)
-    MASTODON_TIMEOUT -- the maximum time to wait for login to complete
+    Fediverse_NAME -- the name of your website (required)
+    Fediverse_HOMEPAGE -- your website's homepage (recommended)
+    Fediverse_TIMEOUT -- the maximum time to wait for login to complete
     """
 
-    return Mastodon(config['MASTODON_NAME'], token_store,
-                    timeout=config.get('MASTODON_TIMEOUT'),
-                    homepage=config.get('MASTODON_HOMEPAGE'))
+    def get_cfg(key, dfl=None):
+        for pfx in ('FEDIVERSE_', 'MASTODON_'):
+            if pfx + key in config:
+                if pfx != 'FEDIVERSE_':
+                    LOGGER.warning("Configuration key %s has changed to %s",
+                                   pfx + key, 'FEDIVERSE_' + key)
+                return config[pfx + key]
+        return dfl
+
+    return Fediverse(get_cfg('NAME'), token_store,
+                     timeout=get_cfg('TIMEOUT'),
+                     homepage=get_cfg('HOMEPAGE'))

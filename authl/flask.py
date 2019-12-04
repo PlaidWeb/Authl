@@ -16,7 +16,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 def setup(app: flask.Flask, config: typing.Dict[str, typing.Any], *args, **kwargs):
-    """ Simple/legacy API for backwards compatibility. """
+    """ Simple setup function """
     return AuthlFlask(app, config, *args, **kwargs).instance
 
 
@@ -72,6 +72,7 @@ class AuthlFlask:
                  on_verified: typing.Callable = None,
                  make_permanent: bool = True,
                  token_storage=flask.session,
+                 token_private_namespace='_authl',
                  ):
         """ Setup Authl to work with a Flask application.
 
@@ -107,6 +108,8 @@ class AuthlFlask:
             browser window closing
         :param token_storage: The mechanism to use for token storage, for login
             methods that need it. Defaults to using the Flask session.
+        :param token_private_namespace: The session namespace for Authl to store
+            internal data in. Only change this if you have a really good reason.
 
         The login_render_func takes the following arguments; note that more may
         be added so it should also take a **kwargs for future compatibility:
@@ -116,6 +119,8 @@ class AuthlFlask:
             :param tester_url: the URL to use for the test callback
             :param redir: The redirection destination that the login URL will
                 redirect them to
+            :param id_url: Any pre-filled value for the ID url
+            :param error: Any error message that occurred
 
         If login_render_func returns a false value, the default login form will
         be used instead. This is useful for providing a conditional override, or
@@ -151,6 +156,7 @@ class AuthlFlask:
 
         self.instance = from_config(config, app.secret_key, token_storage)
 
+        self._session = token_storage
         self.login_name = login_name
         self.callback_name = callback_name
         self.tester_name = tester_name
@@ -163,6 +169,7 @@ class AuthlFlask:
             self.stylesheet = stylesheet
         self._on_verified = on_verified
         self.make_permanent = make_permanent
+        self._prefill_key = token_private_namespace + '.prefill'
 
         for sfx in ['', '/', '/<path:redir>']:
             app.add_url_rule(login_path + sfx, login_name,
@@ -198,6 +205,8 @@ class AuthlFlask:
 
         if isinstance(disp, disposition.Verified):
             # The user is verified; log them in
+            del self._session[self._prefill_key]
+
             LOGGER.info("Successful login: %s", disp.identity)
             if self._session_auth_name is not None:
                 flask.session.permanent = self.make_permanent
@@ -216,8 +225,7 @@ class AuthlFlask:
 
         if isinstance(disp, disposition.Error):
             # The user's login failed
-            flask.flash(disp.message)
-            return self.render_login_form(destination=disp.redir)
+            return self.render_login_form(destination=disp.redir, error=disp.message)
 
         # unhandled disposition
         raise http_error.InternalServerError("Unknown disposition type " + type(disp))
@@ -233,7 +241,7 @@ class AuthlFlask:
                                             cdata=cdata,
                                             stylesheet=self.stylesheet)
 
-    def render_login_form(self, destination: str):
+    def render_login_form(self, destination: str, error: typing.Optional[str] = None):
         """ Renders the login form, configured with the specified redirection path. """
         login_url = flask.url_for(self.login_name,
                                   redir=redir_dest_to_path(destination),
@@ -241,19 +249,26 @@ class AuthlFlask:
                                   _external=self.force_ssl)
         test_url = self._tester_path and flask.url_for(self.tester_name,
                                                        _external=True)
+        id_url = self._session.get(self._prefill_key, '')
+        LOGGER.debug('id_url: %s', id_url)
+
+        render_args = {
+            'login_url': login_url,
+            'test_url': test_url,
+            'auth': self.instance,
+            'id_url': id_url,
+            'error': error,
+            'redir': destination,
+        }
+
         if self._login_render_func:
-            result = self._login_render_func(login_url=login_url,
-                                             test_url=test_url,
-                                             auth=self.instance,
-                                             redir=destination)
+            result = self._login_render_func(**render_args)
             if result:
                 return result
 
         return flask.render_template_string(load_template('login.html'),
-                                            login_url=login_url,
-                                            test_url=test_url,
                                             stylesheet=self.stylesheet,
-                                            auth=self.instance)
+                                            **render_args)
 
     def _login_endpoint(self, redir: str = ''):
         from flask import request
@@ -265,9 +280,11 @@ class AuthlFlask:
             raise http_error.NotFound("Unknown asset " + asset)
 
         dest = redir_path_to_dest(redir)
+        error = None
 
         me_url = request.form.get('me', request.args.get('me'))
         if me_url:
+            self._session[self._prefill_key] = me_url
             handler, hid, id_url = self.instance.get_handler_for_url(me_url)
             if handler:
                 cb_url = flask.url_for(self.callback_name,
@@ -279,15 +296,17 @@ class AuthlFlask:
                     cb_url,
                     dest))
 
-            # No handler found, so flash an error message to login_form
-            flask.flash('Unknown authorization method')
+            # No handler found, so provide error message to login_form
+            error = 'Unknown authorization method'
 
-        return self.render_login_form(destination=dest)
+        return self.render_login_form(destination=dest, error=error)
 
     def _callback_endpoint(self, hid: str):
         from flask import request
 
         handler = self.instance.get_handler_by_id(hid)
+        if not handler:
+            return self._handle_disposition(disposition.Error("Invalid handler", None))
         try:
             return self._handle_disposition(
                 handler.check_callback(request.url, request.args, request.form))
