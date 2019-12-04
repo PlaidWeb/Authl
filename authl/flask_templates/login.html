@@ -122,7 +122,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 {% for url,example in handler.url_schemes[:1] %}
                 <li><a class="handler" href="?fill={{url.replace('%',example)|urlencode}}"
                     data-url="{{url}}"
-                    data-examplw="{{example}}">{{handler.service_name}}</a>
+                    data-example="{{example}}">{{handler.service_name}}</a>
                     &mdash; <span class="description">{{handler.description|safe}}</span>
                 </li>
                 {% endfor %}
