@@ -240,6 +240,15 @@ def from_config(config, token_store):
     Fediverse_TIMEOUT -- the maximum time to wait for login to complete
     """
 
-    return Fediverse(config['Fediverse_NAME'], token_store,
-                    timeout=config.get('Fediverse_TIMEOUT'),
-                    homepage=config.get('Fediverse_HOMEPAGE'))
+    def get_cfg(key, dfl=None):
+        for pfx in ('FEDIVERSE_', 'MASTODON_'):
+            if pfx + key in config:
+                if pfx != 'FEDIVERSE_':
+                    LOGGER.warning("Configuration key %s has changed to %s",
+                                   pfx + key, 'FEDIVERSE_' + key)
+                return config[pfx + key]
+        return dfl
+
+    return Fediverse(get_cfg('NAME'), token_store,
+                     timeout=get_cfg('TIMEOUT'),
+                     homepage=get_cfg('HOMEPAGE'))

@@ -7,7 +7,7 @@ import typing
 import itsdangerous
 from bs4 import BeautifulSoup
 
-from . import handlers, utils
+from . import handlers, utils, disposition
 
 LOGGER = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ class Authl:
 
     def get_handler_by_id(self, handler_id):
         """ Get the handler with the given ID """
-        return self._handlers[handler_id]
+        return self._handlers.get(handler_id)
 
     @property
     def handlers(self):
@@ -95,9 +95,9 @@ def from_config(config: typing.Dict[str, typing.Any],
         from .handlers import email_addr
         instance.add_handler(email_addr.from_config(config, serializer))
 
-    if config.get('MASTODON_NAME'):
-        from .handlers import mastodon
-        instance.add_handler(mastodon.from_config(config, serializer))
+    if config.get('FEDIVERSE_NAME') or config.get('MASTODON_NAME'):
+        from .handlers import fediverse
+        instance.add_handler(fediverse.from_config(config, serializer))
 
     if config.get('INDIEAUTH_CLIENT_ID'):
         from .handlers import indieauth
