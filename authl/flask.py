@@ -5,6 +5,7 @@ import logging
 import os
 import typing
 import urllib.parse
+import typing
 
 import flask
 import werkzeug.exceptions as http_error
@@ -116,6 +117,7 @@ class AuthlFlask:
             :param tester_url: the URL to use for the test callback
             :param redir: The redirection destination that the login URL will
                 redirect them to
+            :param error: Any error message that occurred
 
         If login_render_func returns a false value, the default login form will
         be used instead. This is useful for providing a conditional override, or
@@ -216,8 +218,7 @@ class AuthlFlask:
 
         if isinstance(disp, disposition.Error):
             # The user's login failed
-            flask.flash(disp.message)
-            return self.render_login_form(destination=disp.redir)
+            return self.render_login_form(destination=disp.redir, error=disp.message)
 
         # unhandled disposition
         raise http_error.InternalServerError("Unknown disposition type " + type(disp))
@@ -233,7 +234,7 @@ class AuthlFlask:
                                             cdata=cdata,
                                             stylesheet=self.stylesheet)
 
-    def render_login_form(self, destination: str):
+    def render_login_form(self, destination: str, error: typing.Optional[str] = None):
         """ Renders the login form, configured with the specified redirection path. """
         login_url = flask.url_for(self.login_name,
                                   redir=redir_dest_to_path(destination),
@@ -253,7 +254,8 @@ class AuthlFlask:
                                             login_url=login_url,
                                             test_url=test_url,
                                             stylesheet=self.stylesheet,
-                                            auth=self.instance)
+                                            auth=self.instance,
+                                            error=error)
 
     def _login_endpoint(self, redir: str = ''):
         from flask import request
@@ -265,6 +267,7 @@ class AuthlFlask:
             raise http_error.NotFound("Unknown asset " + asset)
 
         dest = redir_path_to_dest(redir)
+        error = None
 
         me_url = request.form.get('me', request.args.get('me'))
         if me_url:
@@ -279,10 +282,10 @@ class AuthlFlask:
                     cb_url,
                     dest))
 
-            # No handler found, so flash an error message to login_form
-            flask.flash('Unknown authorization method')
+            # No handler found, so provide error message to login_form
+            error='Unknown authorization method'
 
-        return self.render_login_form(destination=dest)
+        return self.render_login_form(destination=dest,error=error)
 
     def _callback_endpoint(self, hid: str):
         from flask import request

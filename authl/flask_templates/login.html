@@ -103,15 +103,9 @@ window.addEventListener('DOMContentLoaded', () => {
         <form method="POST" action="{{login_url}}" novalidate>
             <input id="me" type="url" name="me" size="40" placeholder="Your ID here" value="{{request.args.fill}}" autofocus>
             <button id="uri-type">Go!</button>
-            {% with messages = get_flashed_messages() %}
-            {% if messages %}
-            <ul class="flashes">
-                {% for message in messages %}
-                <li>{{ message }}</li>
-                {% endfor %}
-            </ul>
+            {% if error %}
+            <div class="error">{{error}}</div>
             {% endif %}
-            {% endwith %}
         </form>
 
         <div id="info">
