@@ -30,27 +30,28 @@ async function testUri() {
     var uri = document.getElementById('me').value;
     var label = document.getElementById('uri-type');
 
+    label.className = "";
+    label.innerHTML = "Go!";
+    if (!uri) {
+        label.disabled = true;
+        return;
+    }
+
     /*{% if test_url %} URI tester is enabled */
     if (pending !== null) {
         // We have a pending delay; cancel it
         pending(false);
     }
 
-    if (!uri) {
-        label.disabled = true;
-        label.className = "";
-        label.innerHTML = "Go!";
-        return;
-    }
-
-    label.className = "pending";
-    label.innerHTML = "Checking…";
     label.disabled = false;
 
     delay = await new Promise(resolve => {
         pending = resolve;
         setTimeout(() => resolve(true), 250);
     });
+
+    label.className = "pending";
+    label.innerHTML = "Checking…";
 
     if (!delay) {
         return;
@@ -86,7 +87,7 @@ async function testUri() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    /*{% if request.args.fill %}*/testUri();/*{% endif %}*/
+    testUri();
     document.getElementById('me').addEventListener('input', testUri);
     [].forEach.call(document.getElementById('handlers').getElementsByClassName("handler"),
         link => link.addEventListener('click', e => {
