@@ -10,11 +10,11 @@ from .. import disposition
 class Handler(ABC):
     """ base class for authentication handlers """
 
-    def handles_url(self, url: str) -> typing.Union[str, bool]:
+    def handles_url(self, url: str) -> typing.Optional[str]:
         """
         If this handler can handle this URL (or something that looks like it),
         return something truthy, e.g. a canonicized version of the URL.
-        Otherwise, return False.
+        Otherwise, return None.
 
         It is okay to check for an API endpoint in implementing this. However,
         if the content kept at the URL itself needs to be parsed to make the
@@ -24,7 +24,7 @@ class Handler(ABC):
         if that value matters, return a reasonable URL.
         """
         # pylint:disable=no-self-use,unused-argument
-        return False
+        return None
 
     def handles_page(self, url: str, headers, content, links) -> bool:
         """ Returns True/truthy if we can handle the page based on page content

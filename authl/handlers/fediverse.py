@@ -71,7 +71,7 @@ class Fediverse(Handler):
 
     @staticmethod
     @functools.lru_cache(128)
-    def _get_instance(url):
+    def _get_instance(url) -> typing.Optional[str]:
         match = re.match('@.*@(.*)$', url)
         if match:
             domain = match[1]
@@ -121,9 +121,11 @@ class Fediverse(Handler):
         return instance
 
     @functools.lru_cache(128)
-    def _get_client(self, id_url, callback_uri) -> typing.Optional['Fediverse.Client']:
+    def _get_client(self, id_url: str, callback_uri: str) -> typing.Optional['Fediverse.Client']:
         """ Get the client data """
         instance = self._get_instance(id_url)
+        if not instance:
+            return None
         request = requests.post(instance + '/api/v1/apps',
                                 data={
                                     'client_name': self._name,

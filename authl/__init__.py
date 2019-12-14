@@ -35,25 +35,38 @@ class Authl:
             raise ValueError("Already have handler with id " + cb_id)
         self._handlers[cb_id] = handler
 
-    def get_handler_for_url(self, url):
-        """ Get the appropriate handler for the specified identity URL.
-        Returns a tuple of (handler, id, url). """
-        for pos, handler in self._handlers.items():
+    def get_handler_for_url(self, url: str) -> typing.Tuple[typing.Optional[handlers.Handler],
+                                                            str,
+                                                            str]:
+        """ Get the appropriate handler for the specified identity address.
+        Returns a tuple of (handler, hander_id, profile_id). """
+
+        # If webfinger detects profiles for this address, try all of those first
+        for profile in utils.get_webfinger_profiles(url):
+            LOGGER.debug("Checking profile %s", profile)
+            resp = self.get_handler_for_url(profile)
+            if resp[0]:
+                return resp
+
+        if not url:
+            return None, '', ''
+
+        for hid, handler in self._handlers.items():
             result = handler.handles_url(url)
             if result:
                 LOGGER.debug("%s URL matches %s", url, handler)
-                return handler, pos, result
+                return handler, hid, result
 
         request = utils.request_url(url)
         if request:
             soup = BeautifulSoup(request.text, 'html.parser')
-            for pos, handler in self._handlers.items():
+            for hid, handler in self._handlers.items():
                 if handler.handles_page(request.url, request.headers, soup, request.links):
                     LOGGER.debug("%s response matches %s", request.url, handler)
-                    return handler, pos, request.url
+                    return handler, hid, request.url
 
         LOGGER.debug("No handler found for URL %s", url)
-        return None, None, None
+        return None, '', ''
 
     def get_handler_by_id(self, handler_id):
         """ Get the handler with the given ID """
@@ -68,7 +81,7 @@ class Authl:
 def from_config(config: typing.Dict[str, typing.Any],
                 secret_key: typing.Union[str, bytes],
                 state_storage: dict = None) -> Authl:
-    """ Generate an AUthl handler set from provided configuration directives.
+    """ Generate an Authl handler set from provided configuration directives.
 
     Arguments:
 
@@ -84,6 +97,7 @@ def from_config(config: typing.Dict[str, typing.Any],
         MASTODON_NAME -- enable the Mastodon handler
         INDIEAUTH_CLIENT_ID -- enable the IndieAuth handler
         INDIELOGIN_CLIENT_ID -- enable the IndieLogin handler
+        TWITTER_CLIENT_KEY -- enable the Twitter handler
         TEST_ENABLED -- enable the test/loopback handler
 
     """

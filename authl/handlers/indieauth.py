@@ -13,7 +13,9 @@ from . import Handler
 LOGGER = logging.getLogger(__name__)
 
 
-def find_endpoint(id_url=None, links=None, content=None):
+def find_endpoint(id_url: str = None,
+                  links: typing.Dict = None,
+                  content: BeautifulSoup = None) -> typing.Optional[str]:
     """ Given an identity URL, discover its IndieAuth endpoint
 
     :param str id_url: an identity URL to check

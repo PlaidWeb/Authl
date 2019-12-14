@@ -89,7 +89,7 @@ async function testUri() {
 window.addEventListener('DOMContentLoaded', () => {
     testUri();
     document.getElementById('me').addEventListener('input', testUri);
-    [].forEach.call(document.getElementById('handlers').getElementsByClassName("handler"),
+    [].forEach.call(document.getElementsByClassName("$handler"),
         link => link.addEventListener('click', e => {
             setUrl(link.getAttribute('data-url'), link.getAttribute('data-example'));
             e.preventDefault();
@@ -112,10 +112,10 @@ window.addEventListener('DOMContentLoaded', () => {
         <div id="info">
             <p>This form allows you to log in using your existing identity from another website or
                 provider. The following sources are supported:</p>
-            <ul class="handlers" id="handlers">
+            <ul class="handlers">
                 {% for handler in auth.handlers %}
                 {% for url,example in handler.url_schemes[:1] %}
-                <li><a class="handler" href="?fill={{url.replace('%',example)|urlencode}}"
+                <li><a class="$handler" href="?fill={{url.replace('%',example)|urlencode}}"
                     data-url="{{url}}"
                     data-example="{{example}}">{{handler.service_name}}</a>
                     &mdash; <span class="description">{{handler.description|safe}}</span>
@@ -123,6 +123,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 {% endfor %}
                 {% endfor %}
             </ul>
+
+            <p>You may also provide your identity in <a class="$handler" href="?fill=@user@domain"
+                data-url="@%" data-example="user@domain">WebFinger format</a>.</p>
         </div>
 
         <div id="powered">

@@ -4,6 +4,7 @@ import collections
 import html
 import logging
 import re
+import typing
 
 import itsdangerous
 import requests
@@ -19,46 +20,40 @@ def read_file(filename):
         return file.read()
 
 
-def get_webfinger_profile(user, domain):
-    """ Get the webfinger profile page URL from a webfinger query """
-    resource = 'https://{}/.well-known/webfinger?resource={}'.format(
-        domain,
-        html.escape('acct:{}@{}'.format(user, domain)))
-    request = requests.get(resource)
-
-    if not 200 <= request.status_code < 300:
-        LOGGER.info("Webfinger query %s returned status code %d", resource, request.status_code)
-        LOGGER.debug("%s", request.text)
-        return None
+def get_webfinger_profiles(url: str) -> typing.Set[str]:
+    """ Get the potential profile page URLs from a webfinger query """
+    webfinger = re.match(r'@([^@])+@(.*)$', url)
+    if not webfinger:
+        return set()
 
     try:
+        user, domain = webfinger.group(1, 2)
+
+        resource = 'https://{}/.well-known/webfinger?resource={}'.format(
+            domain,
+            html.escape('acct:{}@{}'.format(user, domain)))
+        request = requests.get(resource)
+
+        if not 200 <= request.status_code < 300:
+            LOGGER.info("Webfinger query %s returned status code %d",
+                        resource, request.status_code)
+            LOGGER.debug("%s", request.text)
+            # Service doesn't support webfinger, so just pretend it's the most
+            # common format for a profile page
+            return {'https://{}/@{}'.format(domain, user)}
+
         profile = request.json()
-    except ValueError:
-        LOGGER.info("Profile decode of %s failed", resource)
-        return None
 
-    try:
-        for link in profile['links']:
-            if link['rel'] == 'http://webfinger.net/rel/profile-page':
-                return link['href']
+        return {link['href'] for link in profile['links']
+                if link['rel'] in ('http://webfinger.net/rel/profile-page', 'profile', 'self')}
     except Exception as err:  # pylint:disable=broad-except
         LOGGER.info("Failed to decode %s profile: %s", resource, err)
-        return None
-
-    LOGGER.info("Could not find profile page for @%s@%s", user, domain)
-    return None
+        return set()
 
 
 def request_url(url):
     """ Requests a URL, attempting to canonicize it as it goes """
     # pylint:disable=broad-except
-
-    # webfinger addresses should be treated as the profile URL instead
-    webfinger = re.match(r'@([^@])+@(.*)$', url)
-    if webfinger:
-        url = get_webfinger_profile(webfinger.group(1), webfinger.group(2))
-    if not url:
-        return None
 
     try:
         return requests.get(url)
