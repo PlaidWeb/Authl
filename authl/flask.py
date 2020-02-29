@@ -208,7 +208,7 @@ class AuthlFlask:
 
         if isinstance(disp, disposition.Verified):
             # The user is verified; log them in
-            del self._session[self._prefill_key]
+            self._session.pop(self._prefill_key, None)
 
             LOGGER.info("Successful login: %s", disp.identity)
             if self._session_auth_name is not None:

@@ -35,7 +35,7 @@ authl.flask.setup(
         'EMAIL_FROM': 'nobody@example.com',
         'EMAIL_SUBJECT': 'Log in to authl test',
         'EMAIL_CHECK_MESSAGE': 'Use the link printed to the test console',
-        'EMAIL_EXPIRE_TIME': 10,
+        'EMAIL_EXPIRE_TIME': 60,
 
         'INDIEAUTH_CLIENT_ID': authl.flask.client_id,
         'INDIEAUTH_PENDING_TTL': 10,
