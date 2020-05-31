@@ -3,9 +3,9 @@
 import collections
 import html
 import logging
+import os.path
 import re
 import typing
-import os.path
 
 import itsdangerous
 import requests
