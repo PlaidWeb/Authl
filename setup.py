@@ -49,7 +49,7 @@ setup(
 
     packages=find_packages(),
 
-    package_data={'authl': ['flask_templates/*']},
+    package_data={'authl': ['flask_templates/*', 'icons/*']},
 
     install_requires=[
         'beautifulsoup4',
