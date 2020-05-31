@@ -39,8 +39,7 @@ class Fediverse(Handler):
 
     @property
     def url_schemes(self):
-        return [('https://%', 'instance/@username'),
-                ('@%', 'username@instance')]
+        return [('https://%', 'instance/')]
 
     @property
     def description(self):
@@ -72,14 +71,10 @@ class Fediverse(Handler):
     @staticmethod
     @functools.lru_cache(128)
     def _get_instance(url) -> typing.Optional[str]:
-        match = re.match('@.*@(.*)$', url)
-        if match:
-            domain = match[1]
-        else:
-            parsed = urllib.parse.urlparse(url)
-            if not parsed.netloc:
-                parsed = urllib.parse.urlparse('https://' + url)
-            domain = parsed.netloc
+        parsed = urllib.parse.urlparse(url)
+        if not parsed.netloc:
+            parsed = urllib.parse.urlparse('https://' + url)
+        domain = parsed.netloc
 
         instance = 'https://' + domain
 
