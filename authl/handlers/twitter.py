@@ -127,6 +127,10 @@ class Twitter(Handler):
             redir,
             user_info)
 
+    @property
+    def generic_url(self):
+        return 'https://twitter.com/'
+
 
 def from_config(config, storage):
     """ Generate a Twitter handler from the given config dictionary.
