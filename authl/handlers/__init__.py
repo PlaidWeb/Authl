@@ -84,6 +84,11 @@ class Handler(ABC):
         """
 
     @property
+    def generic_url(self) -> typing.Optional[str]:
+        """ A generic URL that can be used for login irrespective of identity """
+        return None
+
+    @property
     @abstractmethod
     def description(self) -> str:
         """ Returns a description of the service, in HTML format. """

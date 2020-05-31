@@ -113,18 +113,21 @@ window.addEventListener('DOMContentLoaded', () => {
             <p>This form allows you to log in using your existing identity from another website or
                 provider. The following sources are supported:</p>
             <ul class="handlers">
-                {% for handler in auth.handlers %}
-                {% for url,example in handler.url_schemes[:1] %}
-                <li><a class="$handler" href="?fill={{url.replace('%',example)|urlencode}}"
-                    data-url="{{url}}"
-                    data-example="{{example}}">{{handler.service_name}}</a>
-                    &mdash; <span class="description">{{handler.description|safe}}</span>
-                </li>
-                {% endfor %}
-                {% endfor %}
+                {%- for handler in auth.handlers -%}
+                    <li>
+                    {%- if handler.generic_url %}
+                        <a href="?me={{handler.generic_url}}">{{handler.service_name}}</a>
+                    {%- else -%}{%- for url,example in handler.url_schemes[:1] -%}
+                        <a class="$handler" href="?fill={{url.replace('%',example)|urlencode}}"
+                            data-url="{{url}}"
+                            data-example="{{example}}">{{handler.service_name}}</a>
+                    {%- endfor -%}{%- endif %}
+                        &mdash; <span class="description">{{handler.description|safe}}</span>
+                    </li>
+                {%- endfor -%}
             </ul>
 
-            <p>You may also provide your identity in <a class="$handler" href="?fill=@user@domain"
+            <p>You may also provide your address in <a class="$handler" href="?fill=@user@domain"
                 data-url="@%" data-example="user@domain">WebFinger format</a>.</p>
         </div>
 
