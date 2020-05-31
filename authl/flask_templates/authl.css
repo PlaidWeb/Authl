@@ -26,7 +26,7 @@ h1 {
 form, #notify {
     display: inline-block;
     font-size: large;
-    margin: 1em 1em 2em;
+    margin: 0.5em 1em 2em;
 }
 input[type="url"] {
     font-family: "Helvetica Neue", sans-serif;
@@ -105,3 +105,26 @@ a:link {
   100% { background-position: 14.14ex 0; }
 }
 
+.buttons {
+    margin-bottom: 0.2em;
+    font-size: 175%;
+}
+
+.buttons a {
+    text-decoration: none;
+}
+
+.buttons svg, .buttons img {
+    height: 1em;
+    width: auto;
+    vertical-align: middle;
+    margin-right: 0.1em;
+    filter: grayscale(40%);
+    opacity: 90%;
+    transition: filter 0.2s, opacity 0.2s;
+}
+
+.buttons svg:hover, .buttons img:hover {
+    opacity: 100%;
+    filter: none;
+}

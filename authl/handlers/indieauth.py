@@ -130,6 +130,10 @@ class IndieAuth(Handler):
     def cb_id(self):
         return 'ia'
 
+    @property
+    def logo_html(self):
+        return [(utils.read_icon('indieauth.svg'), 'IndieAuth')]
+
     def __init__(self, client_id, token_store, timeout: int = None):
         """ Construct an IndieAuth handler
 

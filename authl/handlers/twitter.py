@@ -7,7 +7,7 @@ import urllib.parse
 import requests
 from requests_oauthlib import OAuth1, OAuth1Session
 
-from .. import disposition
+from .. import disposition, utils
 from . import Handler
 
 
@@ -28,6 +28,10 @@ class Twitter(Handler):
     @property
     def url_schemes(self):
         return [('https://twitter.com/%', 'username')]
+
+    @property
+    def logo_html(self):
+        return [(utils.read_icon("twitter.svg"), 'Twitter')]
 
     def __init__(self, client_key: str,
                  client_secret: str,

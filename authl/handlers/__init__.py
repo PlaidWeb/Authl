@@ -92,3 +92,12 @@ class Handler(ABC):
     @abstractmethod
     def description(self) -> str:
         """ Returns a description of the service, in HTML format. """
+
+    @property
+    def logo_html(self) -> typing.Optional[str]:
+        """ A list of tuples of (html,label) for the login buttons.
+
+        The HTML should be an isolated <svg> element, or an <img src> pointing to a publicly-usable
+        https: URL.
+        """
+        return None

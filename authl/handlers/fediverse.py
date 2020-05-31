@@ -49,7 +49,12 @@ class Fediverse(Handler):
 
     @property
     def cb_id(self):
-        return 'md'
+        return 'fv'
+
+    @property
+    def logo_html(self):
+        return [(utils.read_icon('mastodon.svg'), 'Mastodon'),
+                (utils.read_icon('pleroma.svg'), 'Pleroma')]
 
     def __init__(self, name: str,
                  token_store: typing.Dict[str, typing.Any],

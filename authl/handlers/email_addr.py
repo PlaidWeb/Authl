@@ -48,6 +48,10 @@ class EmailAddress(Handler):
     def cb_id(self):
         return 'e'
 
+    @property
+    def logo_html(self):
+        return [(utils.read_icon('email_addr.svg'), 'email')]
+
     def __init__(self,
                  sendmail,
                  notify_cdata,

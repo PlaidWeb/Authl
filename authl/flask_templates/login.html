@@ -1,8 +1,22 @@
 <!DOCTYPE html>
 <html>
 
+{%- macro login_link(handler, content, title) -%}
+    {%- if handler.generic_url -%}
+        <a href="?me={{handler.generic_url}}" title="{{title}}">
+    {%- else -%}
+        {%- for url,example in handler.url_schemes[:1] -%}
+            <a class="$handler" href="?fill={{url.replace('%',example)|urlencode}}"
+                data-url="{{url}}"
+                data-example="{{example}}"
+                title="{{title}}">
+        {%- endfor -%}
+    {%- endif %}{{content}}</a>
+{%- endmacro -%}
+
 <head>
 <title>Login</title>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="{{stylesheet}}">
 
@@ -102,6 +116,13 @@ window.addEventListener('DOMContentLoaded', () => {
     <div id="login">
         <h1>Identify Yourself</h1>
         <form method="POST" action="{{login_url}}" novalidate>
+            <div class="buttons">
+                {%- for handler in auth.handlers %}{% if handler.logo_html -%}
+                {%- for html,title in handler.logo_html -%}
+                {{login_link(handler, html|safe, title)}}
+                {%- endfor -%}
+                {%- endif -%}{%- endfor -%}
+            </div>
             <input id="me" type="url" name="me" size="40" placeholder="Your ID here" value="{{request.args.get('fill',id_url)}}" autofocus>
             <button id="uri-type">Go!</button>
             {% if error %}
@@ -114,16 +135,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 provider. The following sources are supported:</p>
             <ul class="handlers">
                 {%- for handler in auth.handlers -%}
-                    <li>
-                    {%- if handler.generic_url %}
-                        <a href="?me={{handler.generic_url}}">{{handler.service_name}}</a>
-                    {%- else -%}{%- for url,example in handler.url_schemes[:1] -%}
-                        <a class="$handler" href="?fill={{url.replace('%',example)|urlencode}}"
-                            data-url="{{url}}"
-                            data-example="{{example}}">{{handler.service_name}}</a>
-                    {%- endfor -%}{%- endif %}
-                        &mdash; <span class="description">{{handler.description|safe}}</span>
-                    </li>
+                    <li>{{login_link(handler, handler.service_name)}} &mdash; <span class="description">{{handler.description|safe}}</span></li>
                 {%- endfor -%}
             </ul>
 

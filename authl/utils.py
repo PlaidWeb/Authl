@@ -5,6 +5,7 @@ import html
 import logging
 import re
 import typing
+import os.path
 
 import itsdangerous
 import requests
@@ -18,6 +19,11 @@ def read_file(filename):
     """ Given a filename, read the entire thing into a string """
     with open(filename, encoding='utf-8') as file:
         return file.read()
+
+
+def read_icon(filename):
+    """ Given a filename, read the data into a string from the icons directory """
+    return read_file(os.path.join(os.path.dirname(__file__), 'icons', filename))
 
 
 def get_webfinger_profiles(url: str) -> typing.Set[str]:
