@@ -22,12 +22,13 @@ def read_file(filename):
 
 def get_webfinger_profiles(url: str) -> typing.Set[str]:
     """ Get the potential profile page URLs from a webfinger query """
-    webfinger = re.match(r'@([^@])+@(.*)$', url)
+    webfinger = re.match(r'@([^@]+)@(.*)$', url)
     if not webfinger:
         return set()
 
     try:
         user, domain = webfinger.group(1, 2)
+        LOGGER.debug("webfinger: user=%s domain=%s", user, domain)
 
         resource = 'https://{}/.well-known/webfinger?resource={}'.format(
             domain,
