@@ -11,6 +11,8 @@ flask = "*"
 autopep8 = "*"
 isort = "*"
 mypy = "*"
+coverage = "*"
+pytest = "*"
 
 [packages]
 authl = {editable = true,path = "."}

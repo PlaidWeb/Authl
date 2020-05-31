@@ -1,4 +1,8 @@
-all: format mypy pylint flake8
+all: setup format mypy cov pylint flake8
+
+.PHONY: setup
+setup:
+	pipenv run which coverage || pipenv install --dev
 
 .PHONY: format
 format:
@@ -33,6 +37,15 @@ preflight:
 		&& echo "Master differs from upstream" 1>&2 \
 		&& exit 1 || exit 0
 
+.PHONY: test
+test:
+	pipenv run coverage run -m pytest -Werror
+
+.PHONY: cov
+cov: test
+	pipenv run coverage html
+	pipenv run coverage report
+
 .PHONY: build
 build: preflight pylint flake8
 	pipenv run python3 setup.py sdist
@@ -40,7 +53,7 @@ build: preflight pylint flake8
 
 .PHONY: clean
 clean:
-	rm -rf build dist .mypy_cache
+	rm -rf build dist .mypy_cache __pycache__
 
 .PHONY: upload
 upload: clean build
