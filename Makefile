@@ -11,7 +11,7 @@ format:
 
 .PHONY: pylint
 pylint:
-	pipenv run pylint authl
+	pipenv run pylint authl tests
 
 .PHONY: flake8
 flake8:

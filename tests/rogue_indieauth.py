@@ -5,6 +5,8 @@ https://github.com/PlaidWeb/Authl/issues/47
 Run with e.g.
 
 FLASK_APP=test/rogue_indieauth.py pipenv run flask run -p 6789
+
+this will be rolled up into the indieauth unit test eventually
 """
 
 import urllib.parse
@@ -14,12 +16,13 @@ import itsdangerous
 
 app = flask.Flask(__name__)  # pylint:disable=invalid-name
 
-sign = itsdangerous.URLSafeSerializer('key')  # pylint:disable=invalid=-name
+sign = itsdangerous.URLSafeSerializer('key')  # pylint:disable=invalid-name
 
 
 @app.route('/', methods=('GET', 'POST'))
 @app.route('/<path:path>', methods=('GET', 'POST'))
 def endpoint(path=''):
+    """ foo """
     get = flask.request.args
     post = flask.request.form
     if 'code' in post:
