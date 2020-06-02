@@ -79,6 +79,9 @@ class LRUDict(collections.OrderedDict):
 
     borrowed from
     https://docs.python.org/3/library/collections.html#ordereddict-examples-and-recipes
+
+    This exists because there is no way to inject known results into functools.lru_cache
+    and some of our flows benefit from being able to do that.
     """
 
     def __init__(self, *args, maxsize=128, **kwargs):

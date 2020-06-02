@@ -13,6 +13,7 @@ isort = "*"
 mypy = "*"
 coverage = "*"
 pytest = "*"
+requests-mock = "*"
 
 [packages]
 authl = {editable = true,path = "."}

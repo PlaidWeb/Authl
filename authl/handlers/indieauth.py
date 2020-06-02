@@ -12,6 +12,10 @@ from . import Handler
 
 LOGGER = logging.getLogger(__name__)
 
+# We do this instead of functools.lru_cache so that IndieAuth.handles_page
+# and find_endpoint can both benefit from the same endpoint cache
+_ENDPOINT_CACHE = utils.LRUDict(maxsize=128)
+
 
 def find_endpoint(id_url: str = None,
                   links: typing.Dict = None,
@@ -22,30 +26,36 @@ def find_endpoint(id_url: str = None,
     :param links: a request.links object from a requests operation
     :param BeautifulSoup content: a BeautifulSoup parse tree of an HTML document
     """
-    def _link_endpoint(links):
-        if not links:
-            return None
-
-        LOGGER.debug("checking indieauth by link header")
-        if 'authorization_endpoint' in links:
+    def _derive_endpoint(links, content):
+        if links and 'authorization_endpoint' in links:
+            LOGGER.debug("Found link header")
             return links['authorization_endpoint']['url']
-        return None
 
-    def _content_endpoint(content):
-        if not content:
-            return None
-
-        LOGGER.debug("checking indieauth by link tag")
         link = content.find('link', rel='authorization_endpoint')
         if link:
+            LOGGER.debug("Found link tag")
             return link.get('href')
+
         return None
 
-    request = utils.request_url(id_url) if id_url and not links or not content else None
-    if request:
-        links = request.links
-        content = BeautifulSoup(request.text, 'html.parser')
-    return _link_endpoint(links) or _content_endpoint(content)
+    # Get the cached endpoint value, but don't immediately use it if we have
+    # links and/or content, as it might have changed
+    cached = _ENDPOINT_CACHE.get(id_url)
+    LOGGER.debug("Cached endpoint for %s: %s", id_url, cached)
+
+    found = _derive_endpoint(links, content)
+    if id_url and not found and not cached:
+        # We didn't find a new endpoint, and we didn't have a cached one
+        LOGGER.debug("Retrieving %s", id_url)
+        request = utils.request_url(id_url)
+        found = _derive_endpoint(request.links,
+                                 BeautifulSoup(request.text, 'html.parser'))
+
+    if found and id_url:
+        # we found a new value so update the cache
+        _ENDPOINT_CACHE[id_url] = found
+
+    return found or cached
 
 
 def verify_id(request_id: str, response_id: str) -> typing.Optional[str]:
@@ -149,31 +159,18 @@ class IndieAuth(Handler):
         self._token_store = token_store
         self._timeout = timeout or 600
 
-        self._endpoints = utils.LRUDict()
+    def handles_url(self, url):
+        # If we already know what endpoint exists for this, go ahead and say it.
+        # Otherwise, we fall through to handles_page.
+        if url in _ENDPOINT_CACHE:
+            return url
+        return None
 
     def handles_page(self, url, headers, content, links):
-        """ If we have the appropriate link rels, register the endpoint now """
-        endpoint = find_endpoint(links=links, content=content)
-
-        if endpoint:
-            # cache this for later so we don't have to look it up again
-            LOGGER.info("%s: has IndieAuth endpoint %s", url, endpoint)
-            self._endpoints[url] = endpoint
-
-        return endpoint
-
-    def _get_endpoint(self, id_url):
-        if id_url in self._endpoints:
-            return self._endpoints[id_url]
-
-        endpoint = find_endpoint(id_url)
-        if endpoint:
-            self._endpoints[id_url] = endpoint
-
-        return endpoint
+        return find_endpoint(url, links, content) is not None
 
     def initiate_auth(self, id_url, callback_uri, redir):
-        endpoint = self._get_endpoint(id_url)
+        endpoint = find_endpoint(id_url)
         if not endpoint:
             return disposition.Error("Failed to get IndieAuth endpoint", redir)
 
