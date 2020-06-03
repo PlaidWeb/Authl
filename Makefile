@@ -39,7 +39,7 @@ preflight:
 
 .PHONY: test
 test:
-	pipenv run coverage run -m pytest -Werror
+	pipenv run coverage run -m pytest -v -Werror
 
 .PHONY: cov
 cov: test

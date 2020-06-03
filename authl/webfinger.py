@@ -23,6 +23,7 @@ def get_profiles(url: str) -> typing.Set[str]:
         resource = 'https://{}/.well-known/webfinger?resource={}'.format(
             domain,
             html.escape('acct:{}@{}'.format(user, domain)))
+        LOGGER.debug("resource=%s", resource)
         request = requests.get(resource)
 
         if not 200 <= request.status_code < 300:
@@ -34,9 +35,10 @@ def get_profiles(url: str) -> typing.Set[str]:
             return {'https://{}/@{}'.format(domain, user)}
 
         profile = request.json()
+        print(repr(profile))
 
         return {link['href'] for link in profile['links']
                 if link['rel'] in ('http://webfinger.net/rel/profile-page', 'profile', 'self')}
-    except Exception as err:  # pylint:disable=broad-except
-        LOGGER.info("Failed to decode %s profile: %s", resource, err)
+    except Exception:  # pylint:disable=broad-except
+        LOGGER.exception("Failed to decode %s profile", resource)
         return set()
