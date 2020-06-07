@@ -27,14 +27,18 @@ def find_endpoint(id_url: str = None,
     :param BeautifulSoup content: a BeautifulSoup parse tree of an HTML document
     """
     def _derive_endpoint(links, content):
+        LOGGER.debug('links for %s: %s', id_url, links)
         if links and 'authorization_endpoint' in links:
             LOGGER.debug("Found link header")
             return links['authorization_endpoint']['url']
 
-        link = content.find('link', rel='authorization_endpoint')
-        if link:
-            LOGGER.debug("Found link tag")
-            return link.get('href')
+        if content:
+            link = content.find('link', rel='authorization_endpoint')
+            if link:
+                LOGGER.debug("Found link tag")
+                if id_url:
+                    return urllib.parse.urljoin(id_url, link.get('href'))
+                return link.get('href')
 
         return None
 
@@ -43,7 +47,7 @@ def find_endpoint(id_url: str = None,
     cached = _ENDPOINT_CACHE.get(id_url)
     LOGGER.debug("Cached endpoint for %s: %s", id_url, cached)
 
-    found = _derive_endpoint(links, content)
+    found = (links or content) and _derive_endpoint(links, content)
     if id_url and not found and not cached:
         # We didn't find a new endpoint, and we didn't have a cached one
         LOGGER.debug("Retrieving %s", id_url)
