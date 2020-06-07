@@ -7,7 +7,7 @@ import typing
 import itsdangerous
 from bs4 import BeautifulSoup
 
-from . import handlers, utils
+from . import handlers, utils, webfinger
 
 LOGGER = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class Authl:
         Returns a tuple of (handler, hander_id, profile_id). """
 
         # If webfinger detects profiles for this address, try all of those first
-        for profile in utils.get_webfinger_profiles(url):
+        for profile in webfinger.get_profiles(url):
             LOGGER.debug("Checking profile %s", profile)
             resp = self.get_handler_for_url(profile)
             if resp[0]:

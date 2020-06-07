@@ -1,4 +1,5 @@
 """ Tests for the loopback handler """
+# pylint:disable=missing-function-docstring
 
 from authl import disposition
 from authl.handlers.test_handler import TestHandler

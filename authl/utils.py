@@ -1,11 +1,8 @@
 """ Utility functions """
 
 import collections
-import html
 import logging
 import os.path
-import re
-import typing
 
 import itsdangerous
 import requests
@@ -24,38 +21,6 @@ def read_file(filename):
 def read_icon(filename):
     """ Given a filename, read the data into a string from the icons directory """
     return read_file(os.path.join(os.path.dirname(__file__), 'icons', filename))
-
-
-def get_webfinger_profiles(url: str) -> typing.Set[str]:
-    """ Get the potential profile page URLs from a webfinger query """
-    webfinger = re.match(r'@([^@]+)@(.*)$', url)
-    if not webfinger:
-        return set()
-
-    try:
-        user, domain = webfinger.group(1, 2)
-        LOGGER.debug("webfinger: user=%s domain=%s", user, domain)
-
-        resource = 'https://{}/.well-known/webfinger?resource={}'.format(
-            domain,
-            html.escape('acct:{}@{}'.format(user, domain)))
-        request = requests.get(resource)
-
-        if not 200 <= request.status_code < 300:
-            LOGGER.info("Webfinger query %s returned status code %d",
-                        resource, request.status_code)
-            LOGGER.debug("%s", request.text)
-            # Service doesn't support webfinger, so just pretend it's the most
-            # common format for a profile page
-            return {'https://{}/@{}'.format(domain, user)}
-
-        profile = request.json()
-
-        return {link['href'] for link in profile['links']
-                if link['rel'] in ('http://webfinger.net/rel/profile-page', 'profile', 'self')}
-    except Exception as err:  # pylint:disable=broad-except
-        LOGGER.info("Failed to decode %s profile: %s", resource, err)
-        return set()
 
 
 def request_url(url):
@@ -114,6 +79,9 @@ class LRUDict(collections.OrderedDict):
 
     borrowed from
     https://docs.python.org/3/library/collections.html#ordereddict-examples-and-recipes
+
+    This exists because there is no way to inject known results into functools.lru_cache
+    and some of our flows benefit from being able to do that.
     """
 
     def __init__(self, *args, maxsize=128, **kwargs):
