@@ -58,6 +58,3 @@ class Error(Disposition):
         super().__init__()
         self.message = message
         self.redir = redir or '/'
-
-    def __str__(self):
-        return "ERROR: " + self.message

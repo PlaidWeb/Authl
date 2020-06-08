@@ -1,9 +1,7 @@
 """ Common functions for the test routines """
-import logging
+# pylint:disable=missing-docstring
 
 from authl import handlers
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 class TestHandler(handlers.Handler):
