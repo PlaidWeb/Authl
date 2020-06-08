@@ -39,15 +39,13 @@ def load_template(filename: str) -> str:
 
 def redir_dest_to_path(destination: str):
     """ Convert a redirection destination to a path fragment """
-    if destination.startswith('/'):
-        return destination[1:]
-    return destination
+    assert destination.startswith('/'), "Redirection destinations must begin with '/'"
+    return destination[1:]
 
 
 def redir_path_to_dest(path: str):
     """ Convert a path fragment to a redirection destination """
-    if path.startswith('/'):
-        return path
+    assert not path.startswith('/'), "Path fragments cannot start with '/'"
     return '/' + path
 
 
@@ -168,8 +166,7 @@ class AuthlFlask:
         self._notify_render_func = notify_render_func
         self._session_auth_name = session_auth_name
         self.force_ssl = force_ssl
-        if stylesheet is not None:
-            setattr(self, 'stylesheet', str(stylesheet))
+        self._stylesheet = stylesheet
         self._on_verified = on_verified
         self.make_permanent = make_permanent
         self._prefill_key = token_private_namespace + '.prefill'
@@ -177,7 +174,10 @@ class AuthlFlask:
         for sfx in ['', '/', '/<path:redir>']:
             app.add_url_rule(login_path + sfx, login_name,
                              self._login_endpoint, methods=('GET', 'POST'))
-        app.add_url_rule(callback_path + '/<hid>', callback_name, self._callback_endpoint)
+        app.add_url_rule(callback_path + '/<hid>',
+                         callback_name,
+                         self._callback_endpoint,
+                         methods=('GET', 'POST'))
 
         if tester_path:
             def find_service():
@@ -319,6 +319,8 @@ class AuthlFlask:
     @property
     def stylesheet(self) -> str:
         """ Gets the stylesheet for the Flask templates """
+        if self._stylesheet:
+            return utils.resolve_value(self._stylesheet)
         return flask.url_for(self.login_name, asset='css')
 
 

@@ -17,7 +17,7 @@ LOGGER = logging.getLogger(__name__)
 _ENDPOINT_CACHE = utils.LRUDict(maxsize=128)
 
 
-def find_endpoint(id_url: str = None,
+def find_endpoint(id_url: str,
                   links: typing.Dict = None,
                   content: BeautifulSoup = None) -> typing.Optional[str]:
     """ Given an identity URL, discover its IndieAuth endpoint
@@ -36,9 +36,7 @@ def find_endpoint(id_url: str = None,
             link = content.find('link', rel='authorization_endpoint')
             if link:
                 LOGGER.debug("Found link tag")
-                if id_url:
-                    return urllib.parse.urljoin(id_url, link.get('href'))
-                return link.get('href')
+                return urllib.parse.urljoin(id_url, link.get('href'))
 
         return None
 
@@ -57,6 +55,7 @@ def find_endpoint(id_url: str = None,
 
     if found and id_url:
         # we found a new value so update the cache
+        LOGGER.debug("Caching %s -> %s", id_url, found)
         _ENDPOINT_CACHE[id_url] = found
 
     return found or cached
@@ -69,6 +68,10 @@ def verify_id(request_id: str, response_id: str) -> typing.Optional[str]:
     Returns a normalized version of the response ID, or None if the URL could
     not be verified.
     """
+
+    # exact match is always okay
+    if request_id == response_id:
+        return response_id
 
     orig = urllib.parse.urlparse(request_id)
     resp = urllib.parse.urlparse(response_id)
@@ -193,6 +196,7 @@ class IndieAuth(Handler):
 
     def check_callback(self, url, get, data):
         # pylint:disable=too-many-return-statements
+
         state = get.get('state')
         if not state:
             return disposition.Error("No transaction provided", None)
@@ -213,7 +217,8 @@ class IndieAuth(Handler):
 
             if request.status_code != 200:
                 LOGGER.error("Request returned code %d: %s", request.status_code, request.text)
-                return disposition.Error("Unable to verify identity", redir)
+                return disposition.Error("Authorization endpoint returned %d" % request.status_code,
+                                         redir)
 
             try:
                 response = request.json()
@@ -221,12 +226,14 @@ class IndieAuth(Handler):
                 LOGGER.error("%s: Got invalid JSON response from %s: %s (content-type: %s)",
                              id_url, endpoint,
                              request.text,
-                             request.headersversion('content-type'))
+                             request.headers.get('content-type'))
                 return disposition.Error("Got invalid response JSON", redir)
 
             response_id = verify_id(id_url, response['me'])
             if not response_id:
-                return disposition.Error("Identity URL does not match", redir)
+                return disposition.Error(
+                    "Identity URL '%s' does not match request '%s'" % (response['me'], id_url),
+                    redir)
 
             return disposition.Verified(response_id, redir, response)
         except KeyError as key:

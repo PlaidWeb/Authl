@@ -1,32 +1,8 @@
 """ main instance tests """
 
-from authl import Authl, disposition, handlers
+from authl import Authl
 
-
-class TestHandler(handlers.Handler):
-    """ null test handler that does nothing """
-
-    @property
-    def cb_id(self):
-        return "nothing"
-
-    def initiate_auth(self, id_url, callback_uri, redir):
-        return disposition.Error("This test does nothing", None)
-
-    def check_callback(self, url, get, data):
-        return disposition.Error("This test does nothing", None)
-
-    @property
-    def service_name(self):
-        return "Nothing"
-
-    @property
-    def url_schemes(self):
-        return []
-
-    @property
-    def description(self):
-        return "Does nothing"
+from . import TestHandler
 
 
 class UrlHandler(TestHandler):
