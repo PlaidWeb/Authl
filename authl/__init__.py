@@ -4,10 +4,10 @@ import collections
 import logging
 import typing
 
-import itsdangerous
+import expiringdict
 from bs4 import BeautifulSoup
 
-from . import handlers, utils, webfinger
+from . import handlers, tokens, utils, webfinger
 
 LOGGER = logging.getLogger(__name__)
 
@@ -79,19 +79,24 @@ class Authl:
 
 
 def from_config(config: typing.Dict[str, typing.Any],
-                secret_key: typing.Union[str, bytes],
-                state_storage: dict = None) -> Authl:
+                state_storage: dict = None,
+                token_storage: tokens.TokenStore = None) -> Authl:
     """ Generate an Authl handler set from provided configuration directives.
 
     Arguments:
 
     :param dict config: a configuration dictionary. See the individual handlers'
         from_config functions to see possible configuration values.
-    :param std secret_key: a signing key used to keep authentication secrets.
-    :param dict state_storage: a dict-like object that will store persistent
-        state for methods that need it
+    :param dict state_storage: a dict-like object that will store session
+        state for methods that need it. Defaults to an instance-local
+        ExpiringDict; this will not work well in load-balanced scenarios. This
+        can be safely stored in a user session, if available.
+    :param tokens.TokenStore token_storage: a TokenStore for storing session
+        state for methods that need it. Defaults to an instance-local DictStore
+        backed by an ExpiringDict; this will not work well in load-balanced
+        scenarios.
 
-    Handlers will be enabled based on truthy values of the following keys
+    Handlers will be enabled based on truthy values of the following keys:
 
         EMAIL_FROM / EMAIL_SENDMAIL -- enable the EmailAddress handler
         MASTODON_NAME -- enable the Mastodon handler
@@ -102,24 +107,29 @@ def from_config(config: typing.Dict[str, typing.Any],
 
     """
 
-    serializer = itsdangerous.URLSafeTimedSerializer(secret_key)
+    if token_storage is None:
+        token_storage = tokens.DictStore()
+
+    if state_storage is None:
+        state_storage = expiringdict.ExpiringDict(max_len=1024, max_age_seconds=3600)
+
     instance = Authl()
 
     if config.get('EMAIL_FROM') or config.get('EMAIL_SENDMAIL'):
         from .handlers import email_addr
-        instance.add_handler(email_addr.from_config(config, serializer))
+        instance.add_handler(email_addr.from_config(config, token_storage))
 
     if config.get('FEDIVERSE_NAME') or config.get('MASTODON_NAME'):
         from .handlers import fediverse
-        instance.add_handler(fediverse.from_config(config, serializer))
+        instance.add_handler(fediverse.from_config(config, token_storage))
 
     if config.get('INDIEAUTH_CLIENT_ID'):
         from .handlers import indieauth
-        instance.add_handler(indieauth.from_config(config, serializer))
+        instance.add_handler(indieauth.from_config(config, token_storage))
 
     if config.get('INDIELOGIN_CLIENT_ID'):
         from .handlers import indielogin
-        instance.add_handler(indielogin.from_config(config, serializer))
+        instance.add_handler(indielogin.from_config(config, token_storage))
 
     if config.get('TWITTER_CLIENT_KEY'):
         from .handlers import twitter

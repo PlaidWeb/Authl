@@ -5,13 +5,12 @@ import logging
 import os
 import typing
 import urllib.parse
-import uuid
 
 import flask
 import werkzeug.exceptions as http_error
 from rop import read_only_properties
 
-from . import disposition, from_config, utils
+from . import disposition, from_config, tokens, utils
 
 LOGGER = logging.getLogger(__name__)
 
@@ -70,8 +69,9 @@ class AuthlFlask:
                  stylesheet: str = None,
                  on_verified: typing.Callable = None,
                  make_permanent: bool = True,
-                 token_storage=flask.session,
-                 token_private_namespace='_authl',
+                 state_storage: dict = flask.session,
+                 token_storage: tokens.TokenStore = None,
+                 session_namespace='_authl',
                  ):
         """ Setup Authl to work with a Flask application.
 
@@ -105,10 +105,15 @@ class AuthlFlask:
             after setting the session value)
         :param bool make_permanent: Whether a session should persist past the
             browser window closing
-        :param token_storage: The mechanism to use for token storage, for login
-            methods that need it. Defaults to using the Flask session.
-        :param token_private_namespace: The session namespace for Authl to store
-            internal data in. Only change this if you have a really good reason.
+        :param tokens.TokenStore token_storage: Storage for token data for
+            methods which use it. Defaults to tokens.Serializer using the Flask
+            app.secret_key; this is suitable for load-balancing scenarios as
+            long as all service nodes use the same secret_key.
+        :param state_storage: The mechanism to use for transactional state
+            storage for login methods that need it. Defaults to using the Flask
+            user session.
+        :param session_namespace: A namespace for Authl to keep a small amount of
+            user session data in. Should never need to be changed.
 
         The login_render_func takes the following arguments; note that more may
         be added so it should also take a **kwargs for future compatibility:
@@ -153,11 +158,12 @@ class AuthlFlask:
         """
         # pylint:disable=too-many-arguments,too-many-locals,too-many-statements
 
-        self.instance = from_config(config,
-                                    app.secret_key or uuid.uuid4().bytes,
-                                    token_storage)
+        self.instance = from_config(
+            config,
+            state_storage,
+            token_storage or tokens.Serializer(app.secret_key))
 
-        self._session = token_storage
+        self._session = state_storage
         self.login_name = login_name
         self.callback_name = callback_name
         self.tester_name = tester_name
@@ -169,7 +175,7 @@ class AuthlFlask:
         self._stylesheet = stylesheet
         self._on_verified = on_verified
         self.make_permanent = make_permanent
-        self._prefill_key = token_private_namespace + '.prefill'
+        self._prefill_key = session_namespace + '.prefill'
 
         for sfx in ['', '/', '/<path:redir>']:
             app.add_url_rule(login_path + sfx, login_name,

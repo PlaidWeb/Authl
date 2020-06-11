@@ -1,6 +1,7 @@
 """ Implementation that uses IndieLogin.com """
 
 import logging
+import time
 import urllib.parse
 
 import requests
@@ -12,10 +13,20 @@ LOGGER = logging.getLogger(__name__)
 
 
 class IndieLogin(Handler):
-    """ A hdndler that makes use of indielogin.com as an authentication broker.
+    """ A handler that makes use of indielogin.com as an authentication broker.
     This allows anyone with an IndieAuth endpoint or a rel="me" attribute that
     points to a supported third-party authentication mechanism (e.g. GitHub or
     email). See https://indielogin.com for more information.
+
+    This handler is not expected to be widely used, as anyone using RelMeAuth
+    can simply use a RelMeAuth-supporting IndieAuth endpoint such as
+    IndieAuth.com, and Authl itself satisfies the use case that IndieLogin.com
+    was intended for. Further, the flagship IndieLogin instance is not currently
+    accepting new clients, and self-hosting your own instance for use with Authl
+    is pretty much entirely missing the point.
+
+    As such, this handler mostly remains as a historical artifact and will
+    likely be removed in the future.
     """
 
     @property
@@ -67,7 +78,7 @@ class IndieLogin(Handler):
         LOGGER.info('Initiate auth: %s %s', id_url, callback_uri)
 
         # register a new transaction ID
-        state = self._token_store.dumps((callback_uri, redir))
+        state = self._token_store.set((callback_uri, redir, time.time()))
 
         auth_url = (
             self._endpoint
@@ -84,6 +95,7 @@ class IndieLogin(Handler):
         return disposition.Redirect(auth_url)
 
     def check_callback(self, url, get, data):
+        # pylint:disable=too-many-return-statements
         LOGGER.info('got callback: %s %s', url, get)
 
         state = get.get('state')
@@ -91,9 +103,12 @@ class IndieLogin(Handler):
             return disposition.Error('No transaction ID provided', None)
 
         try:
-            callback_uri, redir = utils.unpack_token(self._token_store, state, self._timeout)
+            callback_uri, redir, when = self._token_store.pop(state)
         except disposition.Disposition as disp:
             return disp
+
+        if time.time() > when + self._timeout:
+            return disposition.Error("Transaction timed out", redir)
 
         if 'code' not in get:
             return disposition.Error('Missing auth code', redir)

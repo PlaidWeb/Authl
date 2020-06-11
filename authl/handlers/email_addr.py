@@ -4,11 +4,12 @@ import email
 import html
 import logging
 import math
+import time
 import urllib.parse
 
 import validate_email
 
-from .. import disposition, utils
+from .. import disposition, tokens, utils
 from . import Handler
 
 LOGGER = logging.getLogger(__name__)
@@ -55,7 +56,7 @@ class EmailAddress(Handler):
     def __init__(self,
                  sendmail,
                  notify_cdata,
-                 token_store,
+                 token_store: tokens.TokenStore,
                  expires_time=None,
                  email_template_text=DEFAULT_TEMPLATE_TEXT,
                  please_wait_error=DEFAULT_WAIT_ERROR,
@@ -106,7 +107,7 @@ class EmailAddress(Handler):
         # Extract the destination email from the identity URL
         dest_addr = urllib.parse.urlparse(id_url).path.lower()
 
-        token = self._token_store.dumps((dest_addr, redir))
+        token = self._token_store.put((dest_addr, redir, time.time()))
 
         link_url = (callback_uri + ('&' if '?' in callback_uri else '?') +
                     urllib.parse.urlencode({'t': token}))
@@ -130,9 +131,12 @@ class EmailAddress(Handler):
             return disposition.Error('Missing token', None)
 
         try:
-            email_addr, redir = utils.unpack_token(self._token_store, token, self._lifetime)
+            email_addr, redir, when = self._token_store.get(token)
         except disposition.Disposition as disp:
             return disp
+
+        if time.time() > when + self._lifetime:
+            return disposition.Error("Login timed out", redir)
 
         if not email_addr or not validate_email.validate_email(email_addr):
             return disposition.Error('Invalid email address ' + html.escape(str(email_addr)), redir)
