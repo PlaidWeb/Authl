@@ -4,6 +4,7 @@ import re
 import time
 import urllib.parse
 
+import expiringdict
 import requests
 from requests_oauthlib import OAuth1, OAuth1Session
 
@@ -37,9 +38,21 @@ class Twitter(Handler):
                  client_secret: str,
                  timeout: int = None,
                  storage: dict = None):
+        """ Initializes a Twitter client.
+
+        :param str client_key: the Twitter OAuth client key
+        :param str client_secret: the Twitter OAuth client secret
+        :param int timeout: How long in seconds to allow a login to take
+        :param dict storage: A dict-like object to store the OAuth session for
+            the transaction. Defaults to an ExpiringDict that is limited to
+            128 concurrent sessions. This will not work well in load-balanced
+            scenarios. This can be safely kept in a user session or cookie.
+        """
         self._client_key = client_key
         self._client_secret = client_secret
-        self._pending = {} if storage is None else storage
+        self._pending = expiringdict.ExpiringDict(
+            max_len=128,
+            max_age_seconds=timeout) if storage is None else storage
         self._timeout = timeout or 600
 
     # regex to match a twitter URL and optionally extract the username
@@ -91,9 +104,8 @@ class Twitter(Handler):
         if not token or token not in self._pending:
             return disposition.Error("Invalid transaction", None)
 
-        params, callback_uri, redir, start_time = self._pending[token]
-        del self._pending[token]
-        if time.time() - start_time > self._timeout:
+        params, callback_uri, redir, start_time = self._pending.pop(token)
+        if time.time() > start_time + self._timeout:
             return disposition.Error("Login timed out", redir)
 
         if 'denied' in get or 'oauth_verifier' not in get:

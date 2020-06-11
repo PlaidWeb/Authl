@@ -1,13 +1,14 @@
 """ IndieAuth login handler. """
 
 import logging
+import time
 import typing
 import urllib.parse
 
 import requests
 from bs4 import BeautifulSoup
 
-from .. import disposition, utils
+from .. import disposition, tokens, utils
 from . import Handler
 
 LOGGER = logging.getLogger(__name__)
@@ -124,9 +125,12 @@ class IndieAuth(Handler):
     """ Directly support login via IndieAuth, without requiring third-party
     IndieLogin brokerage.
 
-    IndieAuth is just barely different enough from baseline OAuth that it's
-    easier to just reimplement it directly, rather than trying to use the OAuth
-    base class.
+    SECURITY NOTE: When used with tokens.Serializer, this is subject to certain
+    classes of replay attack; for example, if the user endpoint uses irrevocable
+    signed tokens for the code grant (which is done in many endpoints, e.g.
+    SelfAuth), an attacker can replay a transaction that it intercepts. As such
+    it is very important that the timeout be configured to a reasonably short
+    time to mitigate this.
     """
 
     @property
@@ -151,7 +155,7 @@ class IndieAuth(Handler):
     def logo_html(self):
         return [(utils.read_icon('indieauth.svg'), 'IndieAuth')]
 
-    def __init__(self, client_id, token_store, timeout: int = None):
+    def __init__(self, client_id, token_store: tokens.TokenStore, timeout: int = None):
         """ Construct an IndieAuth handler
 
         :param client_id: The client_id to send to the remote IndieAuth
@@ -181,7 +185,7 @@ class IndieAuth(Handler):
         if not endpoint:
             return disposition.Error("Failed to get IndieAuth endpoint", redir)
 
-        state = self._token_store.dumps(((id_url, endpoint, callback_uri), redir))
+        state = self._token_store.put((id_url, endpoint, callback_uri, time.time(), redir))
 
         client_id = utils.resolve_value(self._client_id)
         LOGGER.debug("Using client_id %s", client_id)
@@ -202,10 +206,12 @@ class IndieAuth(Handler):
             return disposition.Error("No transaction provided", None)
 
         try:
-            (id_url, endpoint, callback_uri), redir = utils.unpack_token(self._token_store,
-                                                                         state, self._timeout)
+            id_url, endpoint, callback_uri, when, redir = self._token_store.pop(state)
         except disposition.Disposition as disp:
             return disp
+
+        if time.time() > when + self._timeout:
+            return disposition.Error("Transaction timed out", redir)
 
         try:
             # Verify the auth code

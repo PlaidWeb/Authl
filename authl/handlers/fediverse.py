@@ -3,12 +3,13 @@
 import functools
 import logging
 import re
+import time
 import typing
 import urllib.parse
 
 import requests
 
-from .. import disposition, utils
+from .. import disposition, tokens, utils
 from . import Handler
 
 LOGGER = logging.getLogger(__name__)
@@ -57,7 +58,7 @@ class Fediverse(Handler):
                 (utils.read_icon('pleroma.svg'), 'Pleroma')]
 
     def __init__(self, name: str,
-                 token_store: typing.Dict[str, typing.Any],
+                 token_store: tokens.TokenStore,
                  timeout: typing.Optional[int] = None,
                  homepage: typing.Optional[str] = None):
         """ Instantiate a Fediverse handler.
@@ -180,7 +181,7 @@ class Fediverse(Handler):
         if not client:
             return disposition.Error("Failed to register OAuth client", redir)
 
-        state = self._token_store.dumps((client.to_tuple(), redir))
+        state = self._token_store.put((client.to_tuple(), time.time(), redir))
 
         url = client.auth_endpoint + '?' + urllib.parse.urlencode(
             {**client.params,
@@ -195,9 +196,13 @@ class Fediverse(Handler):
             return disposition.Error("No transaction ID provided", None)
 
         try:
-            client_tuple, redir = utils.unpack_token(self._token_store, state, self._timeout)
+            client_tuple, when, redir = self._token_store.pop(state)
         except disposition.Disposition as disp:
             return disp
+
+        if time.time() > when + self._timeout:
+            return disposition.Error("Transaction timed out", redir)
+
         client = Fediverse.Client(*client_tuple)
 
         if 'error' in get:
@@ -214,24 +219,26 @@ class Fediverse(Handler):
                 return disposition.Error("Could not retrieve access token", redir)
 
             response = request.json()
-            token = response['access_token']
-            auth_headers = {'Authorization': 'Bearer ' + token}
-
-            result = self._get_identity(client, auth_headers, redir)
+            auth_headers = {'Authorization': 'Bearer ' + response['access_token']}
+            result = self._get_identity(
+                client,
+                auth_headers,
+                redir)
         except KeyError as key:
             result = disposition.Error("Missing " + str(key), redir)
 
         # try to clean up after ourselves
-        request = requests.post(client.revoke_endpoint, data={
-            **client.params,
-            **client.secrets,
-            'token': token
-        }, headers=auth_headers)
-        if request.status_code != 200:
-            LOGGER.warning("Unable to revoke OAuth token: %d %s",
-                           request.status_code,
-                           request.text)
-        LOGGER.info("Revocation response: %s", request.text)
+        if 'access_token' in response:
+            request = requests.post(client.revoke_endpoint, data={
+                **client.params,
+                **client.secrets,
+                'token': response['access_token']
+            }, headers=auth_headers)
+            if request.status_code != 200:
+                LOGGER.warning("Unable to revoke OAuth token: %d %s",
+                               request.status_code,
+                               request.text)
+            LOGGER.info("Revocation response: %s", request.text)
 
         return result
 

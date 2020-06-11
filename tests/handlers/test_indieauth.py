@@ -4,15 +4,15 @@
 
 import json
 import logging
+import unittest.mock
 import urllib.parse
 
-import itsdangerous
 import pytest
 import requests
 import requests_mock
 from bs4 import BeautifulSoup
 
-from authl import disposition
+from authl import disposition, tokens
 from authl.handlers import indieauth
 
 LOGGER = logging.getLogger(__name__)
@@ -133,9 +133,9 @@ def parse_args(url):
     return {key: val[0] for key, val in params.items()}
 
 
-def test_handler_details():
-    tokens = itsdangerous.URLSafeTimedSerializer('test_handler')
-    handler = indieauth.IndieAuth('http://client/', tokens)
+def test_handler_success():
+    store = {}
+    handler = indieauth.IndieAuth('http://client/', tokens.DictStore(store))
 
     with requests_mock.Mocker() as mock:
         assert handler.service_name
@@ -169,6 +169,7 @@ def test_handler_details():
         assert user_get['redirect_uri'].startswith('http://client/cb')
         assert 'client_id' in user_get
         assert 'state' in user_get
+        assert user_get['state'] in store
         assert user_get['response_type'] == 'id'
         assert 'me' in user_get
 
@@ -196,10 +197,20 @@ def test_handler_details():
         assert response.identity == 'http://example.user/bob'
         assert response.redir == '/dest'
 
+        # trying to replay the same transaction should fail
+        response = handler.check_callback(
+            user_get['redirect_uri'],
+            {
+                'state': user_get['state'],
+                'code': 'asdf',
+            },
+            {})
+        assert isinstance(response, disposition.Error)
 
-def test_handler():
-    tokens = itsdangerous.URLSafeTimedSerializer('test_handler')
-    handler = indieauth.IndieAuth('http://client/', tokens)
+
+def test_handler_failures():
+    store = {}
+    handler = indieauth.IndieAuth('http://client/', tokens.DictStore(store), 10)
 
     with requests_mock.Mocker() as mock:
         # Attempt to auth against page with no endpoint
@@ -207,16 +218,19 @@ def test_handler():
         response = handler.initiate_auth('http://no-endpoint/', 'http://cb/', 'bogus')
         assert isinstance(response, disposition.Error)
         assert 'endpoint' in response.message
+        assert len(store) == 0
 
         # Attempt to inject a transaction-less callback response
         response = handler.check_callback('http://no-transaction', {}, {})
         assert isinstance(response, disposition.Error)
         assert 'No transaction' in response.message
+        assert len(store) == 0
 
         # Attempt to inject a forged callback response
         response = handler.check_callback('http://bogus-transaction', {'state': 'bogus'}, {})
         assert isinstance(response, disposition.Error)
         assert 'Invalid token' in response.message
+        assert len(store) == 0
 
         # Get a valid state token
         mock.get('http://example.user/',
@@ -226,17 +240,22 @@ def test_handler():
         response = handler.initiate_auth('http://example.user', 'http://client/cb', '/dest')
         assert isinstance(response, disposition.Redirect)
         data = {'state': parse_args(response.url)['state']}
+        assert len(store) == 1
 
         # no code assigned
         assert "Missing 'code'" in handler.check_callback('http://client/cb', data, {}).message
+        assert len(store) == 0
 
         def check_failure(message):
+            assert len(store) == 0
             response = handler.initiate_auth('http://example.user', 'http://client/cb', '/dest')
             assert isinstance(response, disposition.Redirect)
+            assert len(store) == 1
             data = {'state': parse_args(response.url)['state'], 'code': 'bogus'}
             response = handler.check_callback('http://client/cb', data, {})
             assert isinstance(response, disposition.Error)
             assert message in response.message
+            assert len(store) == 0
 
         # callback returns error
         mock.post('http://endpoint/', status_code=400)
@@ -249,6 +268,33 @@ def test_handler():
         # callback returns invalid identity URL
         mock.post('http://endpoint/', text=json.dumps({'me': 'http://whitehouse.gov'}))
         check_failure('does not match')
+
+
+def test_login_timeout():
+    store = {}
+    handler = indieauth.IndieAuth('http://client/', tokens.DictStore(store), 10)
+
+    with unittest.mock.patch('time.time') as mock_time:
+
+        mock_time.return_value = id(handler)
+
+        with requests_mock.Mocker() as mock:
+            mock.get('http://example.user/',
+                     text='hello',
+                     headers={'Link': '<http://endpoint/>; rel="authorization_endpoint"'})
+
+            assert len(store) == 0
+            response = handler.initiate_auth('http://example.user', 'http://client/cb', '/dest')
+            assert isinstance(response, disposition.Redirect)
+            assert len(store) == 1
+
+            mock_time.return_value += 100
+
+            data = {'state': parse_args(response.url)['state'], 'code': 'bogus'}
+            response = handler.check_callback('http://client/cb', data, {})
+            assert isinstance(response, disposition.Error)
+            assert 'timed out' in response.message
+            assert len(store) == 0
 
 
 def test_from_config():
