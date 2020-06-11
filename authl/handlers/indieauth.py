@@ -5,6 +5,7 @@ import time
 import typing
 import urllib.parse
 
+import expiringdict
 import requests
 from bs4 import BeautifulSoup
 
@@ -15,7 +16,7 @@ LOGGER = logging.getLogger(__name__)
 
 # We do this instead of functools.lru_cache so that IndieAuth.handles_page
 # and find_endpoint can both benefit from the same endpoint cache
-_ENDPOINT_CACHE = utils.LRUDict(maxsize=128)
+_ENDPOINT_CACHE = expiringdict.ExpiringDict(max_len=128, max_age_seconds=1800)
 
 
 def find_endpoint(id_url: str,

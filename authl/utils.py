@@ -1,6 +1,5 @@
 """ Utility functions """
 
-import collections
 import logging
 import os.path
 
@@ -50,28 +49,3 @@ def resolve_value(val):
     if callable(val):
         return val()
     return val
-
-
-class LRUDict(collections.OrderedDict):
-    """ a Dict that has a size limit
-
-    borrowed from
-    https://docs.python.org/3/library/collections.html#ordereddict-examples-and-recipes
-
-    This exists because there is no way to inject known results into functools.lru_cache
-    and some of our flows benefit from being able to do that.
-    """
-
-    def __init__(self, *args, maxsize=128, **kwargs):
-        self.maxsize = maxsize
-        super().__init__(*args, **kwargs)
-
-    def __getitem__(self, key):
-        value = super().__getitem__(key)
-        self.move_to_end(key)
-        return value
-
-    def __setitem__(self, key, value):
-        super().__setitem__(key, value)
-        if len(self) > self.maxsize:
-            self.popitem(False)
