@@ -28,13 +28,13 @@ preflight:
 		&& echo "You have uncommitted changes" 1>&2 \
 		&& exit 1 || exit 0
 	@echo "Checking branch..."
-	@[ "$(shell git rev-parse --abbrev-ref HEAD)" != "master" ] \
-		&& echo "Can only build from master" 1>&2 \
+	@[ "$(shell git rev-parse --abbrev-ref HEAD)" != "main" ] \
+		&& echo "Can only build from main" 1>&2 \
 		&& exit 1 || exit 0
 	@echo "Checking upstream..."
 	@git fetch \
-		&& [ "$(shell git rev-parse master)" != "$(shell git rev-parse master@{upstream})" ] \
-		&& echo "Master differs from upstream" 1>&2 \
+		&& [ "$(shell git rev-parse main)" != "$(shell git rev-parse main@{upstream})" ] \
+		&& echo "main differs from upstream" 1>&2 \
 		&& exit 1 || exit 0
 
 .PHONY: test
