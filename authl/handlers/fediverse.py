@@ -113,7 +113,7 @@ class Fediverse(Handler):
             return None
 
         # This seems to be a Fediverse endpoint; try to figure out the username
-        for tmpl in ('@(.*)@', '.*/@(.*)$', '.*/user/(.*)%'):
+        for tmpl in ('.*/@(.*)$', '.*/user/(.*)$'):
             match = re.match(tmpl, url)
             if match:
                 LOGGER.debug("handles_url: instance %s user %s", instance, match[1])
@@ -135,7 +135,7 @@ class Fediverse(Handler):
                                     'website': self._homepage
                                 })
         if request.status_code != 200:
-            return None
+            raise RuntimeError("Client creation got status: %s" % request.status_code)
         info = request.json()
 
         if info['redirect_uri'] != callback_uri:
