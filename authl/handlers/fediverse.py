@@ -226,9 +226,10 @@ class Fediverse(Handler):
                 redir)
         except KeyError as key:
             result = disposition.Error("Missing " + str(key), redir)
+            response = None
 
         # try to clean up after ourselves
-        if 'access_token' in response:
+        if response and 'access_token' in response:
             request = requests.post(client.revoke_endpoint, data={
                 **client.params,
                 **client.secrets,
