@@ -1,11 +1,10 @@
 """ Tests of the IndieAuth handler """
-# pylint:disable=missing-docstring
+# pylint:disable=missing-docstring,duplicate-code
 
 
 import json
 import logging
 import unittest.mock
-import urllib.parse
 
 import pytest
 import requests
@@ -14,6 +13,8 @@ from bs4 import BeautifulSoup
 
 from authl import disposition, tokens
 from authl.handlers import indieauth
+
+from . import parse_args
 
 LOGGER = logging.getLogger(__name__)
 
@@ -127,22 +128,16 @@ def test_verify_id():
         assert not indieauth.verify_id(src, dest)
 
 
-def parse_args(url):
-    url = urllib.parse.urlparse(url)
-    params = urllib.parse.parse_qs(url.query)
-    return {key: val[0] for key, val in params.items()}
-
-
 def test_handler_success():
     store = {}
     handler = indieauth.IndieAuth('http://client/', tokens.DictStore(store))
 
     with requests_mock.Mocker() as mock:
-        assert handler.service_name
+        assert handler.service_name == 'IndieAuth'
         assert handler.url_schemes
-        assert handler.description
+        assert 'IndieAuth' in handler.description
         assert handler.cb_id
-        assert handler.logo_html
+        assert handler.logo_html[0][1] == 'IndieAuth'
 
         # profile page at http://example.user/
         mock.get('http://example.user/',
@@ -175,6 +170,7 @@ def test_handler_success():
 
         # fake the verification response
         def verify_callback(request, _):
+            import urllib.parse
             args = urllib.parse.parse_qs(request.text)
             assert args['code'] == ['asdf']
             assert args['client_id'] == ['http://client/']

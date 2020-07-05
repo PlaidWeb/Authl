@@ -14,6 +14,9 @@ class Redirect(Disposition):
         super().__init__()
         self.url = url
 
+    def __str__(self):
+        return 'REDIR:' + self.url
+
 
 class Verified(Disposition):
     """ A disposition that indicates that the user is verified; it is now up to
@@ -30,6 +33,9 @@ class Verified(Disposition):
         self.redir = redir
         self.profile = profile or {}
 
+    def __str__(self):
+        return 'VERIFIED:' + self.identity
+
 
 class Notify(Disposition):
     """ A disposition that indicates that a notification should be sent to the
@@ -39,10 +45,12 @@ class Notify(Disposition):
     handler by the web app.
     """
 
-    def __init__(self, cdata, args=None):
+    def __init__(self, cdata):
         super().__init__()
         self.cdata = cdata
-        self.args = args or {}
+
+    def __str__(self):
+        return 'NOTIFY:' + str(self.cdata)
 
 
 class Error(Disposition):
@@ -58,3 +66,6 @@ class Error(Disposition):
         super().__init__()
         self.message = message
         self.redir = redir or '/'
+
+    def __str__(self):
+        return 'ERROR:' + self.message

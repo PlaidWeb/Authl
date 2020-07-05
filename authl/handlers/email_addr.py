@@ -1,7 +1,6 @@
 """ Handler for emailing a magic link """
 
 import email
-import html
 import logging
 import math
 import time
@@ -51,7 +50,7 @@ class EmailAddress(Handler):
 
     @property
     def logo_html(self):
-        return [(utils.read_icon('email_addr.svg'), 'email')]
+        return [(utils.read_icon('email_addr.svg'), 'Email')]
 
     def __init__(self,
                  sendmail,
@@ -92,11 +91,11 @@ class EmailAddress(Handler):
 
     def handles_url(self, url):
         """ Validating email by regex: not even once """
-        try:
-            if urllib.parse.urlparse(url).scheme == 'mailto':
-                return url
-        except (ValueError, AttributeError):
-            pass
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme == 'mailto' and validate_email.validate_email(parsed.path):
+            return url
+        if parsed.scheme:
+            return None
 
         if validate_email.validate_email(url):
             return 'mailto:' + url
@@ -105,7 +104,10 @@ class EmailAddress(Handler):
 
     def initiate_auth(self, id_url, callback_uri, redir):
         # Extract the destination email from the identity URL
-        dest_addr = urllib.parse.urlparse(id_url).path.lower()
+        parsed = urllib.parse.urlparse(id_url)
+        if parsed.scheme != 'mailto' or not validate_email.validate_email(parsed.path):
+            return disposition.Error("Malformed email URL", redir)
+        dest_addr = parsed.path.lower()
 
         token = self._token_store.put((dest_addr, redir, time.time()))
 
@@ -131,15 +133,12 @@ class EmailAddress(Handler):
             return disposition.Error('Missing token', None)
 
         try:
-            email_addr, redir, when = self._token_store.get(token)
+            email_addr, redir, when = self._token_store.pop(token)
         except disposition.Disposition as disp:
             return disp
 
         if time.time() > when + self._lifetime:
             return disposition.Error("Login timed out", redir)
-
-        if not email_addr or not validate_email.validate_email(email_addr):
-            return disposition.Error('Invalid email address ' + html.escape(str(email_addr)), redir)
 
         return disposition.Verified('mailto:' + email_addr, redir)
 
@@ -179,7 +178,7 @@ def simple_sendmail(connector, sender_address, subject):
 
     """
 
-    def sendmail(message):
+    def sendmail(message: email.message.EmailMessage):
         message['From'] = sender_address
         message['Subject'] = subject
 
@@ -189,7 +188,7 @@ def simple_sendmail(connector, sender_address, subject):
     return sendmail
 
 
-def from_config(config, token_store):
+def from_config(config, token_store: tokens.TokenStore):
     """ Generate an EmailAddress handler from the provided configuration dictionary.
 
     Possible configuration values (all optional unless specified):

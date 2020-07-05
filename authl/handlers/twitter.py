@@ -56,7 +56,7 @@ class Twitter(Handler):
         self._timeout = timeout or 600
 
     # regex to match a twitter URL and optionally extract the username
-    twitter_regex = re.compile(r'(https?://)?[^/]*\.?twitter\.com/?@?(.*)')
+    twitter_regex = re.compile(r'(https?://)?[^/]*\.?twitter\.com/?@?([^?]*)')
 
     @staticmethod
     def handles_url(url):
