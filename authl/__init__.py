@@ -101,7 +101,6 @@ def from_config(config: typing.Dict[str, typing.Any],
         EMAIL_FROM / EMAIL_SENDMAIL -- enable the EmailAddress handler
         MASTODON_NAME -- enable the Mastodon handler
         INDIEAUTH_CLIENT_ID -- enable the IndieAuth handler
-        INDIELOGIN_CLIENT_ID -- enable the IndieLogin handler
         TWITTER_CLIENT_KEY -- enable the Twitter handler
         TEST_ENABLED -- enable the test/loopback handler
 
@@ -126,10 +125,6 @@ def from_config(config: typing.Dict[str, typing.Any],
     if config.get('INDIEAUTH_CLIENT_ID'):
         from .handlers import indieauth
         instance.add_handler(indieauth.from_config(config, token_storage))
-
-    if config.get('INDIELOGIN_CLIENT_ID'):
-        from .handlers import indielogin
-        instance.add_handler(indielogin.from_config(config, token_storage))
 
     if config.get('TWITTER_CLIENT_KEY'):
         from .handlers import twitter

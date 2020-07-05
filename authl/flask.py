@@ -331,7 +331,7 @@ class AuthlFlask:
 
 
 def client_id():
-    """ A shim to generate a client ID for IndieAuth/IndieLogin """
+    """ A shim to generate a client ID for IndieAuth """
     from flask import request
     parsed = urllib.parse.urlparse(request.base_url)
     baseurl = '{}://{}'.format(parsed.scheme, parsed.hostname)
