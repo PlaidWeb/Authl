@@ -22,7 +22,6 @@ Currently supported authentication mechanisms:
 * Federated authentication against Fediverse providers
     ([Mastodon](https://joinmastodon.org/), [Pleroma](https://pleroma.social))
 * Federated authentication against [IndieAuth](https://indieauth.net/)
-* Federated authentication against [IndieLogin](https://indielogin.com/)
 * Silo authentication against [Twitter](https://twitter.com/)
 * Test/loopback authentication for development purposes
 
