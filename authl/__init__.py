@@ -18,8 +18,9 @@ class Authl:
     def __init__(self, cfg_handlers: typing.List[handlers.Handler] = None):
         """ Initialize an Authl library instance.
 
-        :param cfg_handlers: a collection of handlers for different authentication
-            mechanisms
+        # Arguments
+
+        cfg_handlers (dict): a collection of handlers for different authentication
 
         """
         self._handlers: typing.Dict[str, handlers.Handler] = collections.OrderedDict()

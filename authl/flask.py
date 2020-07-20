@@ -15,34 +15,49 @@ from . import disposition, from_config, tokens, utils
 LOGGER = logging.getLogger(__name__)
 
 
-def setup(app: flask.Flask, config: typing.Dict[str, typing.Any], *args, **kwargs):
-    """ Simple setup function """
+def setup(app: flask.Flask, config: typing.Dict[str, typing.Any], **kwargs) -> AuthlFlask:
+    """ Simple setup function.
+
+    :param flask.flask app: The Flask app to configure with Authl.
+    :param dict config: Configuration values for the Authl instance; see `authl.from_config`
+    :param kwargs: Additional arguments to pass along to the `AuthlFlask` constructor
+
+    Returns the configured `AuthlFlask` wrapper
+
+     """
     return AuthlFlask(app, config, *args, **kwargs).instance
 
 
-def set_cache(age: int) -> typing.Callable:
+def _nocache() -> typing.Callable:
     """ Cache decorator to set the maximum cache age on a response """
     def decorator(func: typing.Callable) -> typing.Callable:
         def wrapped_func(*args, **kwargs):
             response = flask.make_response(func(*args, **kwargs))
-            response.cache_control.max_age = age
+            response.cache_control.max_age = 0
             return response
         return wrapped_func
     return decorator
 
 
 def load_template(filename: str) -> str:
-    """ Load the built-in Flask template """
+    """ Load the built-in Flask template.
+
+    :param str filename: The filename of the built-in template
+
+    Raises `FileNotFoundError` on no such template
+
+    Returns the contents of the template.
+    """
     return utils.read_file(os.path.join(os.path.dirname(__file__), 'flask_templates', filename))
 
 
-def redir_dest_to_path(destination: str):
+def _redir_dest_to_path(destination: str):
     """ Convert a redirection destination to a path fragment """
     assert destination.startswith('/'), "Redirection destinations must begin with '/'"
     return destination[1:]
 
 
-def redir_path_to_dest(path: str):
+def _redir_path_to_dest(path: str):
     """ Convert a path fragment to a redirection destination """
     assert not path.startswith('/'), "Path fragments cannot start with '/'"
     return '/' + path
@@ -206,7 +221,7 @@ class AuthlFlask:
         """ Provide the _scheme parameter to be sent along to flask.url_for """
         return 'https' if self.force_ssl else None
 
-    @set_cache(0)
+    @_nocache()
     def _handle_disposition(self, disp: disposition.Disposition):
         if isinstance(disp, disposition.Redirect):
             # A simple redirection
@@ -239,7 +254,7 @@ class AuthlFlask:
         # unhandled disposition
         raise http_error.InternalServerError("Unknown disposition type " + str(type(disp)))
 
-    @set_cache(0)
+    @_nocache()
     def _render_notify(self, cdata):
         if self._notify_render_func:
             result = self._notify_render_func(cdata)
@@ -288,7 +303,7 @@ class AuthlFlask:
                 return load_template('authl.css'), {'Content-Type': 'text/css'}
             raise http_error.NotFound("Unknown asset " + asset)
 
-        dest = redir_path_to_dest(redir)
+        dest = _redir_path_to_dest(redir)
         error = None
 
         me_url = request.form.get('me', request.args.get('me'))
