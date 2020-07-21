@@ -35,6 +35,7 @@ def test_url_tester():
 def test_dispositions_and_hooks():
 
     class InvalidDisposition(disposition.Disposition):
+        # pylint:disable=too-few-public-methods
         pass
 
     class Dispositioner(TestHandler):
@@ -162,7 +163,7 @@ def test_callbacks():
                 return disposition.Verified('get://' + get['me'], None)
             if 'me' in data:
                 return disposition.Verified('data://' + data['me'], None)
-            raise disposition.Error('nope', None)
+            return disposition.Error('nope', None)
 
     app = flask.Flask(__name__)
     app.secret_key = __name__

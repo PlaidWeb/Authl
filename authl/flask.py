@@ -10,12 +10,12 @@ import flask
 import werkzeug.exceptions as http_error
 from rop import read_only_properties
 
-from . import disposition, from_config, tokens, utils
+from . import Authl, disposition, from_config, tokens, utils
 
 LOGGER = logging.getLogger(__name__)
 
 
-def setup(app: flask.Flask, config: typing.Dict[str, typing.Any], **kwargs) -> AuthlFlask:
+def setup(app: flask.Flask, config: typing.Dict[str, typing.Any], **kwargs) -> Authl:
     """ Simple setup function.
 
     :param flask.flask app: The Flask app to configure with Authl.
@@ -25,7 +25,7 @@ def setup(app: flask.Flask, config: typing.Dict[str, typing.Any], **kwargs) -> A
     Returns the configured `AuthlFlask` wrapper
 
      """
-    return AuthlFlask(app, config, *args, **kwargs).instance
+    return AuthlFlask(app, config, **kwargs).instance
 
 
 def _nocache() -> typing.Callable:
@@ -268,7 +268,7 @@ class AuthlFlask:
     def render_login_form(self, destination: str, error: typing.Optional[str] = None):
         """ Renders the login form, configured with the specified redirection path. """
         login_url = flask.url_for(self.login_name,
-                                  redir=redir_dest_to_path(destination),
+                                  redir=_redir_dest_to_path(destination or '/'),
                                   _scheme=self.url_scheme,
                                   _external=self.force_ssl)
         test_url = self._tester_path and flask.url_for(self.tester_name,
@@ -330,12 +330,9 @@ class AuthlFlask:
 
         handler = self.instance.get_handler_by_id(hid)
         if not handler:
-            return self._handle_disposition(disposition.Error("Invalid handler", None))
-        try:
-            return self._handle_disposition(
-                handler.check_callback(request.url, request.args, request.form))
-        except disposition.Disposition as disp:
-            return self._handle_disposition(disp)
+            return self._handle_disposition(disposition.Error("Invalid handler", ''))
+        return self._handle_disposition(
+            handler.check_callback(request.url, request.args, request.form))
 
     @property
     def stylesheet(self) -> str:

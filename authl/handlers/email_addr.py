@@ -134,8 +134,8 @@ class EmailAddress(Handler):
 
         try:
             email_addr, redir, when = self._token_store.pop(token)
-        except disposition.Disposition as disp:
-            return disp
+        except (KeyError, ValueError):
+            return disposition.Error('Invalid token', '')
 
         if time.time() > when + self._lifetime:
             return disposition.Error("Login timed out", redir)

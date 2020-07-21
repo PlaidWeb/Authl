@@ -4,7 +4,7 @@
 
 import pytest
 
-from authl import disposition, tokens
+from authl import tokens
 
 
 def test_dictstore():
@@ -24,20 +24,20 @@ def test_dictstore():
 
     # popping should remove it
     assert store.pop(token) == (1, 2, 3)
-    with pytest.raises(disposition.Error):
+    with pytest.raises(KeyError):
         store.get(token)
-    with pytest.raises(disposition.Error):
+    with pytest.raises(KeyError):
         store.pop(token)
 
     # removal should also remove it
     store.remove(token2)
-    with pytest.raises(disposition.Error):
+    with pytest.raises(KeyError):
         store.get(token2)
-    with pytest.raises(disposition.Error):
+    with pytest.raises(KeyError):
         store.pop(token2)
 
     # getting nonexistent should fail
-    with pytest.raises(disposition.Error):
+    with pytest.raises(KeyError):
         store.get('bogus')
 
     # removal should always work even if the token doesn't exist
@@ -72,7 +72,7 @@ def test_serializer():
     assert store.get(token2) == (1, 2, 3)
 
     # getting nonexistent should fail
-    with pytest.raises(disposition.Error):
+    with pytest.raises(KeyError):
         store.get('bogus')
 
     # removal should always work even if the token doesn't exist

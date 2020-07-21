@@ -197,8 +197,8 @@ class Fediverse(Handler):
 
         try:
             client_tuple, when, redir = self._token_store.pop(state)
-        except disposition.Disposition as disp:
-            return disp
+        except (KeyError, ValueError):
+            return disposition.Error("Invalid transaction", '')
 
         if time.time() > when + self._timeout:
             return disposition.Error("Transaction timed out", redir)
