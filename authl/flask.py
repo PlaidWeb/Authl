@@ -1,4 +1,13 @@
-""" Flask wrapper for Authl """
+"""
+Flask wrapper
+=============
+
+:py:class:`AuthlFlask` is an easy-to-use wrapper for use with `Flask`_ . By
+default it gives you a login form (with optional URL tester) and a login
+endpoint that stores the verified identity in ``flask.session['me']``.
+
+.. _Flask: https://flask.palletsprojects.com/
+"""
 
 import json
 import logging
@@ -8,7 +17,6 @@ import urllib.parse
 
 import flask
 import werkzeug.exceptions as http_error
-from rop import read_only_properties
 
 from . import Authl, disposition, from_config, tokens, utils
 
@@ -19,24 +27,16 @@ def setup(app: flask.Flask, config: typing.Dict[str, typing.Any], **kwargs) -> A
     """ Simple setup function.
 
     :param flask.flask app: The Flask app to configure with Authl.
-    :param dict config: Configuration values for the Authl instance; see `authl.from_config`
-    :param kwargs: Additional arguments to pass along to the `AuthlFlask` constructor
+    :param dict config: Configuration values for the Authl instance; see
+        :py:func:`authl.from_config`
+    :param kwargs: Additional arguments to pass along to the
+        :py:class:`AuthlFlask` constructor
 
-    Returns the configured `AuthlFlask` wrapper
+    Returns the configured :py:class:`authl.Authl` instance. Note that if you
+    want the :py:class:`AuthlFlask` instance you should instantiate that directly.
 
-     """
-    return AuthlFlask(app, config, **kwargs).instance
-
-
-def _nocache() -> typing.Callable:
-    """ Cache decorator to set the maximum cache age on a response """
-    def decorator(func: typing.Callable) -> typing.Callable:
-        def wrapped_func(*args, **kwargs):
-            response = flask.make_response(func(*args, **kwargs))
-            response.cache_control.max_age = 0
-            return response
-        return wrapped_func
-    return decorator
+    """
+    return AuthlFlask(app, config, **kwargs).authl
 
 
 def load_template(filename: str) -> str:
@@ -51,6 +51,16 @@ def load_template(filename: str) -> str:
     return utils.read_file(os.path.join(os.path.dirname(__file__), 'flask_templates', filename))
 
 
+def _nocache() -> typing.Callable:
+    """ Cache decorator to set the maximum cache age on a response """
+    def decorator(func: typing.Callable) -> typing.Callable:
+        def wrapped_func(*args, **kwargs):
+            response = flask.make_response(func(*args, **kwargs))
+            response.cache_control.max_age = 0
+            return response
+        return wrapped_func
+    return decorator
+
 def _redir_dest_to_path(destination: str):
     """ Convert a redirection destination to a path fragment """
     assert destination.startswith('/'), "Redirection destinations must begin with '/'"
@@ -62,10 +72,116 @@ def _redir_path_to_dest(path: str):
     assert not path.startswith('/'), "Path fragments cannot start with '/'"
     return '/' + path
 
-
-@read_only_properties('login_name', 'callback_name', 'tester_name')
 class AuthlFlask:
-    """ Container that wraps an Authl instance for a Flask application """
+    """ Easy Authl wrapper for use with a Flask application.
+
+    :param flask.Flask app: the application to attach to
+
+    :param dict config: Configuration directives for Authl's handlers. See
+        from_config for more information.
+
+    :param str login_name: The endpoint name for the login handler, for
+        flask.url_for()
+
+    :param str login_path: The mount point of the login endpoint
+
+        The login endpoint takes the following arguments (as specified via
+        :py:func:`flask.url_for`):
+
+            * ``me``: The URL to initiate authentication for
+            * ``redir``: Where to redirect the user to after successful login
+
+
+    :param str callback_name: The endpoint name for the callback handler,
+        for flask.url_for()
+
+    :param str callback_path: The mount point of the callback handler endpoint
+
+    :param str tester_name: The endpoint name for the URL tester, for
+        flask.url_for()
+
+    :param str tester_path: The mount point of the URL tester endpoint
+
+        The URL tester endpoint takes a query parameter of ``url`` which is the
+        URL to check. It returns a JSON object that describes the detected
+        handler (if any), with the following attributes:
+
+            * ``name``: the service name
+            * ``url``: a canonicized version of the URL
+
+        The URL tester endpoint will only be mounted if ``tester_path`` is
+        specified. This will also enable a small asynchronous preview in the default
+        login form.
+
+    :param function login_render_func: The function to call to render the login
+        page; if not specified a default will be provided.
+
+        This function takes the following arguments; note that more may
+        be added so it should also take a ``**kwargs`` for future compatibility:
+
+        * ``auth``: the authl.Authl object
+
+        * ``login_url``: the URL to use for the login form
+
+        * ``tester_url``: the URL to use for the test callback
+
+        * ``redir``: The redirection destination that the login URL will
+            redirect them to
+
+        * ``id_url``: Any pre-filled value for the ID url
+
+        * ``error``: Any error message that occurred
+
+        If ``login_render_func`` returns a falsy value, the default login form
+        will be used instead. This is useful for providing a conditional
+        override, or as a rudimentary hook for analytics on the login flow or
+        the like.
+
+    :param function notify_render_func: The function to call to render the user
+        notification page; if not specified a default will be provided.
+
+        This function takes the following arguments:
+
+            * ``cdata``: the client data for the handler
+
+    :param str session_auth_name: The session parameter to use for the
+        authenticated user. Set to None if you want to use your own session
+        management.
+
+    :param bool force_https: Whether to force authentication to switch to a
+        ``https://`` connection
+
+    :param str stylesheet: the URL to use for the default page stylesheet; if
+        not
+
+    :param function on_verified: A function to call on successful login (called
+        after setting the session value)
+
+        This function receives the :py:class:`disposition.Verified` object, and
+        may return a Flask response of its own, which should ideally be a
+        ``flask.redirect()``. This can be used to capture more information about
+        the user (such as filling out a user profile) or to redirect certain
+        users to an administrative screen of some sort.
+
+    :param bool make_permanent: Whether a session should persist past the
+        browser window closing
+
+    :param tokens.TokenStore token_storage: Storage for token data for
+        methods which use it. Defaults to :py:class:`tokens.Serializer` using
+        the Flask ``app.secret_key``; this is suitable for load-balancing
+        scenarios as long as all service nodes use the same secret_key.
+
+        Note that if the default is used, the ``app.secret_key`` **MUST** be set
+        before this class is initialized.
+
+    :param state_storage: The mechanism to use for transactional state
+        storage for login methods that need it. Defaults to using the Flask
+        user session.
+
+    :param session_namespace: A namespace for Authl to keep a small amount of
+        user session data in. Should never need to be changed.
+
+    """
     # pylint:disable=too-many-instance-attributes
 
     def __init__(self,
@@ -80,103 +196,27 @@ class AuthlFlask:
                  login_render_func: typing.Callable = None,
                  notify_render_func: typing.Callable = None,
                  session_auth_name: str = 'me',
-                 force_ssl: bool = False,
-                 stylesheet: str = None,
+                 force_https: bool = False,
+                 stylesheet: typing.Union[str,typing.Callable] = None,
                  on_verified: typing.Callable = None,
                  make_permanent: bool = True,
-                 state_storage: dict = flask.session,
+                 state_storage: dict = None,
                  token_storage: tokens.TokenStore = None,
                  session_namespace='_authl',
                  ):
-        """ Setup Authl to work with a Flask application.
-
-        The Flask application should be configured with a secret_key before this
-        function is called.
-
-        :param flask.Flask app: the application to attach to
-        :param dict config: Configuration directives for Authl's handlers. See
-            from_config for more information.
-        :param str login_name: The endpoint name for the login handler, for
-            flask.url_for()
-        :param str login_path: The mount point of the login route
-        :param str callback_name: The endpoint name for the callback handler,
-            for flask.url_for()
-        :param str callback_path: The mount point of the callback handler
-        :param str tester_name: The endpoint name for the URL tester, for
-            flask.url_for()
-        :param str tester_path: The mount point of the URL tester
-        :param function login_render_func: The function to call to render the login
-            page; if not specified a default will be provided.
-        :param function notify_render_func: The function to call to render the user
-            notification page; if not specified a default will be provided.
-        :param str session_auth_name: The session parameter to use for the
-            authenticated user. Set to None if you want to use your own session
-            management.
-        :param bool force_ssl: Whether to force authentication to switch to an SSL
-            connection
-        :param str stylesheet: the URL to use for the default page stylesheet; if
-            not
-        :param function on_verified: A function to call on successful login (called
-            after setting the session value)
-        :param bool make_permanent: Whether a session should persist past the
-            browser window closing
-        :param tokens.TokenStore token_storage: Storage for token data for
-            methods which use it. Defaults to tokens.Serializer using the Flask
-            app.secret_key; this is suitable for load-balancing scenarios as
-            long as all service nodes use the same secret_key.
-        :param state_storage: The mechanism to use for transactional state
-            storage for login methods that need it. Defaults to using the Flask
-            user session.
-        :param session_namespace: A namespace for Authl to keep a small amount of
-            user session data in. Should never need to be changed.
-
-        The login_render_func takes the following arguments; note that more may
-        be added so it should also take a **kwargs for future compatibility:
-
-            :param auth: the authl.Authl object
-            :param login_url: the URL to use for the login form
-            :param tester_url: the URL to use for the test callback
-            :param redir: The redirection destination that the login URL will
-                redirect them to
-            :param id_url: Any pre-filled value for the ID url
-            :param error: Any error message that occurred
-
-        If login_render_func returns a false value, the default login form will
-        be used instead. This is useful for providing a conditional override, or
-        as a rudimentary hook for analytics on the login flow or the like.
-
-        The render_notify_func takes the following arguments:
-
-            :param cdata: the client data for the handler
-
-        The on_verified function receives the disposition.Verified object, and
-        may return a Flask response of its own, ideally a flask.redirect(). This
-        can be used to capture more information about the user (such as their
-        display name) or to redirect certain users to an administrative screen
-        of some sort.
-
-        The login endpoint takes a query parameter of 'me' which is the URL to
-        authenticate against.
-
-        The URL tester endpoint takes a query parameter of 'url' which is the URL
-        to check. It returns a JSON object that describes the detected handler, with
-        the following attributes:
-
-            :param name: the service name
-            :param url: a canonicized version of the URL
-
-        The URL tester endpoint will only be mounted if tester_path is specified.
-        This will also enable a small asynchronous preview in the default login form.
-
-        Return value: the configured Authl instance
-
-        """
         # pylint:disable=too-many-arguments,too-many-locals,too-many-statements
 
-        self.instance = from_config(
+        if state_storage is None:
+            state_storage = flask.session
+
+        if token_storage is None:
+            assert app.secret_key, "app.secret_key must be set to use default token_storage"
+            token_storage = tokens.Serializer(app.secret_key)
+
+        self.authl = from_config(
             config,
             state_storage,
-            token_storage or tokens.Serializer(app.secret_key))
+            token_storage)
 
         self._session = state_storage
         self.login_name = login_name
@@ -186,7 +226,7 @@ class AuthlFlask:
         self._login_render_func = login_render_func
         self._notify_render_func = notify_render_func
         self._session_auth_name = session_auth_name
-        self.force_ssl = force_ssl
+        self.force_https = force_https
         self._stylesheet = stylesheet
         self._on_verified = on_verified
         self.make_permanent = make_permanent
@@ -208,7 +248,7 @@ class AuthlFlask:
                 if not url:
                     return json.dumps(None)
 
-                handler, _, canon_url = self.instance.get_handler_for_url(url)
+                handler, _, canon_url = self.authl.get_handler_for_url(url)
                 if handler:
                     return json.dumps({'name': handler.service_name,
                                        'url': canon_url})
@@ -219,7 +259,7 @@ class AuthlFlask:
     @property
     def url_scheme(self):
         """ Provide the _scheme parameter to be sent along to flask.url_for """
-        return 'https' if self.force_ssl else None
+        return 'https' if self.force_https else None
 
     @_nocache()
     def _handle_disposition(self, disp: disposition.Disposition):
@@ -266,11 +306,18 @@ class AuthlFlask:
                                             stylesheet=self.stylesheet)
 
     def render_login_form(self, destination: str, error: typing.Optional[str] = None):
-        """ Renders the login form, configured with the specified redirection path. """
+        """
+        Renders the login form from an alternate route, for example if a page
+        requires login to be seen.
+
+        :param str destination: The redirection destination
+        :param str error: Any error to display on the login form
+
+        """
         login_url = flask.url_for(self.login_name,
                                   redir=_redir_dest_to_path(destination or '/'),
                                   _scheme=self.url_scheme,
-                                  _external=self.force_ssl)
+                                  _external=self.force_https)
         test_url = self._tester_path and flask.url_for(self.tester_name,
                                                        _external=True)
         id_url = self._session.get(self._prefill_key, '')
@@ -279,7 +326,7 @@ class AuthlFlask:
         render_args = {
             'login_url': login_url,
             'test_url': test_url,
-            'auth': self.instance,
+            'auth': self.authl,
             'id_url': id_url,
             'error': error,
             'redir': destination,
@@ -309,7 +356,7 @@ class AuthlFlask:
         me_url = request.form.get('me', request.args.get('me'))
         if me_url:
             self._session[self._prefill_key] = me_url
-            handler, hid, id_url = self.instance.get_handler_for_url(me_url)
+            handler, hid, id_url = self.authl.get_handler_for_url(me_url)
             if handler:
                 cb_url = flask.url_for(self.callback_name,
                                        hid=hid,
@@ -328,7 +375,7 @@ class AuthlFlask:
     def _callback_endpoint(self, hid: str):
         from flask import request
 
-        handler = self.instance.get_handler_by_id(hid)
+        handler = self.authl.get_handler_by_id(hid)
         if not handler:
             return self._handle_disposition(disposition.Error("Invalid handler", ''))
         return self._handle_disposition(
@@ -336,16 +383,19 @@ class AuthlFlask:
 
     @property
     def stylesheet(self) -> str:
-        """ Gets the stylesheet for the Flask templates """
+        """ The stylesheet to use for the Flask templates """
         if self._stylesheet:
             return utils.resolve_value(self._stylesheet)
         return flask.url_for(self.login_name, asset='css')
 
 
 def client_id():
-    """ A shim to generate a client ID for IndieAuth """
+    """ A shim to generate a client ID based on the current site URL, for use
+    with IndieAuth. """
     from flask import request
     parsed = urllib.parse.urlparse(request.base_url)
     baseurl = '{}://{}'.format(parsed.scheme, parsed.hostname)
     LOGGER.debug("using client_id %s", baseurl)
     return baseurl
+
+

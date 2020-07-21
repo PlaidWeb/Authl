@@ -16,8 +16,19 @@ from . import TestHandler
 LOGGER = logging.getLogger(__name__)
 
 
+def test_config():
+    app = flask.Flask(__name__)
+    app.secret_key = 'qwer'
+    authl.flask.setup(app, {}, login_path='/asdf', login_name='poiu')
+
+    with app.test_request_context('http://example.site'):
+        assert (flask.url_for('poiu', me='example.com', redir='qwer') ==
+                '/asdf/qwer?me=example.com')
+
+
 def test_url_tester():
     app = flask.Flask(__name__)
+    app.secret_key = 'qwer'
     authl.flask.setup(app, {'TEST_ENABLED': True}, tester_path='/test')
 
     with app.test_request_context('http://example.site/'):
@@ -103,6 +114,7 @@ def test_dispositions_and_hooks():
 
 def test_login_rendering():
     app = flask.Flask(__name__)
+    app.secret_key = 'qwer'
     authl.flask.setup(app, {}, stylesheet="/what.css")
     with app.test_request_context('https://foo.bar/'):
         login_url = flask.url_for('authl.login')
@@ -188,6 +200,7 @@ def test_callbacks():
 
 def test_client_id():
     app = flask.Flask(__name__)
+    app.secret_key = 'qwer'
     authl.flask.setup(app, {})
     with app.test_request_context('https://foo.bar/baz/'):
         assert authl.flask.client_id() == 'https://foo.bar'
