@@ -60,7 +60,8 @@ build: version preflight pylint flake8
 
 .PHONY: clean
 clean:
-	rm -rf build dist .mypy_cache __pycache__ docs/_build
+	rm -rf build dist .mypy_cache docs/_build
+	find . -type d -name __pycache__ -print0 | xargs -0 rm -r
 
 .PHONY: upload
 upload: clean build
