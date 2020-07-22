@@ -772,14 +772,6 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 version = "5.3.1"
 
 [[package]]
-category = "main"
-description = "Create class properties which can't be changed."
-name = "read-only-property"
-optional = false
-python-versions = "*"
-version = "0.1"
-
-[[package]]
 category = "dev"
 description = "Alternative regular expression module, to replace re."
 marker = "python_version > \"2.7\""
@@ -1085,7 +1077,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["pathlib2", "unittest2", "jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "c06a1136b0ddc874fae3de065738d94d0d1c71b36a72214d1e4025ced95d426d"
+content-hash = "0d2be5b2b37d53d5c3a1cd737e47934bcc6708dab70a1447d822b0fa2054296a"
 python-versions = "^3.5"
 
 [metadata.files]
@@ -1434,9 +1426,6 @@ pyyaml = [
     {file = "PyYAML-5.3.1-cp38-cp38-win32.whl", hash = "sha256:06a0d7ba600ce0b2d2fe2e78453a470b5a6e000a985dd4a4e54e436cc36b0e97"},
     {file = "PyYAML-5.3.1-cp38-cp38-win_amd64.whl", hash = "sha256:95f71d2af0ff4227885f7a6605c37fd53d3a106fcab511b8860ecca9fcf400ee"},
     {file = "PyYAML-5.3.1.tar.gz", hash = "sha256:b8eac752c5e14d3eca0e6dd9199cd627518cb5ec06add0de9d32baeee6fe645d"},
-]
-read-only-property = [
-    {file = "read-only-property-0.1.tar.gz", hash = "sha256:347f28042fe95cd78ab57ab5d6ab50fc74e9757b1530e8b129b046990250183d"},
 ]
 regex = [
     {file = "regex-2020.7.14-cp27-cp27m-win32.whl", hash = "sha256:e46d13f38cfcbb79bfdb2964b0fe12561fe633caf964a77a5f8d4e45fe5d2ef7"},

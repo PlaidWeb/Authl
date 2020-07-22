@@ -1,4 +1,21 @@
-""" IndieAuth login handler. """
+"""
+
+IndieAuth handler
+=================
+
+This handler allows people to log in from their own websites using the
+`IndieAuth <https://indieauth.net/>`_ federated protocol. See
+:py:func:`from_config` for the simplest configuration mechanism.
+
+Note that the client ID must match the domain name of your website. If you're
+using this with :py:mod:`authl.flask`, there is a function,
+:py:mod:`authl.flask.client_id`, which provides this at runtime with no
+configuration necessary. For other frameworks you will need to either configure
+this with your public-facing domain name, or retrieve the domain name from
+whatever framework you're using. Please note also that the scheme (``http`` vs.
+``https``) must match.
+
+"""
 
 import logging
 import time
@@ -156,11 +173,12 @@ class IndieAuth(Handler):
     def logo_html(self):
         return [(utils.read_icon('indieauth.svg'), 'IndieAuth')]
 
-    def __init__(self, client_id, token_store: tokens.TokenStore, timeout: int = None):
+    def __init__(self, client_id: typing.Union[str, typing.Callable[..., str]],
+                 token_store: tokens.TokenStore, timeout: int = None):
         """ Construct an IndieAuth handler
 
         :param client_id: The client_id to send to the remote IndieAuth
-        provider. Can be a string or a function (e.g. lambda:flask.request.url_root)
+        provider. Can be a string or a function that returns a string.
 
         :param token_store: Storage for the tokens
 
@@ -204,12 +222,12 @@ class IndieAuth(Handler):
 
         state = get.get('state')
         if not state:
-            return disposition.Error("No transaction provided", None)
+            return disposition.Error("No transaction provided", '')
 
         try:
             id_url, endpoint, callback_uri, when, redir = self._token_store.pop(state)
-        except disposition.Disposition as disp:
-            return disp
+        except (KeyError, ValueError):
+            return disposition.Error("Invalid token", '')
 
         if time.time() > when + self._timeout:
             return disposition.Error("Transaction timed out", redir)

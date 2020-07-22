@@ -1,12 +1,14 @@
 """
-Token storage interface and some basic implementations thereof.
+Token storage
+=============
 
 The provided implementations are intended merely as a starting point that works
 for the most common cases with minimal external dependencies. In general, if
-you're only running a service on a single endpoint, use DictStore, and if you
-want to be able to load-balance, use Serializer. However, it is quite reasonable
-to have an implementation which is backed by a shared data store such as Redis
-or a SQL database.
+you're only running a service on a single endpoint, use
+:py:class:`DictStore`, and if you want to be able to load-balance,
+use :py:class:`Serializer`. However, it is quite reasonable to
+provide your own implementation of :py:class:`TokenStore` which is
+backed by a shared data store such as Redis or a database.
 
 """
 
@@ -15,8 +17,6 @@ from abc import ABC, abstractmethod
 
 import expiringdict
 import itsdangerous
-
-from . import disposition
 
 
 class TokenStore(ABC):
@@ -33,8 +33,8 @@ class TokenStore(ABC):
     @abstractmethod
     def get(self, key: str, to_type=tuple) -> typing.Any:
         """
-        Retrieves the token's value; can also raise disposition.Error if
-        this fails.
+        Retrieves the token's value; raises `KeyError` if the token does not
+        exist or is invalid.
         """
 
     @abstractmethod
@@ -59,11 +59,13 @@ class DictStore(TokenStore):
     This is suitable for the general case of having a single persistent service
     running on a single endpoint.
 
-    The default storage is an expiringdict with a size limit of 1024
-    and a maximum lifetime of 1 hour. This can be tuned to your needs. In
-    particular, the lifetime never needs to be any higher than your longest
-    allowed transaction lifetime, and the size limit generally needs to be no
-    more than the number of concurrent logins at any given time.
+    The default storage is an `expiringdict`_ with a size limit of 1024 and a
+    maximum lifetime of 1 hour. This can be tuned to your needs. In particular,
+    the lifetime never needs to be any higher than your longest allowed
+    transaction lifetime, and the size limit generally needs to be no more than
+    the number of concurrent logins at any given time.
+
+    .. _expiringdict: https://pypi.org/project/expiringdict/
     """
 
     def __init__(self, store: dict = None):
@@ -79,11 +81,7 @@ class DictStore(TokenStore):
         return key
 
     def get(self, key, to_type=tuple):
-        try:
-            return to_type(self._store[key])
-
-        except KeyError:
-            raise disposition.Error("Invalid token", None)
+        return to_type(self._store[key])
 
     def remove(self, key):
         try:
@@ -92,10 +90,7 @@ class DictStore(TokenStore):
             pass
 
     def pop(self, key, to_type=tuple):
-        try:
-            return to_type(self._store.pop(key))
-        except KeyError:
-            raise disposition.Error("Invalid token", None)
+        return to_type(self._store.pop(key))
 
 
 class Serializer(TokenStore):
@@ -108,6 +103,8 @@ class Serializer(TokenStore):
     nodes, or need tokens to persist across frequent service restarts, and don't
     want to be dependent on a database. Note that all running instances will
     need to share the same secret_key.
+
+    Also note that tokens stored in this way cannot be revoked individually.
     """
 
     def __init__(self, secret_key):
@@ -125,7 +122,7 @@ class Serializer(TokenStore):
         try:
             return to_type(self._serializer.loads(key))
         except itsdangerous.BadData:
-            raise disposition.Error("Invalid token", None)
+            raise KeyError("Invalid token")
 
     def remove(self, key):
         pass

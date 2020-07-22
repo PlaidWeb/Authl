@@ -1,4 +1,15 @@
-""" Handler for emailing a magic link """
+"""
+Email handler
+=============
+
+This handler emails a "magic link" to the user so that they can log in that way.
+It requires an SMTP server of some sort; see your hosting provider's
+documentation for the appropriate configuration. This should also be able to
+work with your regular email provider.
+
+See :py:func:`from_config` for the simplest configuration mechanism.
+
+"""
 
 import email
 import logging
@@ -60,24 +71,22 @@ class EmailAddress(Handler):
                  email_template_text=DEFAULT_TEMPLATE_TEXT,
                  please_wait_error=DEFAULT_WAIT_ERROR,
                  ):
-        """ Instantiate a magic link email handler. Arguments:
+        """ Instantiate a magic link email handler.
 
-        from_addr -- the address that the email should be sent from
-        sendmail -- a function that, given an email.message object, sends it.
-            It is the responsibility of this function to set the From and
-            Subject headers before it sends.
-        notify_cdata -- the callback data to provide back for the notification
-            response
-        expires_time -- how long the email link should be valid for, in seconds (default: 900)
-        email_template_text -- the plaintext template for the sent email,
-            provided as a string.
-        email_template_html -- the HTML template for the sent email, provided
-            as a string
+        :param sendmail: A function that, given an :py:class:`email.message`
+            object, sends it. It is the responsibility of this function to set
+            the From and Subject headers before it sends.
+        :param notify_cdata: the callback data to provide to the user for the
+            next step instructions
+        :param int expires_time: how long the email link should be valid for, in
+            seconds (default: 900)
+        :param str email_template_text: the plaintext template for the sent
+            email, provided as a template string
 
-        Email templates get the following strings:
+        Email templates are formatted with the following parameters:
 
-        {url} -- the URL that the user should visit to complete login
-        {minutes} -- how long the URL is valid for, in minutes
+        * ``{url}``: the URL that the user should visit to complete login
+        * ``{minutes}``:  how long the URL is valid for, in minutes
 
         """
 
@@ -90,7 +99,12 @@ class EmailAddress(Handler):
         self._lifetime = expires_time or 900
 
     def handles_url(self, url):
-        """ Validating email by regex: not even once """
+        """
+        Accepts any email address formatted as ``user@example.com`` or
+        ``mailto:user@example.com``. The actual address is validated using
+        :py:mod:`validate_email`.
+        """
+
         parsed = urllib.parse.urlparse(url)
         if parsed.scheme == 'mailto' and validate_email.validate_email(parsed.path):
             return url
@@ -103,7 +117,6 @@ class EmailAddress(Handler):
         return None
 
     def initiate_auth(self, id_url, callback_uri, redir):
-        # Extract the destination email from the identity URL
         parsed = urllib.parse.urlparse(id_url)
         if parsed.scheme != 'mailto' or not validate_email.validate_email(parsed.path):
             return disposition.Error("Malformed email URL", redir)
@@ -134,8 +147,8 @@ class EmailAddress(Handler):
 
         try:
             email_addr, redir, when = self._token_store.pop(token)
-        except disposition.Disposition as disp:
-            return disp
+        except (KeyError, ValueError):
+            return disposition.Error('Invalid token', '')
 
         if time.time() > when + self._lifetime:
             return disposition.Error("Login timed out", redir)
@@ -143,8 +156,16 @@ class EmailAddress(Handler):
         return disposition.Verified('mailto:' + email_addr, redir)
 
 
-def smtplib_connector(hostname, port, username=None, password=None, use_ssl=True):
-    """ Generates an SMTP connection factory """
+def smtplib_connector(hostname, port, username=None, password=None, use_ssl=False):
+    """ A utility class that generates an SMTP connection factory.
+
+    :param str hostname: The SMTP server's hostname
+    :param int port: The SMTP server's connection port
+    :param str username: The SMTP server username
+    :param str password: The SMTP server port
+    :param bool use_ssl: Whether to use SSL
+
+    """
 
     def connect():
         import smtplib
@@ -166,15 +187,18 @@ def smtplib_connector(hostname, port, username=None, password=None, use_ssl=True
 
 
 def simple_sendmail(connector, sender_address, subject):
-    """ Generates a simple SMTP sendmail handler for handlers.email.Email, using
-    smtplib.
+    """ A simple SMTP sendmail handler.
 
-    Arguments:
+    :param function connector: A factory-type function that returns an
+        :py:class:`smtplib.SMTP`-compatible object in the connected state.
+        Use :py:func:`smtplib_connector` for an easy-to-use general-purpose
+        connector.
+    :param str sender_address: The email address to use for the sender
+    :param str subject: the subject line to attach to the message
 
-    connector -- a function that returns an smtplib.SMTP-compatible object in the
-        connected state. Use smtplib_connector for a general-purpose connector.
-    sender_address -- the email address to use for the sender
-    subject -- the subject to attach to the message
+    Returns a function that, when called with an
+    :py:class:`email.message.EmailMessage`, sets the `From` and `Subject` lines
+    and sends the message via the provided connector.
 
     """
 
@@ -189,21 +213,46 @@ def simple_sendmail(connector, sender_address, subject):
 
 
 def from_config(config, token_store: tokens.TokenStore):
-    """ Generate an EmailAddress handler from the provided configuration dictionary.
+    """
 
-    Possible configuration values (all optional unless specified):
+    Generate an :py:class:`EmailAddress` handler from the provided configuration
+    dictionary.
 
-    EMAIL_SENDMAIL -- a function to call to send the email (see simple_sendmail)
-    EMAIL_FROM -- the From: address to use when sending an email (required)
-    EMAIL_SUBJECT -- the Subject: to use for a login email (required)
-    EMAIL_CHECK_MESSAGE -- The message to send back to the user
-    EMAIL_TEMPLATE_FILE -- A path to a text file for the email message
-    EMAIL_EXPIRE_TIME -- How long a login email is valid for, in seconds
-    SMTP_HOST -- the email host (required if no EMAIL_SENDMAIL)
-    SMTP_PORT -- the email port (required if no EMAIL_SENDMAIL)
-    SMTP_USE_SSL -- whether to use SSL for the SMTP connection
-    SMTP_USERNAME -- the username to use with the SMTP server
-    SMTP_PASSWORD -- the password to use with the SMTP server
+    :param dict config: The configuration settings for the handler. Relevant
+        keys:
+
+        * ``EMAIL_SENDMAIL``: a function to call to send the email (defaults to
+            using :py:func:`simple_sendmail`)
+
+        * ``EMAIL_FROM``: the ``From:`` address to use when sending an email
+
+        * ``EMAIL_SUBJECT``: the ``Subject:`` to use for a login email
+
+        * ``EMAIL_CHECK_MESSAGE``: The :py:class:`authl.disposition.Notify` client
+            data. Defaults to a simple string-based message.
+
+        * ``EMAIL_TEMPLATE_FILE``: A path to a text file for the email message; if
+            not specified a default template will be used.
+
+        * ``EMAIL_EXPIRE_TIME``: How long a login email is valid for, in seconds
+            (defaults to the :py:class:`EmailAddress` default value)
+
+        * ``SMTP_HOST``: the outgoing SMTP host (required if no
+            ``EMAIL_SENDMAIL``)
+
+        * ``SMTP_PORT``: the outgoing SMTP port (required if no ``EMAIL_SENDMAIL``)
+
+        * ``SMTP_USE_SSL``: whether to use SSL for the SMTP connection (defaults
+            to ``False``). It is *highly recommended* to set this to `True` if
+            your ``SMTP_HOST`` is anything other than `localhost`.
+
+        * ``SMTP_USERNAME``: the username to use with the SMTP server
+
+        * ``SMTP_PASSWORD``: the password to use with the SMTP server
+
+    :param tokens.TokenStore token_store: the authentication token storage
+        mechanism; see :py:mod:`authl.tokens` for more information.
+
     """
 
     if config.get('EMAIL_SENDMAIL'):

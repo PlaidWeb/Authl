@@ -1,4 +1,14 @@
-""" Fediverse/Pleroma/Fediverse provider """
+"""
+Fediverse handler
+=================
+
+This handler allows login via Fediverse instances; currently `Mastodon
+<https://joinmastodon.org>` and `Pleroma <https://pleroma.social>` are
+supported, as is anything else with basic support for the Mastodon client API.
+
+See :py:func:`from_config` for the simplest configuration mechanism.
+
+"""
 
 import functools
 import logging
@@ -197,8 +207,8 @@ class Fediverse(Handler):
 
         try:
             client_tuple, when, redir = self._token_store.pop(state)
-        except disposition.Disposition as disp:
-            return disp
+        except (KeyError, ValueError):
+            return disposition.Error("Invalid transaction", '')
 
         if time.time() > when + self._timeout:
             return disposition.Error("Transaction timed out", redir)
@@ -244,14 +254,15 @@ class Fediverse(Handler):
         return result
 
 
-def from_config(config, token_store):
+def from_config(config, token_store: tokens.TokenStore):
     """ Generate a Fediverse handler from the given config dictionary.
 
-    Posible configuration values:
+    :param dict config: Configuration values; relevant keys:
+        * ``FEDIVERSE_NAME``: the name of your website (required)
+        * ``FEDIVERSE_HOMEPAGE``: your website's homepage (recommended)
+        * ``FEDIVERSE_TIMEOUT``: the maximum time to wait for login to complete
 
-    Fediverse_NAME -- the name of your website (required)
-    Fediverse_HOMEPAGE -- your website's homepage (recommended)
-    Fediverse_TIMEOUT -- the maximum time to wait for login to complete
+    :param tokens.TokenStore token_store: The authentication token storage
     """
 
     def get_cfg(key: str, dfl=None):

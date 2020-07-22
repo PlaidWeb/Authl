@@ -125,7 +125,9 @@ def test_connector():
         conn = unittest.mock.MagicMock()
         mock_smtp_ssl.return_value = conn
 
-        connector = email_addr.smtplib_connector('localhost', 25, 'test', 'poiufojar')
+        connector = email_addr.smtplib_connector('localhost', 25,
+                                                 'test', 'poiufojar',
+                                                 use_ssl=True)
         connector()
 
         mock_smtp_ssl.assert_called_with('localhost', 25)
