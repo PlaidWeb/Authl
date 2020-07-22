@@ -1,5 +1,13 @@
-""" Test handler which always returns an immediate success. Not to be used
-in production. """
+"""
+Test handler
+============
+
+This is a handler which always lets people log in as any URL with the fake
+scheme of ``test:``, with the exception of ``test:error`` which generates an
+error. This is only to be used for testing locally and should not be enabled in
+production.
+
+"""
 
 from .. import disposition
 from . import Handler

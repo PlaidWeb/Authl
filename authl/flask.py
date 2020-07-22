@@ -4,9 +4,54 @@ Flask wrapper
 
 :py:class:`AuthlFlask` is an easy-to-use wrapper for use with `Flask`_ . By
 default it gives you a login form (with optional URL tester) and a login
-endpoint that stores the verified identity in ``flask.session['me']``.
+endpoint that stores the verified identity in ``flask.session['me']``. All this
+behavior is configurable.
 
 .. _Flask: https://flask.palletsprojects.com/
+
+The basic usage is very simple:
+
+.. code-block:: python
+
+    import flask
+    import authl.flask
+
+    app = flask.Flask(__name__)
+    app.secret_key = "extremely secret"
+
+    authl.flask.setup(app, {
+        # Simple IndieAuth setup
+        'INDIEAUTH_CLIENT_ID': authl.flask.client_id,
+
+        # Minimal Fediverse setup
+        'FEDIVERSE_NAME': 'My website',
+
+        # Send email using localhost
+        'EMAIL_FROM': 'me@example.com',
+        'SMTP_HOST': 'localhost',
+        'SMTP_PORT': 25
+    }, tester_path='/test')
+
+    @app.route('/')
+        if 'me' in flask.session:
+            return 'Hello {me}. Want to <a href="{logout}">log out</a>?'.format(
+                me=flask.session['me'], logout=flask.url_for(
+                    'logout', redir=flask.request.path[1:])
+            )
+
+        return 'You are not logged in. Want to <a href="{login}">log in</a>?'.format(
+            login=flask.url_for('authl.login', redir=flask.request.path[1:]))
+
+    @app.route('/logout')
+    def logout():
+        flask.session.clear()
+        return flask.redirect('/')
+
+This gives you a very simple login form configured to work with IndieAuth,
+Fediverse, and email at the default location of ``/login``, and a logout
+mechanism at ``/logout``. The endpoint at ``/test`` can be used to test an
+identity URL for login support.
+
 """
 
 import json
@@ -61,6 +106,7 @@ def _nocache() -> typing.Callable:
         return wrapped_func
     return decorator
 
+
 def _redir_dest_to_path(destination: str):
     """ Convert a redirection destination to a path fragment """
     assert destination.startswith('/'), "Redirection destinations must begin with '/'"
@@ -71,6 +117,7 @@ def _redir_path_to_dest(path: str):
     """ Convert a path fragment to a redirection destination """
     assert not path.startswith('/'), "Path fragments cannot start with '/'"
     return '/' + path
+
 
 class AuthlFlask:
     """ Easy Authl wrapper for use with a Flask application.
@@ -197,7 +244,7 @@ class AuthlFlask:
                  notify_render_func: typing.Callable = None,
                  session_auth_name: str = 'me',
                  force_https: bool = False,
-                 stylesheet: typing.Union[str,typing.Callable] = None,
+                 stylesheet: typing.Union[str, typing.Callable] = None,
                  on_verified: typing.Callable = None,
                  make_permanent: bool = True,
                  state_storage: dict = None,
@@ -397,5 +444,3 @@ def client_id():
     baseurl = '{}://{}'.format(parsed.scheme, parsed.hostname)
     LOGGER.debug("using client_id %s", baseurl)
     return baseurl
-
-

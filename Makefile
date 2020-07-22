@@ -1,4 +1,4 @@
-all: setup format mypy cov pylint flake8
+all: setup format mypy cov pylint flake8 doc
 
 .PHONY: setup
 setup:
@@ -59,8 +59,12 @@ build: version preflight pylint flake8
 
 .PHONY: clean
 clean:
-	rm -rf build dist .mypy_cache __pycache__
+	rm -rf build dist .mypy_cache __pycache__ docs/_build
 
 .PHONY: upload
 upload: clean build
 	poetry publish
+
+.PHONY: doc
+doc:
+	poetry run sphinx-build -b html docs/ docs/_build

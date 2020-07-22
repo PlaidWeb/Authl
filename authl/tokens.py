@@ -8,7 +8,7 @@ you're only running a service on a single endpoint, use
 :py:class:`DictStore`, and if you want to be able to load-balance,
 use :py:class:`Serializer`. However, it is quite reasonable to
 provide your own implementation of :py:class:`TokenStore` which is
-backed by a shared data store such as Redis or a SQL database.
+backed by a shared data store such as Redis or a database.
 
 """
 
@@ -103,6 +103,8 @@ class Serializer(TokenStore):
     nodes, or need tokens to persist across frequent service restarts, and don't
     want to be dependent on a database. Note that all running instances will
     need to share the same secret_key.
+
+    Also note that tokens stored in this way cannot be revoked individually.
     """
 
     def __init__(self, secret_key):

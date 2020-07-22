@@ -1,0 +1,3 @@
+.. automodule:: authl.flask
+   :members:
+

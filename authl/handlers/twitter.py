@@ -1,4 +1,20 @@
-""" Twitter login handler """
+"""
+Twitter
+=======
+
+This handler allows third-party login using `Twitter <https://twitter.com/>`_.
+To use it you will need to register your website as an application via the
+`Twitter developer portal <https://developer.twitter.com/en>`_ and retrieve your
+``client_key`` and ``client_secret`` from there. You will also need to register
+your website's Twitter callback handler.
+
+It is **highly recommended** that you only store the ``client_key`` and
+``client_secret`` in an environment variable rather than by checked-in code as a
+basic security precaution.
+
+See :py:func:`from_config` for the simplest configuration mechanism.
+
+"""
 
 import re
 import time
@@ -13,10 +29,22 @@ from . import Handler
 
 
 class Twitter(Handler):
-    """ Twitter handler. Needs a client_key and client_secret. It is HIGHLY
-    RECOMMENDED that these configuration parameters be provided via an
-    environment variable rather than by checked-in code, as a basic security
-    precaution. """
+    """
+    Twitter login handler.
+
+    :param str client_key: The Twitter ``client_key`` value
+
+    :param str client_secret: The Twitter ``client_secret`` value
+
+    :param int timeout: How long, in seconds, the user has to complete the
+        login
+
+    :param dict storage: A ``dict``-like object that persistently stores the
+        OAuth token and secret during the login transaction. This needs to
+        persist on at least a per-user basis. It is safe to use the user session
+        or browser cookies for this storage.
+
+    """
 
     @property
     def description(self):
@@ -38,16 +66,6 @@ class Twitter(Handler):
                  client_secret: str,
                  timeout: int = None,
                  storage: dict = None):
-        """ Initializes a Twitter client.
-
-        :param str client_key: the Twitter OAuth client key
-        :param str client_secret: the Twitter OAuth client secret
-        :param int timeout: How long in seconds to allow a login to take
-        :param dict storage: A dict-like object to store the OAuth session for
-            the transaction. Defaults to an ExpiringDict that is limited to
-            128 concurrent sessions. This will not work well in load-balanced
-            scenarios. This can be safely kept in a user session or cookie.
-        """
         self._client_key = client_key
         self._client_secret = client_secret
         self._pending = expiringdict.ExpiringDict(
@@ -102,9 +120,13 @@ class Twitter(Handler):
         elif 'oauth_token' in get:
             token = get['oauth_token']
         if not token or token not in self._pending:
-            return disposition.Error("Invalid transaction", None)
+            return disposition.Error("Invalid transaction", '')
 
-        params, callback_uri, redir, start_time = self._pending.pop(token)
+        try:
+            params, callback_uri, redir, start_time = self._pending.pop(token)
+        except ValueError:
+            return disposition.Error("Invalid token", '')
+
         if time.time() > start_time + self._timeout:
             return disposition.Error("Login timed out", redir)
 

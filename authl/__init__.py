@@ -1,4 +1,14 @@
-""" Authl: A wrapper library to simplify the implementation of federated identity """
+"""
+Authl instance
+==============
+
+An :py:class:`Authl` instance acts as the initial coordinator between the
+configured :py:class:`handler.Handler` instances; given an identity address
+(such as an email address, WebFinger address, or Internet URL) it looks up the
+appropriate handler to use to initiate the login transaction, and it will also
+look up the handler for a transaction in progress.
+
+"""
 
 import collections
 import logging
@@ -13,24 +23,24 @@ LOGGER = logging.getLogger(__name__)
 
 
 class Authl:
-    """ Authentication wrapper """
+    """ The authentication wrapper instance.
+
+    :param cfg_handlers: The list of configured handlers, in decreasing priority
+        order.
+
+    """
 
     def __init__(self, cfg_handlers: typing.List[handlers.Handler] = None):
-        """ Initialize an Authl library instance.
-
-        # Arguments
-
-        cfg_handlers (dict): a collection of handlers for different authentication
-
-        """
+        """ Initialize an Authl library instance. """
         self._handlers: typing.Dict[str, handlers.Handler] = collections.OrderedDict()
         if cfg_handlers:
             for handler in cfg_handlers:
                 self.add_handler(handler)
 
-    def add_handler(self, handler):
-        """ Add another handler to the configured handler list. It will be
-        given the lowest priority. """
+    def add_handler(self, handler: handlers.Handler):
+        """
+        Adds another handler to the configured handler list at the lowest priority.
+        """
         cb_id = handler.cb_id
         if cb_id in self._handlers:
             raise ValueError("Already have handler with id " + cb_id)
@@ -39,8 +49,18 @@ class Authl:
     def get_handler_for_url(self, url: str) -> typing.Tuple[typing.Optional[handlers.Handler],
                                                             str,
                                                             str]:
-        """ Get the appropriate handler for the specified identity address.
-        Returns a tuple of (handler, hander_id, profile_id). """
+        """
+
+        Get the appropriate handler for the specified identity address. If
+        more than one handler knows how to handle an address, it will use the
+        one with the highest priority.
+
+        :param str url: The identity address; typically a URL but can also be a
+            WebFinger or email address.
+
+        Returns a tuple of ``(handler, hander_id, profile_url)``.
+
+        """
 
         # If webfinger detects profiles for this address, try all of those first
         for profile in webfinger.get_profiles(url):
@@ -70,12 +90,12 @@ class Authl:
         return None, '', ''
 
     def get_handler_by_id(self, handler_id):
-        """ Get the handler with the given ID """
+        """ Get the handler with the given ID, for a transaction in progress. """
         return self._handlers.get(handler_id)
 
     @property
     def handlers(self):
-        """ get all of the registered handlers, for UX purposes """
+        """ Provides a list of all of the registered handlers. """
         return self._handlers.values()
 
 
@@ -83,8 +103,6 @@ def from_config(config: typing.Dict[str, typing.Any],
                 state_storage: dict = None,
                 token_storage: tokens.TokenStore = None) -> Authl:
     """ Generate an Authl handler set from provided configuration directives.
-
-    Arguments:
 
     :param dict config: a configuration dictionary. See the individual handlers'
         from_config functions to see possible configuration values.
@@ -99,11 +117,17 @@ def from_config(config: typing.Dict[str, typing.Any],
 
     Handlers will be enabled based on truthy values of the following keys:
 
-        EMAIL_FROM / EMAIL_SENDMAIL -- enable the EmailAddress handler
-        MASTODON_NAME -- enable the Mastodon handler
-        INDIEAUTH_CLIENT_ID -- enable the IndieAuth handler
-        TWITTER_CLIENT_KEY -- enable the Twitter handler
-        TEST_ENABLED -- enable the test/loopback handler
+        ``EMAIL_FROM`` / ``EMAIL_SENDMAIL`` -- enable :py:mod:`handlers.email_addr`
+
+        ``FEDIVERSE_NAME`` -- enable :py:mod:`handlers.fediverse`
+
+        ``INDIEAUTH_CLIENT_ID`` -- enable :py:mod:`handlers.indieauth`
+
+        ``TWITTER_CLIENT_KEY`` -- enable :py:mod:`handlers.twitter`
+
+        ``TEST_ENABLED`` -- enable :py:mod:`handlers.test_handler`
+
+    For additional configuration settings, see each handler's respective ``from_config()``.
 
     """
 
