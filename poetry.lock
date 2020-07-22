@@ -289,8 +289,8 @@ description = "Lightweight pipelining: using Python functions as pipeline jobs."
 marker = "python_version > \"2.7\""
 name = "joblib"
 optional = false
-python-versions = "*"
-version = "0.14.1"
+python-versions = ">=3.6"
+version = "0.16.0"
 
 [[package]]
 category = "dev"
@@ -463,7 +463,7 @@ description = "Bind structured data directly to typed objects."
 name = "nr.databind.core"
 optional = false
 python-versions = "*"
-version = "0.0.20.post1"
+version = "0.0.21"
 
 [package.dependencies]
 "nr.collections" = ">=0.0.1,<1.0.0"
@@ -613,18 +613,6 @@ six = "*"
 
 [[package]]
 category = "dev"
-description = "Object-oriented filesystem paths"
-marker = "python_version < \"3.6\""
-name = "pathlib2"
-optional = false
-python-versions = "*"
-version = "2.3.5"
-
-[package.dependencies]
-six = "*"
-
-[[package]]
-category = "dev"
 description = "File system general utilities"
 name = "pathtools"
 optional = false
@@ -746,10 +734,6 @@ wcwidth = "*"
 [package.dependencies.importlib-metadata]
 python = "<3.8"
 version = ">=0.12"
-
-[package.dependencies.pathlib2]
-python = "<3.6"
-version = ">=2.2.0"
 
 [package.extras]
 checkqa-mypy = ["mypy (v0.761)"]
@@ -1069,16 +1053,16 @@ description = "Backport of pathlib-compatible object wrapper for zip files"
 marker = "python_version < \"3.8\""
 name = "zipp"
 optional = false
-python-versions = ">=2.7"
-version = "1.2.0"
+python-versions = ">=3.6"
+version = "3.1.0"
 
 [package.extras]
 docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
-testing = ["pathlib2", "unittest2", "jaraco.itertools", "func-timeout"]
+testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "0d2be5b2b37d53d5c3a1cd737e47934bcc6708dab70a1447d822b0fa2054296a"
-python-versions = "^3.5"
+content-hash = "dd0711f891cf7cf7a9ea25f57c9e21be497912587d55637de0e5d6413925ec57"
+python-versions = "^3.6"
 
 [metadata.files]
 alabaster = [
@@ -1212,8 +1196,8 @@ jinja2 = [
     {file = "Jinja2-2.11.2.tar.gz", hash = "sha256:89aab215427ef59c34ad58735269eb58b1a5808103067f7bb9d5836c651b3bb0"},
 ]
 joblib = [
-    {file = "joblib-0.14.1-py2.py3-none-any.whl", hash = "sha256:bdb4fd9b72915ffb49fde2229ce482dd7ae79d842ed8c2b4c932441495af1403"},
-    {file = "joblib-0.14.1.tar.gz", hash = "sha256:0630eea4f5664c463f23fbf5dcfc54a2bc6168902719fa8e19daf033022786c8"},
+    {file = "joblib-0.16.0-py3-none-any.whl", hash = "sha256:d348c5d4ae31496b2aa060d6d9b787864dd204f9480baaa52d18850cb43e9f49"},
+    {file = "joblib-0.16.0.tar.gz", hash = "sha256:8f52bf24c64b608bf0b2563e0e47d6fcf516abc8cfafe10cfd98ad66d94f92d6"},
 ]
 lazy-object-proxy = [
     {file = "lazy-object-proxy-1.4.3.tar.gz", hash = "sha256:f3900e8a5de27447acbf900b4750b0ddfd7ec1ea7fbaf11dfa911141bc522af0"},
@@ -1323,8 +1307,8 @@ nltk = [
     {file = "nr.collections-0.0.1.tar.gz", hash = "sha256:ddf38cd6379cac546ce7abdadf024fc01cca75540e11b1d5f1aa701a33817f1c"},
 ]
 "nr.databind.core" = [
-    {file = "nr.databind.core-0.0.20.post1-py2.py3-none-any.whl", hash = "sha256:0c477d3336575d56ee179ce7eb05773c62fae51511d93b145afac569e5048644"},
-    {file = "nr.databind.core-0.0.20.post1.tar.gz", hash = "sha256:47323a0a0b6d547708e3c2bd472debdf44f5f9b0d52fd77066c9f30cd626c3d7"},
+    {file = "nr.databind.core-0.0.21-py2.py3-none-any.whl", hash = "sha256:fcee082fbf24be6db90e4c5a852a8c4d305f3ab226e09d9938dbee777d8e803c"},
+    {file = "nr.databind.core-0.0.21.tar.gz", hash = "sha256:5f61f63294dea0fca8b71be6aec6df4b960bac25a7a74fbec666fadfd2b79968"},
 ]
 "nr.databind.json" = [
     {file = "nr.databind.json-0.0.13-py2.py3-none-any.whl", hash = "sha256:82af968a0eeb2c2ba2bc6f840c34b64eb4278035b9e3dfb9904e4e4ba519821d"},
@@ -1366,10 +1350,6 @@ oauthlib = [
 packaging = [
     {file = "packaging-20.4-py2.py3-none-any.whl", hash = "sha256:998416ba6962ae7fbd6596850b80e17859a5753ba17c32284f67bfff33784181"},
     {file = "packaging-20.4.tar.gz", hash = "sha256:4357f74f47b9c12db93624a82154e9b120fa8293699949152b22065d556079f8"},
-]
-pathlib2 = [
-    {file = "pathlib2-2.3.5-py2.py3-none-any.whl", hash = "sha256:0ec8205a157c80d7acc301c0b18fbd5d44fe655968f5d947b6ecef5290fc35db"},
-    {file = "pathlib2-2.3.5.tar.gz", hash = "sha256:6cd9a47b597b37cc57de1c05e56fb1a1c9cc9fab04fe78c29acd090418529868"},
 ]
 pathtools = [
     {file = "pathtools-0.1.2.tar.gz", hash = "sha256:7c35c5421a39bb82e58018febd90e3b6e5db34c5443aaaf742b3f33d4655f1c0"},
@@ -1572,6 +1552,6 @@ wrapt = [
     {file = "wrapt-1.12.1.tar.gz", hash = "sha256:b62ffa81fb85f4332a4f609cab4ac40709470da05643a082ec1eb88e6d9b97d7"},
 ]
 zipp = [
-    {file = "zipp-1.2.0-py2.py3-none-any.whl", hash = "sha256:e0d9e63797e483a30d27e09fffd308c59a700d365ec34e93cc100844168bf921"},
-    {file = "zipp-1.2.0.tar.gz", hash = "sha256:c70410551488251b0fee67b460fb9a536af8d6f9f008ad10ac51f615b6a521b1"},
+    {file = "zipp-3.1.0-py3-none-any.whl", hash = "sha256:aa36550ff0c0b7ef7fa639055d797116ee891440eac1a56f378e2d3179e0320b"},
+    {file = "zipp-3.1.0.tar.gz", hash = "sha256:c599e4d75c98f6798c509911d08a22e6c021d074469042177c8c86fb92eefd96"},
 ]

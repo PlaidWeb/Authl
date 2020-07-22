@@ -8,7 +8,7 @@ readme = "README.md"
 repository = "https://github.com/PlaidWeb/Authl"
 
 [tool.poetry.dependencies]
-python = "^3.5"
+python = "^3.6"
 beautifulsoup4 = "^4.9.1"
 expiringdict = "^1.2.1"
 itsdangerous = "^1.1.0"

@@ -20,11 +20,8 @@ def get_profiles(url: str) -> typing.Set[str]:
         user, domain = webfinger.group(1, 2)
         LOGGER.debug("webfinger: user=%s domain=%s", user, domain)
 
-        resource = 'https://{}/.well-known/webfinger?resource={}'.format(
-            domain,
-            html.escape('acct:{}@{}'.format(user, domain)))
-        LOGGER.debug("resource=%s", resource)
-        request = requests.get(resource)
+        resource = html.escape(f'acct:{user}@{domain}')
+        request = requests.get(f'https://{domain}/.well-known/webfinger?resource={resource}')
 
         if not 200 <= request.status_code < 300:
             LOGGER.info("Webfinger query %s returned status code %d",
@@ -32,7 +29,7 @@ def get_profiles(url: str) -> typing.Set[str]:
             LOGGER.debug("%s", request.text)
             # Service doesn't support webfinger, so just pretend it's the most
             # common format for a profile page
-            return {'https://{}/@{}'.format(domain, user)}
+            return {f'https://{domain}/@{user}'}
 
         profile = request.json()
         print(repr(profile))

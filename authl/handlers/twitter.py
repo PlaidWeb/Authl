@@ -161,7 +161,7 @@ class Twitter(Handler):
         # We include the user ID after the hash code to prevent folks from
         # logging in by taking over a username that someone changed/abandoned.
         return disposition.Verified(
-            'https://twitter.com/{}#{}'.format(username, user_id),
+            f'https://twitter.com/{username}#{user_id}',
             redir,
             user_info)
 

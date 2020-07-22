@@ -441,6 +441,6 @@ def client_id():
     with IndieAuth. """
     from flask import request
     parsed = urllib.parse.urlparse(request.base_url)
-    baseurl = '{}://{}'.format(parsed.scheme, parsed.hostname)
+    baseurl = f'{parsed.scheme}://{parsed.hostname}'
     LOGGER.debug("using client_id %s", baseurl)
     return baseurl
