@@ -1,11 +1,11 @@
-all: setup format mypy cov pylint flake8 doc
+all: setup version format mypy cov pylint flake8 doc requirements.txt
 
 .PHONY: setup
 setup:
 	poetry install
 
 .PHONY: format
-format: version
+format:
 	poetry run isort -y
 	poetry run autopep8 -r --in-place .
 
@@ -70,3 +70,6 @@ upload: clean build
 .PHONY: doc
 doc:
 	poetry run sphinx-build -b html docs/ docs/_build
+
+requirements.txt: pyproject.toml
+	poetry export -f requirements.txt > requirements.txt
