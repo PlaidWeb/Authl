@@ -3,7 +3,7 @@ Fediverse handler
 =================
 
 This handler allows login via Fediverse instances; currently `Mastodon
-<https://joinmastodon.org>` and `Pleroma <https://pleroma.social>` are
+<https://joinmastodon.org>`_ and `Pleroma <https://pleroma.social>`_ are
 supported, as is anything else with basic support for the Mastodon client API.
 
 See :py:func:`from_config` for the simplest configuration mechanism.
@@ -28,7 +28,7 @@ LOGGER = logging.getLogger(__name__)
 class Fediverse(Handler):
     """ Handler for Fediverse services (Mastodon, Pleroma) """
 
-    class Client:
+    class _Client:
         """ Fediverse OAuth client info """
         # pylint:disable=too-few-public-methods
 
@@ -115,6 +115,10 @@ class Fediverse(Handler):
         return None
 
     def handles_url(self, url):
+        """
+            Checks for an ``/api/v1/instance`` endpoint to determine if this
+            is a Mastodon-compatible instance
+        """
         LOGGER.info("Checking URL %s", url)
 
         instance = self._get_instance(url)
@@ -132,7 +136,7 @@ class Fediverse(Handler):
         return instance
 
     @functools.lru_cache(128)
-    def _get_client(self, id_url: str, callback_uri: str) -> typing.Optional['Fediverse.Client']:
+    def _get_client(self, id_url: str, callback_uri: str) -> typing.Optional['Fediverse._Client']:
         """ Get the client data """
         instance = self._get_instance(id_url)
         if not instance:
@@ -151,7 +155,7 @@ class Fediverse(Handler):
         if info['redirect_uri'] != callback_uri:
             raise ValueError("Got incorrect redirect_uri")
 
-        return Fediverse.Client(instance, {
+        return Fediverse._Client(instance, {
             'client_id': info['client_id'],
             'redirect_uri': info['redirect_uri'],
             'scope': 'read:accounts'
@@ -213,7 +217,7 @@ class Fediverse(Handler):
         if time.time() > when + self._timeout:
             return disposition.Error("Transaction timed out", redir)
 
-        client = Fediverse.Client(*client_tuple)
+        client = Fediverse._Client(*client_tuple)
 
         if 'error' in get:
             return disposition.Error("Error signing into Fediverse", redir)
@@ -258,8 +262,11 @@ def from_config(config, token_store: tokens.TokenStore):
     """ Generate a Fediverse handler from the given config dictionary.
 
     :param dict config: Configuration values; relevant keys:
+
         * ``FEDIVERSE_NAME``: the name of your website (required)
+
         * ``FEDIVERSE_HOMEPAGE``: your website's homepage (recommended)
+
         * ``FEDIVERSE_TIMEOUT``: the maximum time to wait for login to complete
 
     :param tokens.TokenStore token_store: The authentication token storage

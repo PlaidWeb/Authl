@@ -6,11 +6,12 @@ This handler allows third-party login using `Twitter <https://twitter.com/>`_.
 To use it you will need to register your website as an application via the
 `Twitter developer portal <https://developer.twitter.com/en>`_ and retrieve your
 ``client_key`` and ``client_secret`` from there. You will also need to register
-your website's Twitter callback handler.
+your website's Twitter callback handler(s). Remember to include all URLs that
+the callback might be accessed from, including test domains.
 
 It is **highly recommended** that you only store the ``client_key`` and
-``client_secret`` in an environment variable rather than by checked-in code as a
-basic security precaution.
+``client_secret`` in an environment variable rather than by checked-in code, as
+a basic security precaution against credential leaks.
 
 See :py:func:`from_config` for the simplest configuration mechanism.
 
@@ -175,9 +176,11 @@ def from_config(config, storage):
 
     Posible configuration values:
 
-    TWITTER_CLIENT_KEY -- The Twitter app's client_key
-    TWITTER_CLIENT_SECRET -- The Twitter app's client_secret
-    TWITTER_TIMEOUT -- How long to wait for the user to log in
+    * ``TWITTER_CLIENT_KEY``: The Twitter app's client_key
+
+    * ``TWITTER_CLIENT_SECRET``: The Twitter app's client_secret
+
+    * ``TWITTER_TIMEOUT``: How long to wait for the user to log in
 
     It is ***HIGHLY RECOMMENDED*** that the client key and secret be provided
     via environment variables or some other mechanism that doesn't involve

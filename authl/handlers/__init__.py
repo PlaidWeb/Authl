@@ -1,21 +1,26 @@
 
 """
+Base handler class
+==================
+
 The :py:class:`Handler` class defines the abstract interface for an
 authentication handler. Handlers are registered to an :py:class:`authl.Authl`
 instance which then selects the handler based on the provided identity.
 
 The basic flow for how a handler is selected is:
 
-1. The :py:class:`authl.Authl` instance checks to see if any handler knows how to
-    handle the identity URL directly
-2. The instance retrieves the URL, and hands the parse tree and response
-    headers off to each handler to see if it's able to handle the URL based
-    on that
+#. The :py:class:`authl.Authl` instance checks to see if any handler knows how
+   to handle the identity URL directly; if so, it returns the first match.
+
+#. The instance retrieves the URL, and hands the parse tree and response headers
+   off to each handler to see if it's able to handle the URL based on that; if
+   so, it returns the first match.
 
 In the case of a Webfinger address (e.g. ``@user@example.com``) it repeats this
-process for every profile URL provided by the Webfinger response.
+process for every profile URL provided by the Webfinger response until it finds
+a match.
 
- """
+"""
 
 import typing
 from abc import ABC, abstractmethod
@@ -34,8 +39,8 @@ class Handler(ABC):
 
         It is okay to check for an API endpoint (relative to the URL) in
         implementing this. However, if the content kept at the URL itself needs
-        to be parsed to make the determination, implement that in handles_page
-        instead.
+        to be parsed to make the determination, implement that in
+        :py:func:`handles_page` instead.
 
         Whatever value this returns will be passed back in to initiate_auth, so
         if that value matters, return a reasonable URL.
@@ -50,9 +55,9 @@ class Handler(ABC):
         :param str url: the canonicized identity URL
         :param dict headers: the raw headers from the page request, as a
             MultiDict (as provided by the `Requests`_ library)
-        :param bs4.BeautifulSoup content: -- the page content, as a
+        :param bs4.BeautifulSoup content: the page content, as a
             `BeautifulSoup4`_ parse tree
-        :param dict links: -- the results of parsing the Link: headers, as a
+        :param dict links: the results of parsing the Link: headers, as a
             dict of rel -> dict of 'url' and 'rel', as provided by the
             `Requests`_ library
 
@@ -77,7 +82,7 @@ class Handler(ABC):
         :param str callback_uri: Callback URL for verification
         :param str redir: Where to redirect the user to after verification
 
-        Returns the :py:mod:`authl.disposition` to be handled by the frontend.
+        :returns: the :py:mod:`authl.disposition` to be handled by the frontend.
 
         """
 
@@ -89,7 +94,7 @@ class Handler(ABC):
         :param dict get: the GET parameters for the verification
         :param dict data: the POST parameters for the verification
 
-        Returns a :py:mod:`authl.disposition` object to be handled by the
+        :returns: a :py:mod:`authl.disposition` object to be handled by the
         frontend. Any errors which get raised internally should be caught and
         returned as an appropriate :py:class:`authl.disposition.Error`.
 

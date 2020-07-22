@@ -1,4 +1,7 @@
-""" Webfinger functions """
+"""
+Webfinger utility
+=================
+"""
 
 import html
 import logging
@@ -11,7 +14,15 @@ LOGGER = logging.getLogger(__name__)
 
 
 def get_profiles(url: str) -> typing.Set[str]:
-    """ Get the potential profile page URLs from a webfinger query """
+    """
+
+    Get the potential identity URLs from a webfinger address.
+
+    :param str url: The webfinger URL
+
+    :returns: A :py:type:`set` of potential identity URLs
+
+    """
     webfinger = re.match(r'@([^@]+)@(.*)$', url)
     if not webfinger:
         return set()

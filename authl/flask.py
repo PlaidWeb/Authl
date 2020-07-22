@@ -72,13 +72,15 @@ def setup(app: flask.Flask, config: typing.Dict[str, typing.Any], **kwargs) -> A
     """ Simple setup function.
 
     :param flask.flask app: The Flask app to configure with Authl.
+
     :param dict config: Configuration values for the Authl instance; see
         :py:func:`authl.from_config`
+
     :param kwargs: Additional arguments to pass along to the
         :py:class:`AuthlFlask` constructor
 
-    Returns the configured :py:class:`authl.Authl` instance. Note that if you
-    want the :py:class:`AuthlFlask` instance you should instantiate that directly.
+    :returns: The configured :py:class:`authl.Authl` instance. Note that if you
+        want the :py:class:`AuthlFlask` instance you should instantiate that directly.
 
     """
     return AuthlFlask(app, config, **kwargs).authl
@@ -91,7 +93,7 @@ def load_template(filename: str) -> str:
 
     Raises `FileNotFoundError` on no such template
 
-    Returns the contents of the template.
+    :returns: the contents of the template.
     """
     return utils.read_file(os.path.join(os.path.dirname(__file__), 'flask_templates', filename))
 
@@ -106,7 +108,6 @@ def _nocache() -> typing.Callable:
         return wrapped_func
     return decorator
 
-
 def _redir_dest_to_path(destination: str):
     """ Convert a redirection destination to a path fragment """
     assert destination.startswith('/'), "Redirection destinations must begin with '/'"
@@ -117,7 +118,6 @@ def _redir_path_to_dest(path: str):
     """ Convert a path fragment to a redirection destination """
     assert not path.startswith('/'), "Path fragments cannot start with '/'"
     return '/' + path
-
 
 class AuthlFlask:
     """ Easy Authl wrapper for use with a Flask application.
@@ -244,7 +244,7 @@ class AuthlFlask:
                  notify_render_func: typing.Callable = None,
                  session_auth_name: str = 'me',
                  force_https: bool = False,
-                 stylesheet: typing.Union[str, typing.Callable] = None,
+                 stylesheet: typing.Union[str,typing.Callable] = None,
                  on_verified: typing.Callable = None,
                  make_permanent: bool = True,
                  state_storage: dict = None,
@@ -444,3 +444,5 @@ def client_id():
     baseurl = f'{parsed.scheme}://{parsed.hostname}'
     LOGGER.debug("using client_id %s", baseurl)
     return baseurl
+
+

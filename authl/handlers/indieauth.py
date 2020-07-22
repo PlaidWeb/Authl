@@ -81,11 +81,21 @@ def find_endpoint(id_url: str,
 
 
 def verify_id(request_id: str, response_id: str) -> typing.Optional[str]:
-    """ Given an ID from an identity request and its verification response,
-    ensure that the verification response is a valid URL for the request.
+    """
 
-    Returns a normalized version of the response ID, or None if the URL could
+    Given an ID from an identity request and its verification response, ensure
+    that the verification response is a valid URL for the request. A response is
+    considered valid if it is on the same domain and is more specific than the
+    requested ID; for example, ``https://example.com/`` →
+    ``https://example.com/~alice/`` is valid, but
+    ``https://example.com/~alice/`` → ``https://example.com/~bob/`` is not.
+
+    :param str request_id: The original requested identity
+    :param str response_id: The authorized response identity
+
+    :returns: a normalized version of the response ID, or None if the URL could
     not be verified.
+
     """
 
     # exact match is always okay
@@ -140,10 +150,9 @@ def verify_id(request_id: str, response_id: str) -> typing.Optional[str]:
 
 
 class IndieAuth(Handler):
-    """ Directly support login via IndieAuth, without requiring third-party
-    IndieLogin brokerage.
+    """ Supports login via IndieAuth.
 
-    SECURITY NOTE: When used with tokens.Serializer, this is subject to certain
+    **SECURITY NOTE:** When used with tokens.Serializer, this is subject to certain
     classes of replay attack; for example, if the user endpoint uses irrevocable
     signed tokens for the code grant (which is done in many endpoints, e.g.
     SelfAuth), an attacker can replay a transaction that it intercepts. As such
@@ -175,14 +184,15 @@ class IndieAuth(Handler):
 
     def __init__(self, client_id: typing.Union[str, typing.Callable[..., str]],
                  token_store: tokens.TokenStore, timeout: int = None):
-        """ Construct an IndieAuth handler
-
+        """
         :param client_id: The client_id to send to the remote IndieAuth
-        provider. Can be a string or a function that returns a string.
+            provider. Can be a string or a function that returns a string.
 
         :param token_store: Storage for the tokens
 
-        :param int timeout: Maximum time to wait for login to complete (default: 600)
+        :param int timeout: Maximum time to wait for login to complete
+            (default: 600)
+
         """
 
         self._client_id = client_id
@@ -190,13 +200,17 @@ class IndieAuth(Handler):
         self._timeout = timeout or 600
 
     def handles_url(self, url):
-        # If we already know what endpoint exists for this, go ahead and say it.
-        # Otherwise, we fall through to handles_page.
+        """
+        If this page is already known to have an IndieAuth endpoint, we reuse
+        that; otherwise this returns ``None`` so the Authl instance falls
+        through to :py:func:`handles_page`.
+        """
         if url in _ENDPOINT_CACHE:
             return url
         return None
 
     def handles_page(self, url, headers, content, links):
+        """ :returns: whether an ``authorization_endpoint`` was found on the page. """
         return find_endpoint(url, links, content) is not None
 
     def initiate_auth(self, id_url, callback_uri, redir):
@@ -270,8 +284,8 @@ def from_config(config, token_store):
 
     Possible configuration values:
 
-    INDIEAUTH_CLIENT_ID -- the client ID (URL) of your website (required)
-    INDIEAUTH_PENDING_TTL -- timemout for a pending transction
+    * ``INDIEAUTH_CLIENT_ID``: the client ID (URL) of your website (required)
+    * ``INDIEAUTH_PENDING_TTL``: timemout for a pending transction
     """
     return IndieAuth(config['INDIEAUTH_CLIENT_ID'],
                      token_store,

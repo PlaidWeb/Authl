@@ -28,7 +28,12 @@ class TokenStore(ABC):
     """
     @abstractmethod
     def put(self, value: typing.Any) -> str:
-        """ Generates a token with the specified stored values. """
+        """ Generates a token with the specified stored values.
+
+        :param value: The token value to store
+
+        :returns: The stored token's ID
+        """
 
     @abstractmethod
     def get(self, key: str, to_type=tuple) -> typing.Any:

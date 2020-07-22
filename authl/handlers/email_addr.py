@@ -196,7 +196,7 @@ def simple_sendmail(connector, sender_address, subject):
     :param str sender_address: The email address to use for the sender
     :param str subject: the subject line to attach to the message
 
-    Returns a function that, when called with an
+    :returns" a function that, when called with an
     :py:class:`email.message.EmailMessage`, sets the `From` and `Subject` lines
     and sends the message via the provided connector.
 
@@ -221,34 +221,34 @@ def from_config(config, token_store: tokens.TokenStore):
     :param dict config: The configuration settings for the handler. Relevant
         keys:
 
-        * ``EMAIL_SENDMAIL``: a function to call to send the email (defaults to
-            using :py:func:`simple_sendmail`)
+        * ``EMAIL_SENDMAIL``: a function to call to send the email; if omitted,
+          generates one using :py:func:`simple_sendmail` configured with:
 
-        * ``EMAIL_FROM``: the ``From:`` address to use when sending an email
+            * ``EMAIL_FROM``: the ``From:`` address to use when sending an email
 
-        * ``EMAIL_SUBJECT``: the ``Subject:`` to use for a login email
+            * ``EMAIL_SUBJECT``: the ``Subject:`` to use for a login email
+
+            * ``SMTP_HOST``: the outgoing SMTP host
+
+            * ``SMTP_PORT``: the outgoing SMTP port
+
+            * ``SMTP_USE_SSL``: whether to use SSL for the SMTP connection (defaults
+              to ``False``). It is *highly recommended* to set this to `True` if
+              your ``SMTP_HOST`` is anything other than ``localhost``.
+
+            * ``SMTP_USERNAME``: the username to use with the SMTP server
+
+            * ``SMTP_PASSWORD``: the password to use with the SMTP server
 
         * ``EMAIL_CHECK_MESSAGE``: The :py:class:`authl.disposition.Notify` client
-            data. Defaults to a simple string-based message.
+          data. Defaults to a simple string-based message.
 
         * ``EMAIL_TEMPLATE_FILE``: A path to a text file for the email message; if
-            not specified a default template will be used.
+          not specified a default template will be used.
 
         * ``EMAIL_EXPIRE_TIME``: How long a login email is valid for, in seconds
-            (defaults to the :py:class:`EmailAddress` default value)
+          (defaults to the :py:class:`EmailAddress` default value)
 
-        * ``SMTP_HOST``: the outgoing SMTP host (required if no
-            ``EMAIL_SENDMAIL``)
-
-        * ``SMTP_PORT``: the outgoing SMTP port (required if no ``EMAIL_SENDMAIL``)
-
-        * ``SMTP_USE_SSL``: whether to use SSL for the SMTP connection (defaults
-            to ``False``). It is *highly recommended* to set this to `True` if
-            your ``SMTP_HOST`` is anything other than `localhost`.
-
-        * ``SMTP_USERNAME``: the username to use with the SMTP server
-
-        * ``SMTP_PASSWORD``: the password to use with the SMTP server
 
     :param tokens.TokenStore token_store: the authentication token storage
         mechanism; see :py:mod:`authl.tokens` for more information.

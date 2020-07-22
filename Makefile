@@ -1,4 +1,4 @@
-all: setup version format mypy cov pylint flake8 doc requirements.txt
+all: setup version format mypy cov pylint flake8 doc
 
 .PHONY: setup
 setup:

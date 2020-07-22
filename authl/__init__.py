@@ -58,7 +58,7 @@ class Authl:
         :param str url: The identity address; typically a URL but can also be a
             WebFinger or email address.
 
-        Returns a tuple of ``(handler, hander_id, profile_url)``.
+        :returns: a tuple of ``(handler, hander_id, profile_url)``.
 
         """
 
@@ -106,10 +106,12 @@ def from_config(config: typing.Dict[str, typing.Any],
 
     :param dict config: a configuration dictionary. See the individual handlers'
         from_config functions to see possible configuration values.
+
     :param dict state_storage: a dict-like object that will store session
         state for methods that need it. Defaults to an instance-local
         ExpiringDict; this will not work well in load-balanced scenarios. This
         can be safely stored in a user session, if available.
+
     :param tokens.TokenStore token_storage: a TokenStore for storing session
         state for methods that need it. Defaults to an instance-local DictStore
         backed by an ExpiringDict; this will not work well in load-balanced
@@ -117,17 +119,18 @@ def from_config(config: typing.Dict[str, typing.Any],
 
     Handlers will be enabled based on truthy values of the following keys:
 
-        ``EMAIL_FROM`` / ``EMAIL_SENDMAIL`` -- enable :py:mod:`handlers.email_addr`
+    * ``EMAIL_FROM`` / ``EMAIL_SENDMAIL``: enable :py:mod:`handlers.email_addr`
 
-        ``FEDIVERSE_NAME`` -- enable :py:mod:`handlers.fediverse`
+    * ``FEDIVERSE_NAME``: enable :py:mod:`handlers.fediverse`
 
-        ``INDIEAUTH_CLIENT_ID`` -- enable :py:mod:`handlers.indieauth`
+    * ``INDIEAUTH_CLIENT_ID``: enable :py:mod:`handlers.indieauth`
 
-        ``TWITTER_CLIENT_KEY`` -- enable :py:mod:`handlers.twitter`
+    * ``TWITTER_CLIENT_KEY``: enable :py:mod:`handlers.twitter`
 
-        ``TEST_ENABLED`` -- enable :py:mod:`handlers.test_handler`
+    * ``TEST_ENABLED``: enable :py:mod:`handlers.test_handler`
 
-    For additional configuration settings, see each handler's respective ``from_config()``.
+    For additional configuration settings, see each handler's respective
+    ``from_config()``.
 
     """
 
