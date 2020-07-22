@@ -70,6 +70,3 @@ upload: clean build
 .PHONY: doc
 doc:
 	poetry run sphinx-build -b html docs/ docs/_build
-
-requirements.txt: pyproject.toml
-	poetry export --dev -f requirements.txt > requirements.txt
