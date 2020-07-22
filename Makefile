@@ -5,7 +5,7 @@ setup:
 	poetry install
 
 .PHONY: format
-format:
+format: version
 	poetry run isort -y
 	poetry run autopep8 -r --in-place .
 
@@ -47,7 +47,8 @@ cov: test
 	poetry run coverage report
 
 .PHONY: version
-version:
+version: authl/__version__.py
+authl/__version__.py: pyproject.toml
 	# Kind of a hacky way to get the version updated, until the poetry folks
 	# settle on a better approach
 	printf '""" version """\n__version__ = "%s"\n' \
