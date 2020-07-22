@@ -1,11 +1,12 @@
 [tool.poetry]
 name = "Authl"
 version = "0.4.2"
-description = "Genericized multi-protocol authentication wrapper"
+description = "Framework-agnostic authentication wrapper"
 authors = ["fluffy <fluffy@beesbuzz.biz>"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/PlaidWeb/Authl"
+documentation = "https://authl.readthedocs.io/"
 
 [tool.poetry.dependencies]
 python = "^3.6"

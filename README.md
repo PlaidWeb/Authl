@@ -1,6 +1,8 @@
 # Authl
 A Python library for managing federated identity
 
+[![Documentation Status](https://readthedocs.org/projects/authl/badge/?version=latest)](https://authl.readthedocs.io/en/latest/?badge=latest)
+
 ## About
 
 Authl is intended to make it easy to add federated identity to Python-based web
