@@ -24,8 +24,11 @@ Or, if you would like to work from the latest source::
 Authl uses `Poetry <https://python-poetry.org/>`_ and ``make`` for its build and
 dependency management.
 
+Further reading
+---------------
 
 .. toctree::
     authl
     handlers
+    flow
     flask
