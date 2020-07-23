@@ -150,7 +150,7 @@ def test_default_hooks():
     with app.test_client() as client:
         soup = BeautifulSoup(client.get('/login?me=unknown://').data, 'html.parser')
         error = soup.find('div', {'class': 'error'})
-        assert error.text.strip() == 'Unknown authorization method'
+        assert error.text.strip() == 'Unknown authentication method'
 
     with app.test_client() as client:
         assert client.get('/login?me=test:success')
@@ -204,3 +204,80 @@ def test_client_id():
     authl.flask.setup(app, {})
     with app.test_request_context('https://foo.bar/baz/'):
         assert authl.flask.client_id() == 'https://foo.bar'
+
+
+def test_app_render_hook():
+    app = flask.Flask(__name__)
+    app.secret_key = 'qwer'
+    aflask = authl.flask.AuthlFlask(app, {'TEST_ENABLED': True},
+                                    login_render_func=lambda **_: ('please login', 401))
+
+    @app.route('/')
+    def index():  # pylint:disable=unused-variable
+        if 'me' not in flask.session:
+            return aflask.render_login_form('/')
+        return f'hello {flask.session["me"]}'
+
+    with app.test_client() as client:
+        response = client.get('/')
+        assert response.status_code == 401
+        assert response.data == b'please login'
+        response = client.get('/login')
+        assert response.status_code == 401
+        assert response.data == b'please login'
+        response = client.get('/login/?me=test:poiu')
+        assert flask.session['me'] == 'test:poiu'
+        assert response.headers['Location'] == 'http://localhost/'
+        response = client.get('/')
+        assert response.data == b'hello test:poiu'
+
+
+def test_generic_login():
+    app = flask.Flask(__name__)
+    app.secret_key = 'qwer'
+    aflask = authl.flask.AuthlFlask(app, {})
+
+    @app.route('/')
+    def index():  # pylint:disable=unused-variable
+        if 'me' not in flask.session:
+            return aflask.render_login_form('/')
+        return f'hello {flask.session["me"]}'
+
+    class GenericHandler(TestHandler):
+        @property
+        def cb_id(self):
+            return 'foo'
+
+        def handles_url(self, url):
+            return url if 'login.example' in url else None
+
+        @property
+        def generic_url(self):
+            return 'https://login.example/larry'
+
+        @property
+        def service_name(self):
+            return "generic"
+
+        @property
+        def url_schemes(self):
+            return [('https://login.example/%', 'example')]
+
+        @property
+        def logo_html(self):
+            return [('foo', 'generic_logo')]
+
+        def initiate_auth(self, id_url, callback_uri, redir):
+            return disposition.Verified(id_url + '/auth', redir)
+
+    aflask.authl.add_handler(GenericHandler())
+
+    with app.test_client() as client:
+        response = client.get('/')
+        soup = BeautifulSoup(response.data, 'html.parser')
+        link = soup.find('a', title='generic_logo')
+        response = client.get(link['href'])
+        assert flask.session['me'] == 'https://login.example/larry/auth'
+        assert response.headers['Location'] == 'http://localhost/'
+        response = client.get('/')
+        assert response.data == b'hello https://login.example/larry/auth'

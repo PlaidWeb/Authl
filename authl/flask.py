@@ -108,6 +108,7 @@ def _nocache() -> typing.Callable:
         return wrapped_func
     return decorator
 
+
 def _redir_dest_to_path(destination: str):
     """ Convert a redirection destination to a path fragment """
     assert destination.startswith('/'), "Redirection destinations must begin with '/'"
@@ -118,6 +119,7 @@ def _redir_path_to_dest(path: str):
     """ Convert a path fragment to a redirection destination """
     assert not path.startswith('/'), "Path fragments cannot start with '/'"
     return '/' + path
+
 
 class AuthlFlask:
     """ Easy Authl wrapper for use with a Flask application.
@@ -244,7 +246,7 @@ class AuthlFlask:
                  notify_render_func: typing.Callable = None,
                  session_auth_name: str = 'me',
                  force_https: bool = False,
-                 stylesheet: typing.Union[str,typing.Callable] = None,
+                 stylesheet: typing.Union[str, typing.Callable] = None,
                  on_verified: typing.Callable = None,
                  make_permanent: bool = True,
                  state_storage: dict = None,
@@ -354,12 +356,13 @@ class AuthlFlask:
 
     def render_login_form(self, destination: str, error: typing.Optional[str] = None):
         """
-        Renders the login form from an alternate route, for example if a page
-        requires login to be seen.
+        Renders the login form. This might be called by the Flask app if, for
+        example, a page requires login to be seen.
 
-        :param str destination: The redirection destination
-        :param str error: Any error to display on the login form
+        :param str destination: The redirection destination, as a full path
+            (e.g. ``'/path/to/view'``)
 
+        :param str error: Any error message to display on the login form
         """
         login_url = flask.url_for(self.login_name,
                                   redir=_redir_dest_to_path(destination or '/'),
@@ -370,7 +373,7 @@ class AuthlFlask:
         id_url = self._session.get(self._prefill_key, '')
         LOGGER.debug('id_url: %s', id_url)
 
-        render_args = {
+        render_args: typing.Dict[str, typing.Any] = {
             'login_url': login_url,
             'test_url': test_url,
             'auth': self.authl,
@@ -402,6 +405,7 @@ class AuthlFlask:
 
         me_url = request.form.get('me', request.args.get('me'))
         if me_url:
+            # Process the login request
             self._session[self._prefill_key] = me_url
             handler, hid, id_url = self.authl.get_handler_for_url(me_url)
             if handler:
@@ -415,7 +419,7 @@ class AuthlFlask:
                     dest))
 
             # No handler found, so provide error message to login_form
-            error = 'Unknown authorization method'
+            error = 'Unknown authentication method'
 
         return self.render_login_form(destination=dest, error=error)
 
@@ -444,5 +448,3 @@ def client_id():
     baseurl = f'{parsed.scheme}://{parsed.hostname}'
     LOGGER.debug("using client_id %s", baseurl)
     return baseurl
-
-

@@ -3,7 +3,7 @@
 
 {%- macro login_link(handler, content, title) -%}
     {%- if handler.generic_url -%}
-        <a href="?me={{handler.generic_url}}" title="{{title}}">
+        <a href="{{login_url}}?me={{handler.generic_url}}" title="{{title}}">
     {%- else -%}
         {%- for url,example in handler.url_schemes[:1] -%}
             <a class="$handler" href="?fill={{url.replace('%',example)|urlencode}}"
