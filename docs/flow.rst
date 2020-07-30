@@ -107,3 +107,53 @@ other frontend implementation.
 See the `default Flask login template
 <https://github.com/PlaidWeb/Authl/blob/main/authl/flask_templates/login.html>`_
 for an example of how this might look.
+
+Asynchronous operation
+----------------------
+
+Note that many of the underlying libraries that Authl uses are blocking, so as a
+result, Authl as a whole will be blocking for the foreseeable future. However,
+if you want to use Authl asynchronously, you can wrap the functions using
+:py:func:`asyncio.loop.run_in_executor` or using a higher-level library such as
+`a_sync <https://github.com/notion/a_sync>`_ to manage this for you.
+
+The functions you'll specifically want to wrap are:
+
+* :py:func:`authl.Authl.get_handler_for_url`
+* :py:func:`authl.handlers.Handler.initiate_auth` (for the returned handler)
+* :py:func:`authl.handlers.Handler.check_callback` (for the returned handler)
+
+For example, an async version of the above flow might look like:
+
+.. code-block:: python
+
+    import asyncio
+
+    async def handle_login_form(request):
+        loop = asyncio.get_running_loop()
+
+        redir_url = get_redir_url(request)
+        me_url = request.args.get('me', request.post.get('me'))
+        if me_url:
+            handler, hid, id_url = await loop.run_in_executor(
+                None,
+                authl_instance.get_handler_for_url, me_url)
+            if handler:
+                bc_url = get_callback_url(hid)
+                return handle_disposition(await loop.run_in_executor(
+                    None, handler.initiate_auth,
+                    id_url, cb_url, redir_url))
+
+        return render_login_form(redir=redir_url)
+
+    async def handle_callback(request):
+        loop = asyncio.get_running_loop()
+
+        hid = get_hid_from_url(request.url)
+        handler = authl_instance.get_handler_by_id(hid)
+        if not handler:
+            return render_login_page(error="Invalid callback")
+
+        return handle_disposition(await loop.run_in_executor(
+            None, handler.check_callback,
+            request.url, request.args, request.post))
