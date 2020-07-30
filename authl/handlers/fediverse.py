@@ -10,7 +10,6 @@ See :py:func:`from_config` for the simplest configuration mechanism.
 
 """
 
-import functools
 import logging
 import re
 import time
@@ -85,7 +84,6 @@ class Fediverse(Handler):
         self._timeout = timeout or 600
 
     @staticmethod
-    @functools.lru_cache(128)
     def _get_instance(url) -> typing.Optional[str]:
         parsed = urllib.parse.urlparse(url)
         if not parsed.netloc:
@@ -135,12 +133,12 @@ class Fediverse(Handler):
 
         return instance
 
-    @functools.lru_cache(128)
     def _get_client(self, id_url: str, callback_uri: str) -> typing.Optional['Fediverse._Client']:
         """ Get the client data """
         instance = self._get_instance(id_url)
         if not instance:
             return None
+
         request = requests.post(instance + '/api/v1/apps',
                                 data={
                                     'client_name': self._name,
