@@ -95,8 +95,8 @@ class Handler(ABC):
         :param dict data: the POST parameters for the verification
 
         :returns: a :py:mod:`authl.disposition` object to be handled by the
-        frontend. Any errors which get raised internally should be caught and
-        returned as an appropriate :py:class:`authl.disposition.Error`.
+            frontend. Any errors which get raised internally should be caught and
+            returned as an appropriate :py:class:`authl.disposition.Error`.
 
         """
 

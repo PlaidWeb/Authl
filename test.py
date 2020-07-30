@@ -9,7 +9,6 @@ Run it locally with:
 
 import logging
 import os
-import uuid
 
 import flask
 
@@ -19,11 +18,12 @@ logging.basicConfig(level=logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
 
 app = flask.Flask('authl-test')
-app.secret_key = str(uuid.uuid4())
+app.secret_key = "testing isn't secret"
 
 
 def on_login(verified):
     LOGGER.info("Got login: %s", verified)
+    flask.session['profile'] = verified.profile
     if verified.identity == 'test:override':
         return "This user gets a special override"
 
@@ -48,6 +48,7 @@ authl.flask.setup(
 
         'TWITTER_CLIENT_KEY': os.environ.get('TWITTER_CLIENT_KEY'),
         'TWITTER_CLIENT_SECRET': os.environ.get('TWITTER_CLIENT_SECRET'),
+        'TWITTER_REQUEST_EMAIL': True,
     },
     tester_path='/check_url',
     on_verified=on_login
@@ -76,9 +77,21 @@ def index(page=''):
     LOGGER.info("Request path: %s", flask.request.path)
 
     if 'me' in flask.session:
-        return 'Hello {me}. Want to <a href="{logout}">log out</a>?'.format(
-            me=flask.session['me'], logout=flask.url_for(
-                'logout', redir=flask.request.path[1:])
+        return flask.render_template_string(
+            r"""
+<p>Hello {{profile.name or me}}.
+Want to <a href="{{url_for('logout', redir=request.path[1:])}}">log out</a>?</p>
+
+{% if profile %}
+<p>Profile data:</p>
+<ul>
+{% for k,v in profile.items() %}
+<li>{{k}}: {{v}}</li>
+{% endfor %}
+</ul>
+{% endif %}""",
+            me=flask.session['me'],
+            profile=flask.session.get('profile')
         )
 
     return 'You are not logged in. Want to <a href="{login}">log in</a>?'.format(

@@ -301,3 +301,73 @@ def test_from_config():
     assert handler._client_id == 'poiu'
     assert handler._timeout == 12345
     assert handler._token_store == "plop"
+
+
+def test_get_profile():
+    profile_html = r"""
+    <link rel="authorization_endpoint" href="https://endpoint.example/">
+    <div class="h-card">
+    <a class="u-url p-name" href="https://example.foo/~user/">larry</a>
+    <p class="e-note">I'm <em>Larry</em>. And you're not. <span class="p-pronouns">he/him</span></p>
+    <a class="u-email" href="mailto:larry%40example.foo">larry at example dot foo</a>
+    <img class="u-photo" src="plop.jpg">
+    </div>"""
+
+    profile_blob = {
+        'avatar': "http://profile.example/plop.jpg",
+        'bio': "I'm Larry. And you're not. he/him",
+        'email': "larry@example.foo",
+        'name': "larry",
+        'pronouns': "he/him",
+        'homepage': "https://example.foo/~user/",
+    }
+
+    # test basic parsing
+    with requests_mock.Mocker() as mock:
+        mock.get('http://profile.example', text=profile_html)
+        profile = indieauth.get_profile('http://profile.example')
+        assert mock.call_count == 1
+
+        assert profile == profile_blob
+
+    # test cache prefill
+    with requests_mock.Mocker() as mock:
+        mock.get('https://cached.example', text=profile_html)
+
+        handler = indieauth.from_config({'INDIEAUTH_CLIENT_ID': 'poiu',
+                                         'INDIEAUTH_PENDING_TTL': 12345}, "plop")
+
+        assert not handler.handles_url('https://cached.example')
+
+        injected = requests.get('https://cached.example')
+        assert handler.handles_page('https://cached.example', injected.headers,
+                                    BeautifulSoup(injected.text, 'html.parser'),
+                                    injected.links)
+        assert mock.call_count == 1
+
+        indieauth.get_profile('https://cached.example')
+        assert mock.call_count == 1
+        assert profile == profile_blob
+
+
+def test_profile_partial():
+    profile_html = r"""
+    <div class="h-card">
+    <a class="u-url" href="https://example.foo/~user/">larry</a>
+    <p class="e-note">I'm <em>Larry</em>. And you're not.</p>
+    <a class="u-email" href="mailto:larry%40example.foo">larry at example dot foo</a>
+    </div><div class="h-card">
+    <a class="u-email" href="mailto:notme@example.com"></a>
+    </div>
+    """
+
+    profile_blob = {
+        'homepage': 'https://example.foo/~user/',
+        'bio': "I'm Larry. And you're not.",
+        'email': 'larry@example.foo',
+    }
+
+    with requests_mock.Mocker() as mock:
+        mock.get('https://partial.example', text=profile_html)
+        profile = indieauth.get_profile('https://partial.example')
+        assert profile == profile_blob

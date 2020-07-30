@@ -67,6 +67,7 @@ class Twitter(Handler):
                  client_secret: str,
                  timeout: int = None,
                  storage: dict = None):
+        # pylint:disable=too-many-arguments
         self._client_key = client_key
         self._client_secret = client_secret
         self._pending = expiringdict.ExpiringDict(
@@ -150,25 +151,50 @@ class Twitter(Handler):
             resource_owner_key=request.get('oauth_token'),
             resource_owner_secret=request.get('oauth_token_secret'))
 
+        verify_url = 'https://api.twitter.com/1.1/account/verify_credentials.json?skip_status=1'
         user_info = requests.get(
-            'https://api.twitter.com/1.1/account/verify_credentials.json', auth=auth).json()
+            verify_url, auth=auth).json()
         if 'errors' in user_info:
             return disposition.Error(
                 "Could not retrieve credentials: %r" % user_info.get('errors'),
                 redir)
 
-        user_id = user_info.get('id_str')
-        username = user_info.get('screen_name')
-        # We include the user ID after the hash code to prevent folks from
-        # logging in by taking over a username that someone changed/abandoned.
         return disposition.Verified(
-            f'https://twitter.com/{username}#{user_id}',
+            # We include the user ID after the hash code to prevent folks from
+            # logging in by taking over a username that someone changed/abandoned.
+            f'https://twitter.com/{user_info["screen_name"]}#{user_info["id_str"]}',
             redir,
-            user_info)
+            self._build_profile(user_info))
 
     @property
     def generic_url(self):
         return 'https://twitter.com/'
+
+    @staticmethod
+    def _build_profile(user_info: dict) -> dict:
+        # Get the basic profile
+        entities = user_info.get('entities', {})
+
+        def expand_entities(name):
+            text = user_info[name]
+            for url in entities.get(name, {}).get('urls', []):
+                tco = url.get('url')
+                real = url.get('expanded_url')
+                if tco and real:
+                    text = text.replace(tco, real)
+            return text
+
+        mapping = (('avatar', 'profile_image_url_https'),
+                   ('bio', 'description'),
+                   ('email', 'email'),
+                   ('homepage', 'url'),
+                   ('location', 'location'),
+                   ('name', 'name'),
+                   )
+        profile = {p_key: expand_entities(t_key)
+                   for p_key, t_key in mapping if t_key in user_info}
+
+        return {k: v for k, v in profile.items() if v}
 
 
 def from_config(config, storage):

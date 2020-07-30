@@ -74,3 +74,4 @@ def test_basic_flow():
 
         mock.post('https://fedi.example/oauth/token', text=mock_token)
         res = handler.check_callback(args['redirect_uri'], args, {})
+

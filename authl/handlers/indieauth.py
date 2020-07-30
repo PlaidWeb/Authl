@@ -23,6 +23,7 @@ import typing
 import urllib.parse
 
 import expiringdict
+import mf2py
 import requests
 from bs4 import BeautifulSoup
 
@@ -34,6 +35,9 @@ LOGGER = logging.getLogger(__name__)
 # We do this instead of functools.lru_cache so that IndieAuth.handles_page
 # and find_endpoint can both benefit from the same endpoint cache
 _ENDPOINT_CACHE = expiringdict.ExpiringDict(max_len=128, max_age_seconds=1800)
+
+# And similar for retrieving user profiles
+_PROFILE_CACHE = expiringdict.ExpiringDict(max_len=128, max_age_seconds=1800)
 
 
 def find_endpoint(id_url: str,
@@ -69,15 +73,75 @@ def find_endpoint(id_url: str,
         # We didn't find a new endpoint, and we didn't have a cached one
         LOGGER.debug("Retrieving %s", id_url)
         request = utils.request_url(id_url)
-        found = _derive_endpoint(request.links,
-                                 BeautifulSoup(request.text, 'html.parser'))
+        links = request.links
+        content = BeautifulSoup(request.text, 'html.parser')
+        found = _derive_endpoint(links, content)
 
     if found and id_url:
         # we found a new value so update the cache
         LOGGER.debug("Caching %s -> %s", id_url, found)
         _ENDPOINT_CACHE[id_url] = found
 
+        # Let's also prefill the profile, while we're here
+        if content:
+            get_profile(id_url, content)
+
     return found or cached
+
+
+def _parse_hcard(id_url, card):
+    properties = card.get('properties', {})
+
+    def get_str(prop) -> typing.Optional[str]:
+        for item in properties.get(prop, []):
+            if isinstance(item, str):
+                return item
+            if isinstance(item, dict) and 'value' in item:
+                # got an e-property; use the plaintext version
+                return item['value']
+        return None
+
+    def get_url(prop, scheme=None) -> typing.Tuple[typing.Optional[str],
+                                                   urllib.parse.ParseResult]:
+        for item in properties.get(prop, []):
+            if isinstance(item, str):
+                url = urllib.parse.urljoin(id_url, item)
+                parsed = urllib.parse.urlparse(url)
+                if not scheme or parsed.scheme == scheme:
+                    return url, parsed
+        return None, urllib.parse.urlparse('')
+
+    return {
+        'avatar': get_url('photo')[0],
+        'bio': get_str('note'),
+        'email': urllib.parse.unquote(get_url('email', 'mailto')[1].path),
+        'homepage': get_url('url')[0],
+        'name': get_str('name'),
+        'pronouns': get_str('pronouns'),
+    }
+
+
+def get_profile(id_url: str, content: BeautifulSoup = None) -> dict:
+    """ Given an identity URL, try to parse out an Authl profile """
+    try:
+        if content:
+            h_cards = mf2py.Parser(doc=content).to_dict(filter_by_type="h-card")
+        elif id_url in _PROFILE_CACHE:
+            return _PROFILE_CACHE[id_url]
+        else:
+            h_cards = mf2py.Parser(url=id_url).to_dict(filter_by_type="h-card")
+    except Exception as err:  # pylint:disable=broad-except
+        LOGGER.debug("Couldn't retrieve profile at %s: %s", id_url, err)
+        h_cards = []
+
+    profile = {}
+    for card in h_cards:
+        items = _parse_hcard(id_url, card)
+
+        profile.update({k: v for k, v in items.items() if v and k not in profile})
+
+    _PROFILE_CACHE[id_url] = profile
+    return profile
 
 
 def verify_id(request_id: str, response_id: str) -> typing.Optional[str]:
@@ -94,7 +158,7 @@ def verify_id(request_id: str, response_id: str) -> typing.Optional[str]:
     :param str response_id: The authorized response identity
 
     :returns: a normalized version of the response ID, or None if the URL could
-    not be verified.
+        not be verified.
 
     """
 
@@ -274,7 +338,7 @@ class IndieAuth(Handler):
                     "Identity URL '%s' does not match request '%s'" % (response['me'], id_url),
                     redir)
 
-            return disposition.Verified(response_id, redir, response)
+            return disposition.Verified(response_id, redir, get_profile(response_id))
         except KeyError as key:
             return disposition.Error("Missing " + str(key), redir)
 
