@@ -153,7 +153,7 @@ class EmailAddress(Handler):
         if time.time() > when + self._lifetime:
             return disposition.Error("Login timed out", redir)
 
-        return disposition.Verified('mailto:' + email_addr, redir)
+        return disposition.Verified('mailto:' + email_addr, redir, {'email': email_addr})
 
 
 def smtplib_connector(hostname, port, username=None, password=None, use_ssl=False):

@@ -40,7 +40,14 @@ class Verified(Disposition):
 
     :param str identity: The verified identity URL
     :param str redir: Where to redirect the user to
-    :param dict profile: The user's profile information
+    :param dict profile: The user's profile information. Standardized keys:
+
+        * ``avatar``: A URL to the user's avatar image
+        * ``bio``: Brief biographical information
+        * ``homepage``: The user's personal homepage
+        * ``location``: The user's stated location
+        * ``name``: The user's display/familiar name
+        * ``pronouns``: The user's declared pronouns
 
     """
 

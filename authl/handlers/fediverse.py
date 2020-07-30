@@ -182,7 +182,22 @@ class Fediverse(Handler):
                            client.instance, response['url'], id_url)
             return disposition.Error("Domains do not match", redir)
 
-        return disposition.Verified(id_url, redir, response)
+        profile = {
+            'name': response.get('display_name'),
+            'bio': response.get('source', {}).get('note'),
+            'avatar': response.get('avatar_static', response.get('avatar'))
+        }
+
+        # Attempt to parse useful stuff out of the fields source
+        for field in response.get('source', {}).get('fields'):
+            name = field.get('name', '')
+            value = field.get('value', '')
+            if 'homepage' not in profile and urllib.parse.urlparse(value).scheme:
+                profile['homepage'] = value
+            elif 'pronoun' in name.lower():
+                profile['pronouns'] = value
+
+        return disposition.Verified(id_url, redir, {k: v for k, v in profile.items() if v})
 
     def initiate_auth(self, id_url, callback_uri, redir):
         try:
