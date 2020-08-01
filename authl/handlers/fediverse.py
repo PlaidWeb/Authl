@@ -16,6 +16,7 @@ import time
 import typing
 import urllib.parse
 
+import mastodon
 import requests
 
 from .. import disposition, tokens, utils
@@ -26,22 +27,6 @@ LOGGER = logging.getLogger(__name__)
 
 class Fediverse(Handler):
     """ Handler for Fediverse services (Mastodon, Pleroma) """
-
-    class _Client:
-        """ Fediverse OAuth client info """
-        # pylint:disable=too-few-public-methods
-
-        def __init__(self, instance, params, secrets):
-            self.instance = instance
-            self.auth_endpoint = instance + '/oauth/authorize'
-            self.token_endpoint = instance + '/oauth/token'
-            self.revoke_endpoint = instance + '/oauth/revoke'
-            self.params = params
-            self.secrets = secrets
-
-        def to_tuple(self):
-            """ Convert this to a JSON-serializable tuple """
-            return self.instance, self.params, self.secrets
 
     @property
     def service_name(self):
@@ -133,140 +118,130 @@ class Fediverse(Handler):
 
         return instance
 
-    def _get_client(self, id_url: str, callback_uri: str) -> typing.Optional['Fediverse._Client']:
-        """ Get the client data """
-        instance = self._get_instance(id_url)
-        if not instance:
-            return None
-
-        request = requests.post(instance + '/api/v1/apps',
-                                data={
-                                    'client_name': self._name,
-                                    'redirect_uris': callback_uri,
-                                    'scopes': 'read:accounts',
-                                    'website': self._homepage
-                                })
-        if request.status_code != 200:
-            raise RuntimeError("Client creation got status: %s" % request.status_code)
-        info = request.json()
-
-        if info['redirect_uri'] != callback_uri:
-            raise ValueError("Got incorrect redirect_uri")
-
-        return Fediverse._Client(instance, {
-            'client_id': info['client_id'],
-            'redirect_uri': info['redirect_uri'],
-            'scope': 'read:accounts'
-        }, {
-            'client_secret': info['client_secret']
-        })
-
     @staticmethod
-    def _get_identity(client, auth_headers, redir) -> disposition.Disposition:
-        request = requests.get(
-            client.instance + '/api/v1/accounts/verify_credentials',
-            headers=auth_headers)
-        if request.status_code != 200:
-            LOGGER.warning('verify_credentials: %d %s', request.status_code, request.text)
-            return disposition.Error("Unable to get account credentials", redir)
+    def _get_identity(instance, response, redir) -> disposition.Disposition:
+        try:
+            # canonicize the URL and also make sure the domain matches
+            id_url = urllib.parse.urljoin(instance, response['url'])
+            if urllib.parse.urlparse(id_url).netloc != urllib.parse.urlparse(instance).netloc:
+                LOGGER.warning("Instance %s returned response of %s -> %s",
+                               instance, response['url'], id_url)
+                return disposition.Error("Domains do not match", redir)
 
-        response = request.json()
-        if 'url' not in response:
-            LOGGER.warning("Response did not contain 'url': %s", response)
-            return disposition.Error("No user URL provided", redir)
+            profile = {
+                'name': response.get('display_name'),
+                'bio': response.get('source', {}).get('note'),
+                'avatar': response.get('avatar_static', response.get('avatar'))
+            }
 
-        # canonicize the URL and also make sure the domain matches
-        id_url = urllib.parse.urljoin(client.instance, response['url'])
-        if urllib.parse.urlparse(id_url).netloc != urllib.parse.urlparse(client.instance).netloc:
-            LOGGER.warning("Instance %s returned response of %s -> %s",
-                           client.instance, response['url'], id_url)
-            return disposition.Error("Domains do not match", redir)
+            # Attempt to parse useful stuff out of the fields source
+            for field in response.get('source', {}).get('fields', []):
+                name = field.get('name', '')
+                value = field.get('value', '')
+                if 'homepage' not in profile and urllib.parse.urlparse(value).scheme:
+                    profile['homepage'] = value
+                elif 'pronoun' in name.lower():
+                    profile['pronouns'] = value
 
-        profile = {
-            'name': response.get('display_name'),
-            'bio': response.get('source', {}).get('note'),
-            'avatar': response.get('avatar_static', response.get('avatar'))
-        }
-
-        # Attempt to parse useful stuff out of the fields source
-        for field in response.get('source', {}).get('fields'):
-            name = field.get('name', '')
-            value = field.get('value', '')
-            if 'homepage' not in profile and urllib.parse.urlparse(value).scheme:
-                profile['homepage'] = value
-            elif 'pronoun' in name.lower():
-                profile['pronouns'] = value
-
-        return disposition.Verified(id_url, redir, {k: v for k, v in profile.items() if v})
+            return disposition.Verified(id_url, redir, {k: v for k, v in profile.items() if v})
+        except KeyError:
+            return disposition.Error('Missing user profile', redir)
+        except (TypeError, AttributeError):
+            return disposition.Error('Malformed user profile', redir)
 
     def initiate_auth(self, id_url, callback_uri, redir):
         try:
-            client = self._get_client(id_url, callback_uri)
+            instance = self._get_instance(id_url)
+            client_id, client_secret = mastodon.Mastodon.create_app(
+                api_base_url=instance,
+                client_name=self._name,
+                website=self._homepage,
+                scopes=['read:accounts'],
+                redirect_uris=callback_uri,
+            )
         except Exception as err:  # pylint:disable=broad-except
-            return disposition.Error("Failed to register OAuth client: " + str(err), redir)
+            return disposition.Error(f"Failed to register client: {err}", redir)
 
-        if not client:
-            return disposition.Error("Failed to register OAuth client", redir)
+        client = mastodon.Mastodon(
+            api_base_url=instance,
+            client_id=client_id,
+            client_secret=client_secret
+        )
 
-        state = self._token_store.put((client.to_tuple(), time.time(), redir))
+        state = self._token_store.put((
+            instance,
+            client_id,
+            client_secret,
+            time.time(),
+            redir
+        ))
 
-        url = client.auth_endpoint + '?' + urllib.parse.urlencode(
-            {**client.params,
-             'state': state,
-             'response_type': 'code'})
+        # mastodon.py doesn't support a state parameter for some reason, so we
+        # have to add it ourselves
+        url = '{}&{}'.format(
+            client.auth_request_url(
+                redirect_uris=callback_uri,
+                scopes=['read:accounts'],
+            ),
+            urllib.parse.urlencode({'state': state}))
 
         return disposition.Redirect(url)
 
     def check_callback(self, url, get, data):
-        state = get.get('state')
-        if not state:
-            return disposition.Error("No transaction ID provided", None)
-
         try:
-            client_tuple, when, redir = self._token_store.pop(state)
+            (
+                instance,
+                client_id,
+                client_secret,
+                when,
+                redir
+            ) = self._token_store.pop(get['state'])
         except (KeyError, ValueError):
             return disposition.Error("Invalid transaction", '')
 
-        if time.time() > when + self._timeout:
-            return disposition.Error("Transaction timed out", redir)
-
-        client = Fediverse._Client(*client_tuple)
-
         if 'error' in get:
-            return disposition.Error("Error signing into Fediverse", redir)
+            return disposition.Error("Error signing into instance: "
+                                     + get.get('error_description', get['error']),
+                                     redir)
+
+        if time.time() > when + self._timeout:
+            return disposition.Error("Login timed out", redir)
+
+        client = mastodon.Mastodon(
+            api_base_url=instance,
+            client_id=client_id,
+            client_secret=client_secret
+        )
 
         try:
-            request = requests.post(client.token_endpoint,
-                                    {**client.params,
-                                     **client.secrets,
-                                     'grant_type': 'authorization_code',
-                                     'code': get['code']})
-            if request.status_code != 200:
-                LOGGER.warning('oauth/token: %d %s', request.status_code, request.text)
-                return disposition.Error("Could not retrieve access token", redir)
+            access_token = client.log_in(
+                code=get['code'],
+                redirect_uri=url,
+                scopes=['read:accounts'],
+            )
+        except KeyError as err:
+            return disposition.Error(f"Missing {err}", redir)
+        except Exception as err:  # pylint:disable=broad-except
+            return disposition.Error(f"Error signing into instance: {err}", redir)
 
-            response = request.json()
-            auth_headers = {'Authorization': 'Bearer ' + response['access_token']}
-            result = self._get_identity(
-                client,
-                auth_headers,
-                redir)
-        except KeyError as key:
-            result = disposition.Error("Missing " + str(key), redir)
-            response = None
+        result = self._get_identity(instance, client.me(), redir)
 
-        # try to clean up after ourselves
-        if response and 'access_token' in response:
-            request = requests.post(client.revoke_endpoint, data={
-                **client.params,
-                **client.secrets,
-                'token': response['access_token']
-            }, headers=auth_headers)
-            if request.status_code != 200:
-                LOGGER.warning("Unable to revoke OAuth token: %d %s",
-                               request.status_code,
-                               request.text)
-            LOGGER.info("Revocation response: %s", request.text)
+        # clean up after ourselves
+        # mastodon.py does not currently support the revoke endpoint; see
+        # https://github.com/halcy/Mastodon.py/issues/217
+        try:
+            request = requests.post(instance + '/oauth/revoke', data={
+                'client_id': client_id,
+                'client_secret': client_secret,
+                'token': access_token
+            }, headers={
+                'Authorization': f'Bearer {access_token}'
+            })
+            LOGGER.info("OAuth token revocation: %d %s",
+                        request.status_code,
+                        request.text)
+        except Exception as err:  # pylint:disable=broad-except
+            LOGGER.warning("Token revocation failed: %s", err)
 
         return result
 

@@ -94,9 +94,6 @@ class DictStore(TokenStore):
         except KeyError:
             pass
 
-    def pop(self, key, to_type=tuple):
-        return to_type(self._store.pop(key))
-
 
 class Serializer(TokenStore):
     """
