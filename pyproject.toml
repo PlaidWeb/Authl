@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "Authl"
-version = "0.4.2"
+version = "0.4.3"
 description = "Framework-agnostic authentication wrapper"
 authors = ["fluffy <fluffy@beesbuzz.biz>"]
 license = "MIT"
