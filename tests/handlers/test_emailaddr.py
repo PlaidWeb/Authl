@@ -184,3 +184,54 @@ def test_from_config():
 
         assert len(store) == 1
         mock_smtp.assert_called_with('smtp.example.com', 587)
+
+
+def test_please_wait():
+    token_store = tokens.DictStore()
+    pending = {}
+    mock_send = unittest.mock.MagicMock()
+    handler = email_addr.EmailAddress(mock_send, "this is data", token_store,
+                                      expires_time=60,
+                                      pending_storage=pending)
+
+    with unittest.mock.patch('time.time') as mock_time:
+        assert mock_send.call_count == 0
+        mock_time.return_value = 10
+
+        # First auth should call mock_send
+        handler.initiate_auth('mailto:foo@bar.com', 'http://example/', 'blop')
+        assert mock_send.call_count == 1
+        assert 'foo@bar.com' in pending
+        token_value = pending['foo@bar.com']
+
+        # Second auth should not
+        handler.initiate_auth('mailto:foo@bar.com', 'http://example/', 'blop')
+        assert mock_send.call_count == 1
+        assert 'foo@bar.com' in pending
+        assert token_value == pending['foo@bar.com']
+
+        # Using the link should remove the pending item
+        handler.check_callback('http://example/', {'t': pending['foo@bar.com']}, {})
+        assert 'foo@bar.com' not in pending
+
+        # Next auth should call mock_send again
+        handler.initiate_auth('mailto:foo@bar.com', 'http://example/', 'blop')
+        assert mock_send.call_count == 2
+        assert 'foo@bar.com' in pending
+        assert token_value != pending['foo@bar.com']
+        token_value = pending['foo@bar.com']
+
+        # Timing out the token should cause it to send again
+        mock_time.return_value = 1000
+        handler.initiate_auth('mailto:foo@bar.com', 'http://example/', 'blop')
+        assert mock_send.call_count == 3
+        assert 'foo@bar.com' in pending
+        assert token_value != pending['foo@bar.com']
+        token_value = pending['foo@bar.com']
+
+        # And anything else that removes the token from the token_store should as well
+        token_store.remove(pending['foo@bar.com'])
+        handler.initiate_auth('mailto:foo@bar.com', 'http://example/', 'blop')
+        assert mock_send.call_count == 4
+        assert token_value != pending['foo@bar.com']
+        token_value = pending['foo@bar.com']
