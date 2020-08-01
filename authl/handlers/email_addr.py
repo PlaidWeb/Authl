@@ -17,6 +17,7 @@ import math
 import time
 import urllib.parse
 
+import expiringdict
 import validate_email
 
 from .. import disposition, tokens, utils
@@ -33,9 +34,6 @@ was you, please visit the following link within the next {minutes} minutes:
 If this wasn't you, you can safely disregard this message.
 
 """
-
-DEFAULT_WAIT_ERROR = """An email has already been sent to {email}. Please be
-patient; you may try again in {minutes} minutes."""
 
 
 class EmailAddress(Handler):
@@ -67,9 +65,9 @@ class EmailAddress(Handler):
                  sendmail,
                  notify_cdata,
                  token_store: tokens.TokenStore,
-                 expires_time=None,
-                 email_template_text=DEFAULT_TEMPLATE_TEXT,
-                 please_wait_error=DEFAULT_WAIT_ERROR,
+                 expires_time: int = None,
+                 pending_storage: dict = None,
+                 email_template_text: str = DEFAULT_TEMPLATE_TEXT,
                  ):
         """ Instantiate a magic link email handler.
 
@@ -78,8 +76,12 @@ class EmailAddress(Handler):
             the From and Subject headers before it sends.
         :param notify_cdata: the callback data to provide to the user for the
             next step instructions
+        :param tokens.TokenStore token_store: Storage for the identity tokens
         :param int expires_time: how long the email link should be valid for, in
             seconds (default: 900)
+        :param dict pending_storage: Storage to keep track of pending email addresses,
+            for DDOS/abuse mitigation. Defaults to an ExpiringDict that expires
+            after ``expires_time``
         :param str email_template_text: the plaintext template for the sent
             email, provided as a template string
 
@@ -93,10 +95,12 @@ class EmailAddress(Handler):
         # pylint:disable=too-many-arguments
         self._sendmail = sendmail
         self._email_template_text = email_template_text
-        self._wait_error = please_wait_error
         self._cdata = notify_cdata
         self._token_store = token_store
         self._lifetime = expires_time or 900
+        self._pending = expiringdict.ExpiringDict(
+            max_len=1024,
+            max_age_seconds=self._lifetime) if pending_storage is None else pending_storage
 
     def handles_url(self, url):
         """
@@ -122,7 +126,21 @@ class EmailAddress(Handler):
             return disposition.Error("Malformed email URL", redir)
         dest_addr = parsed.path.lower()
 
+        if dest_addr in self._pending:
+            try:
+                _, _, when = self._token_store.get(self._pending[dest_addr])
+                if time.time() <= when + self._lifetime:
+                    # There is already a pending valid token, so just remind them to
+                    # check their email again
+                    return disposition.Notify(self._cdata)
+            except (KeyError, ValueError):
+                pass
+
+            # The token has expired, so remove the pending token
+            self._pending.pop(dest_addr, None)
+
         token = self._token_store.put((dest_addr, redir, time.time()))
+        self._pending[dest_addr] = token
 
         link_url = (callback_uri + ('&' if '?' in callback_uri else '?') +
                     urllib.parse.urlencode({'t': token}))
@@ -149,6 +167,8 @@ class EmailAddress(Handler):
             email_addr, redir, when = self._token_store.pop(token)
         except (KeyError, ValueError):
             return disposition.Error('Invalid token', '')
+
+        self._pending.pop(email_addr, None)
 
         if time.time() > when + self._lifetime:
             return disposition.Error("Login timed out", redir)
@@ -248,7 +268,6 @@ def from_config(config, token_store: tokens.TokenStore):
 
         * ``EMAIL_EXPIRE_TIME``: How long a login email is valid for, in seconds
           (defaults to the :py:class:`EmailAddress` default value)
-
 
     :param tokens.TokenStore token_store: the authentication token storage
         mechanism; see :py:mod:`authl.tokens` for more information.
