@@ -281,3 +281,24 @@ def test_generic_login():
         assert response.headers['Location'] == 'http://localhost/'
         response = client.get('/')
         assert response.data == b'hello https://login.example/larry/auth'
+
+
+def test_session_override():
+    app = flask.Flask(__name__)
+    app.secret_key = 'poiu'
+
+    stash = {}
+
+    def on_verified(disp):
+        stash['v'] = disp
+
+    authl.flask.setup(app,
+                      {'TEST_ENABLED': True},
+                      session_auth_name=None,
+                      on_verified=on_verified)
+
+    with app.test_client() as client:
+        client.get('/login/?me=test:poiu')
+        assert 'me' not in flask.session
+        assert isinstance(stash['v'], disposition.Verified)
+        assert stash['v'].identity == 'test:poiu'

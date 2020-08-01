@@ -244,7 +244,7 @@ class AuthlFlask:
                  tester_path: str = None,
                  login_render_func: typing.Callable = None,
                  notify_render_func: typing.Callable = None,
-                 session_auth_name: str = 'me',
+                 session_auth_name: typing.Optional[str] = 'me',
                  force_https: bool = False,
                  stylesheet: typing.Union[str, typing.Callable] = None,
                  on_verified: typing.Callable = None,
