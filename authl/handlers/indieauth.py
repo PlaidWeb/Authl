@@ -292,7 +292,7 @@ class IndieAuth(Handler):
             'client_id': client_id,
             'state': state,
             'response_type': 'code',
-            'scope': 'me',
+            'scope': 'profile',
             'me': id_url})
         return disposition.Redirect(url)
 
