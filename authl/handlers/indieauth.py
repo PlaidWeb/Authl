@@ -291,7 +291,8 @@ class IndieAuth(Handler):
             'redirect_uri': callback_uri,
             'client_id': client_id,
             'state': state,
-            'response_type': 'id',
+            'response_type': 'code',
+            'scope': 'me',
             'me': id_url})
         return disposition.Redirect(url)
 
