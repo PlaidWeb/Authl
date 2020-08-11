@@ -73,9 +73,10 @@ def find_endpoint(id_url: str,
         # We didn't find a new endpoint, and we didn't have a cached one
         LOGGER.debug("Retrieving %s", id_url)
         request = utils.request_url(id_url)
-        links = request.links
-        content = BeautifulSoup(request.text, 'html.parser')
-        found = _derive_endpoint(links, content)
+        if request is not None:
+            links = request.links
+            content = BeautifulSoup(request.text, 'html.parser')
+            found = _derive_endpoint(links, content)
 
     if found and id_url:
         # we found a new value so update the cache
@@ -123,16 +124,12 @@ def _parse_hcard(id_url, card):
 
 def get_profile(id_url: str, content: BeautifulSoup = None) -> dict:
     """ Given an identity URL, try to parse out an Authl profile """
-    try:
-        if content:
-            h_cards = mf2py.Parser(doc=content).to_dict(filter_by_type="h-card")
-        elif id_url in _PROFILE_CACHE:
-            return _PROFILE_CACHE[id_url]
-        else:
-            h_cards = mf2py.Parser(url=id_url).to_dict(filter_by_type="h-card")
-    except Exception as err:  # pylint:disable=broad-except
-        LOGGER.debug("Couldn't retrieve profile at %s: %s", id_url, err)
-        h_cards = []
+    if content:
+        h_cards = mf2py.Parser(doc=content).to_dict(filter_by_type="h-card")
+    elif id_url in _PROFILE_CACHE:
+        return _PROFILE_CACHE[id_url]
+    else:
+        h_cards = mf2py.Parser(url=id_url).to_dict(filter_by_type="h-card")
 
     profile = {}
     for card in h_cards:
@@ -144,21 +141,23 @@ def get_profile(id_url: str, content: BeautifulSoup = None) -> dict:
     return profile
 
 
-def verify_id(request_id: str, response_id: str) -> typing.Optional[str]:
+def verify_id(request_id: str, response_id: str) -> str:
     """
 
     Given an ID from an identity request and its verification response, ensure
     that the verification response is a valid URL for the request. A response is
-    considered valid if it is on the same domain and is more specific than the
-    requested ID; for example, ``https://example.com/`` →
-    ``https://example.com/~alice/`` is valid, but
-    ``https://example.com/~alice/`` → ``https://example.com/~bob/`` is not.
+    considered valid if it is on the same domain and declares the same
+    authorization_endpoint.
 
     :param str request_id: The original requested identity
     :param str response_id: The authorized response identity
 
-    :returns: a normalized version of the response ID, or None if the URL could
-        not be verified.
+    :returns: the verified response ID
+    :raises: :py:class:`ValueError` if verification failed
+
+    This is a provisional extension to IndieAuth; see
+    `IndieAuth issue 35 <https://github.com/indieweb/indieauth/issues/35>`_ for
+    more information.
 
     """
 
@@ -170,47 +169,20 @@ def verify_id(request_id: str, response_id: str) -> typing.Optional[str]:
     resp = urllib.parse.urlparse(response_id)
     LOGGER.debug('orig=%s resp=%s', orig, resp)
 
-    # host must match
+    # The host must match
     if orig.netloc != resp.netloc:
         LOGGER.debug("netloc mismatch %s %s", orig.netloc, resp.netloc)
-        return None
+        raise ValueError("Domain mismatch")
 
-    # path must be more specific; provisional, see
-    # https://github.com/indieweb/indieauth/issues/35
-    orig_path = orig.path.split('/')
-    resp_path = resp.path.split('/')
+    # If both pages have the same authorization-endpoint we assume they know
+    # what they are doing
+    req_endpoint = find_endpoint(request_id)
+    resp_endpoint = find_endpoint(response_id)
+    LOGGER.debug('request endpoint=%s response endpoint=%s', req_endpoint, resp_endpoint)
+    if req_endpoint != resp_endpoint:
+        raise ValueError("Authorization endpoint mismatch")
 
-    # Remove trailing empty path components from the original path
-    if not orig_path[-1]:
-        orig_path.pop()
-
-    LOGGER.debug("orig_path: %s", orig_path)
-    LOGGER.debug("resp_path: %s", resp_path)
-
-    # normalize the response path
-    norm_path = ['']
-    for part in resp_path:
-        if part == '..':
-            norm_path.pop()
-            if not norm_path:
-                LOGGER.debug("path attempted escape")
-                return None
-        elif part not in ('', '.'):
-            norm_path.append(part)
-    # allow a trailing slash
-    if resp_path[-1] == '':
-        norm_path.append('')
-
-    LOGGER.debug("norm_path: %s", norm_path)
-
-    if norm_path[:len(orig_path)] != orig_path:
-        LOGGER.debug("path mismatch")
-        return None
-
-    # construct the resulting URL
-    valid = urllib.parse.urlunparse(resp._replace(path='/'.join(norm_path)))
-    LOGGER.debug("valid URL: %s", valid)
-    return valid
+    return response_id
 
 
 class IndieAuth(Handler):
@@ -334,14 +306,11 @@ class IndieAuth(Handler):
                 return disposition.Error("Got invalid response JSON", redir)
 
             response_id = verify_id(id_url, response['me'])
-            if not response_id:
-                return disposition.Error(
-                    "Identity URL '%s' does not match request '%s'" % (response['me'], id_url),
-                    redir)
-
             return disposition.Verified(response_id, redir, get_profile(response_id))
         except KeyError as key:
             return disposition.Error("Missing " + str(key), redir)
+        except ValueError as err:
+            return disposition.Error(str(err), redir)
 
 
 def from_config(config, token_store):

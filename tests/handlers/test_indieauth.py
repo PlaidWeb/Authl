@@ -54,6 +54,8 @@ def test_find_endpoint_by_url():
         mock.get('http://nothing/', text='nothing')
         assert find_endpoint('http://nothing/') is None
 
+        assert find_endpoint('https://undefined.example') is None
+
         # test the caching
         mock.reset()
         assert find_endpoint('http://link.absolute/') == 'https://endpoint/'
@@ -89,43 +91,39 @@ def test_find_endpoint_by_content():
 
 
 def test_verify_id():
-    # allowed things
-    for src, dest in (
-            # exact match
-            ('http://example.com', 'http://example.com'),
-            ('http://example.com/', 'http://example.com/'),
+    endpoint_1 = {'Link': '<https://auth.example/1>; rel="authorization_endpoint'}
+    endpoint_2 = {'Link': '<https://auth.example/2>; rel="authorization_endpoint'}
 
-            # change in trailing slash
-            ('http://example.com/', 'http://example.com'),
-            ('http://example.com', 'http://example.com/'),
+    # Same URL is always allowed
+    assert indieauth.verify_id('https://matching.example',
+                               'https://matching.example') == 'https://matching.example'
 
-            # scheme change (expressly allowed in
-            # https://indieauth.spec.indieweb.org/#authorization-code-verification)
-            ('http://example.com', 'https://example.com'),
+    # Different URL is allowed as long as the domain and endpoint match
+    with requests_mock.Mocker() as mock:
+        mock.get('https://different.example/1', headers=endpoint_1)
+        mock.get('https://different.example/2', headers=endpoint_1)
+        assert indieauth.verify_id('https://different.example/1',
+                                   'https://different.example/2') == 'https://different.example/2'
 
-            # Path additions
-            ('http://example.com', 'http://example.com/user'),
-            ('http://example.com/user', 'http://example.com/user'),
-            ('http://example.com/user', 'http://example.com/user/'),
-            ('http://example.com/user', 'http://example.com/user/./'),
-            ('http://example.com/user', 'http://example.com/user/../user'),
-    ):
-        assert indieauth.verify_id(src, dest)
+    # Don't allow if the domain doesn't match, even if the endpoint does
+    with requests_mock.Mocker() as mock:
+        mock.get('https://one.example', headers=endpoint_1)
+        mock.get('https://two.example', headers=endpoint_1)
+        with pytest.raises(ValueError):
+            indieauth.verify_id('https://one.example', 'https://two.example')
 
-    # disallowed things
-    for src, dest in (
-            # different domain
-            ('https://foo.bar/', 'https://baz/'),
-            ('https://foo.bar/', 'https://www.foo.bar/'),
+    # Don't allow if the endpoints mismatch, even if the domain matches
+    with requests_mock.Mocker() as mock:
+        mock.get('https://same.example/alice', headers=endpoint_1)
+        mock.get('https://same.example/bob', headers=endpoint_2)
+        with pytest.raises(ValueError):
+            indieauth.verify_id('https://same.example/alice', 'https://same.example/bob')
 
-            # provisional/proposed change to requiring paths to only become more specific
-            # https://github.com/indieweb/indieauth/issues/35
-            ('https://example.com/alice', 'https://example.com/bob'),
-            ('https://example.com/alice/../bob', 'https://example.com/bob'),
-            ('https://example.com/user/', 'https://example.com/'),
-            ('https://example.com/user/', 'https://example.com/user/../../../../../'),
-    ):
-        assert not indieauth.verify_id(src, dest)
+    # scheme upgrade is allowed as long as the endpoint stays the same
+    with requests_mock.Mocker() as mock:
+        mock.get('http://upgrade.example', headers=endpoint_2)
+        mock.get('https://upgrade.example', headers=endpoint_2)
+        assert indieauth.verify_id('http://upgrade.example', 'https://upgrade.example')
 
 
 def test_handler_success():
@@ -139,10 +137,10 @@ def test_handler_success():
         assert handler.cb_id
         assert handler.logo_html[0][1] == 'IndieAuth'
 
-        # profile page at http://example.user/
-        mock.get('http://example.user/',
-                 text="heñlo",
-                 headers={'Link': '<http://endpoint/>; rel="authorization_endpoint"'})
+        # profile page at http://example.user/ which redirects to https://example.user/bob
+        endpoint = {'Link': '<https://auth.example/endpoint>; rel="authorization_endpoint'}
+        mock.get('http://example.user/', headers=endpoint)
+        mock.get('https://example.user/bob', headers=endpoint)
 
         injected = requests.get('http://example.user/')
 
@@ -157,7 +155,7 @@ def test_handler_success():
 
         disp = handler.initiate_auth('http://example.user/', 'http://client/cb', '/dest')
         assert isinstance(disp, disposition.Redirect)
-        assert disp.url.startswith('http://endpoint/')
+        assert disp.url.startswith('https://auth.example/endpoint')
 
         # fake the user dialog on the IndieAuth endpoint
         user_get = parse_args(disp.url)
@@ -176,9 +174,9 @@ def test_handler_success():
             assert args['client_id'] == ['http://client/']
             assert 'redirect_uri' in args
             return json.dumps({
-                'me': 'http://example.user/bob'
+                'me': 'https://example.user/bob'
             })
-        mock.post('http://endpoint/', text=verify_callback)
+        mock.post('https://auth.example/endpoint', text=verify_callback)
 
         LOGGER.debug("state=%s", user_get['state'])
         response = handler.check_callback(
@@ -190,7 +188,7 @@ def test_handler_success():
             {})
         LOGGER.debug("verification response: %s", response)
         assert isinstance(response, disposition.Verified)
-        assert response.identity == 'http://example.user/bob'
+        assert response.identity == 'https://example.user/bob'
         assert response.redir == '/dest'
 
         # trying to replay the same transaction should fail
@@ -263,7 +261,8 @@ def test_handler_failures():
 
         # callback returns invalid identity URL
         mock.post('http://endpoint/', text=json.dumps({'me': 'http://whitehouse.gov'}))
-        check_failure('does not match')
+        mock.get('http://whitehouse.gov', text='hello there')
+        check_failure('Domain mismatch')
 
 
 def test_login_timeout():
