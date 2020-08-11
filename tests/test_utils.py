@@ -21,6 +21,9 @@ def test_request_url():
         assert utils.request_url('http://nonexistent') is None
         assert utils.request_url('invalid://protocol') is None
 
+        mock.get('https://has.links/', headers={'Link': '<https://foo>; rel="bar"'})
+        assert utils.request_url('has.links').links['bar']['url'] == 'https://foo'
+
 
 def test_resolve_value():
     def moo():
