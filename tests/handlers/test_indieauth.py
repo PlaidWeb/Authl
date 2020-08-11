@@ -165,7 +165,7 @@ def test_handler_success():
         assert 'client_id' in user_get
         assert 'state' in user_get
         assert user_get['state'] in store
-        assert user_get['response_type'] == 'id'
+        assert user_get['response_type'] == 'code'
         assert 'me' in user_get
 
         # fake the verification response
