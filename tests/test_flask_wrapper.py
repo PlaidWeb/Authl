@@ -3,7 +3,6 @@
 
 import json
 import logging
-import unittest.mock
 
 import flask
 from bs4 import BeautifulSoup
@@ -43,7 +42,7 @@ def test_url_tester():
         }
 
 
-def test_dispositions_and_hooks():
+def test_dispositions_and_hooks(mocker):
 
     class InvalidDisposition(disposition.Disposition):
         # pylint:disable=too-few-public-methods
@@ -70,9 +69,9 @@ def test_dispositions_and_hooks():
                 return InvalidDisposition()
             raise ValueError("nope")
 
-    notify_render = unittest.mock.Mock(return_value="notified")
-    login_render = unittest.mock.Mock(return_value="login form")
-    on_verified = unittest.mock.Mock(return_value="verified")
+    notify_render = mocker.Mock(return_value="notified")
+    login_render = mocker.Mock(return_value="login form")
+    on_verified = mocker.Mock(return_value="verified")
 
     app = flask.Flask(__name__)
     app.secret_key = __name__
@@ -128,8 +127,8 @@ def test_login_rendering():
         assert client.get(login_url + '?asset=nonsense').status_code == 404
 
 
-def test_default_hooks():
-    sendmail = unittest.mock.Mock(return_value=None)
+def test_default_hooks(mocker):
+    sendmail = mocker.Mock(return_value=None)
 
     app = flask.Flask(__name__)
     app.secret_key = __name__

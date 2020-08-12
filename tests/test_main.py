@@ -1,7 +1,6 @@
 """ main instance tests """
 
 import pytest
-import requests_mock
 
 import authl
 from authl import Authl, tokens
@@ -55,33 +54,33 @@ def test_register_handler():
         instance_2.add_handler(handler)
 
 
-def test_get_handler_for_url():
+def test_get_handler_for_url(requests_mock):
     """ Test that URL rules map correctly """
     handler_1 = UrlHandler('test://foo', 'a')
     handler_2 = UrlHandler('test://bar', 'b')
     handler_3 = LinkHandler('moo', 'c')
     instance = Authl([handler_1, handler_2, handler_3])
 
-    with requests_mock.Mocker() as mock:
-        mock.get('http://moo/link', text='<link rel="moo" href="yes">')
-        mock.get('http://moo/header', headers={'Link': '<gabba>; rel="moo"'})
-        mock.get('http://moo/redir', status_code=301, headers={'Location': 'http://moo/header'})
-        mock.get('http://foo.bar', text="nothing here")
+    requests_mock.get('http://moo/link', text='<link rel="moo" href="yes">')
+    requests_mock.get('http://moo/header', headers={'Link': '<gabba>; rel="moo"'})
+    requests_mock.get('http://moo/redir', status_code=301,
+                      headers={'Location': 'http://moo/header'})
+    requests_mock.get('http://foo.bar', text="nothing here")
 
-        assert instance.get_handler_for_url('test://foo') == (handler_1, 'a', 'test://foo')
-        assert instance.get_handler_for_url('test://bar') == (handler_2, 'b', 'test://bar')
-        assert instance.get_handler_for_url('test://baz') == (None, '', '')
+    assert instance.get_handler_for_url('test://foo') == (handler_1, 'a', 'test://foo')
+    assert instance.get_handler_for_url('test://bar') == (handler_2, 'b', 'test://bar')
+    assert instance.get_handler_for_url('test://baz') == (None, '', '')
 
-        assert instance.get_handler_for_url('http://moo/link') == \
-            (handler_3, 'c', 'http://moo/link')
-        assert instance.get_handler_for_url('http://moo/header') == \
-            (handler_3, 'c', 'http://moo/header')
-        assert instance.get_handler_for_url('http://moo/redir') == \
-            (handler_3, 'c', 'http://moo/header')
+    assert instance.get_handler_for_url('http://moo/link') == \
+        (handler_3, 'c', 'http://moo/link')
+    assert instance.get_handler_for_url('http://moo/header') == \
+        (handler_3, 'c', 'http://moo/header')
+    assert instance.get_handler_for_url('http://moo/redir') == \
+        (handler_3, 'c', 'http://moo/header')
 
-        assert instance.get_handler_for_url('http://foo.bar') == (None, '', '')
+    assert instance.get_handler_for_url('http://foo.bar') == (None, '', '')
 
-        assert instance.get_handler_for_url('') == (None, '', '')
+    assert instance.get_handler_for_url('') == (None, '', '')
 
 
 def test_webmention_url(mocker):
