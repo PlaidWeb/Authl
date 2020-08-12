@@ -2,7 +2,6 @@
 # pylint:disable=missing-docstring
 
 import logging
-import unittest.mock
 
 from authl import disposition, tokens
 from authl.handlers import email_addr
@@ -12,7 +11,7 @@ from . import parse_args
 LOGGER = logging.getLogger(__name__)
 
 
-def test_fixtures():
+def test_basics():
     handler = email_addr.EmailAddress(None, None, tokens.DictStore())
     assert handler.service_name == 'Email'
     assert handler.url_schemes
@@ -54,7 +53,7 @@ def test_success():
     assert result.cdata == 'some data'
 
 
-def test_failures():
+def test_failures(mocker):
     store = {}
     pending = {}
 
@@ -87,20 +86,20 @@ def test_failures():
         return handler.check_callback(url, parse_args(url), {})
 
     # check for timeout failure
-    with unittest.mock.patch('time.time') as mock_time:
-        mock_time.return_value = 30
+    mock_time = mocker.patch('time.time')
+    mock_time.return_value = 30
 
-        assert len(store) == 0
-        initiate('timeout@example.com', '/timeout')
-        assert len(store) == 1
+    assert len(store) == 0
+    initiate('timeout@example.com', '/timeout')
+    assert len(store) == 1
 
-        mock_time.return_value = 20000
+    mock_time.return_value = 20000
 
-        result = check_pending('timeout@example.com')
-        assert isinstance(result, disposition.Error)
-        assert 'timed out' in result.message
-        assert result.redir == '/timeout'
-        assert len(store) == 0
+    result = check_pending('timeout@example.com')
+    assert isinstance(result, disposition.Error)
+    assert 'timed out' in result.message
+    assert result.redir == '/timeout'
+    assert len(store) == 0
 
     # check for replay attacks
     assert len(store) == 0
@@ -117,28 +116,28 @@ def test_failures():
     assert 'Invalid token' in str(result2)
 
 
-def test_connector():
-    with unittest.mock.patch('smtplib.SMTP_SSL') as mock_smtp_ssl,\
-            unittest.mock.patch('ssl.SSLContext') as mock_ssl:
-        import ssl
+def test_connector(mocker):
+    import ssl
+    mock_smtp_ssl = mocker.patch('smtplib.SMTP_SSL')
+    mock_ssl = mocker.patch('ssl.SSLContext')
 
-        conn = unittest.mock.MagicMock()
-        mock_smtp_ssl.return_value = conn
+    conn = mocker.MagicMock()
+    mock_smtp_ssl.return_value = conn
 
-        connector = email_addr.smtplib_connector('localhost', 25,
-                                                 'test', 'poiufojar',
-                                                 use_ssl=True)
-        connector()
+    connector = email_addr.smtplib_connector('localhost', 25,
+                                             'test', 'poiufojar',
+                                             use_ssl=True)
+    connector()
 
-        mock_smtp_ssl.assert_called_with('localhost', 25)
-        mock_ssl.assert_called_with(ssl.PROTOCOL_TLS_CLIENT)
-        conn.ehlo.assert_called()
-        conn.starttls.assert_called()
-        conn.login.assert_called_with('test', 'poiufojar')
+    mock_smtp_ssl.assert_called_with('localhost', 25)
+    mock_ssl.assert_called_with(ssl.PROTOCOL_TLS_CLIENT)
+    conn.ehlo.assert_called()
+    conn.starttls.assert_called()
+    conn.login.assert_called_with('test', 'poiufojar')
 
 
-def test_simple_sendmail():
-    connector = unittest.mock.MagicMock(name='connector')
+def test_simple_sendmail(mocker):
+    connector = mocker.MagicMock(name='connector')
 
     import email
     message = email.message.EmailMessage()
@@ -158,80 +157,78 @@ def test_simple_sendmail():
     assert message['Subject'] == 'test subject'
 
 
-def test_from_config():
+def test_from_config(mocker):
     store = {}
-    mock_open = unittest.mock.mock_open(read_data="test template content")
+    mock_open = mocker.patch('builtins.open', mocker.mock_open(read_data='template'))
+    mock_smtp = mocker.patch('smtplib.SMTP')
+    conn = mocker.MagicMock()
+    mock_smtp.return_value = conn
 
-    with unittest.mock.patch('smtplib.SMTP') as mock_smtp,\
-            unittest.mock.patch('builtins.open', mock_open):
-        conn = unittest.mock.MagicMock()
-        mock_smtp.return_value = conn
+    handler = email_addr.from_config({
+        'EMAIL_FROM': 'sender@example.com',
+        'EMAIL_SUBJECT': 'test subject',
+        'EMAIL_CHECK_MESSAGE': 'check yr email',
+        'EMAIL_TEMPLATE_FILE': 'template.txt',
+        'EMAIL_EXPIRE_TIME': 37,
+        'SMTP_HOST': 'smtp.example.com',
+        'SMTP_PORT': 587,
+        'SMTP_USE_SSL': False,
+    }, tokens.DictStore(store))
 
-        handler = email_addr.from_config({
-            'EMAIL_FROM': 'sender@example.com',
-            'EMAIL_SUBJECT': 'test subject',
-            'EMAIL_CHECK_MESSAGE': 'check yr email',
-            'EMAIL_TEMPLATE_FILE': 'template.txt',
-            'EMAIL_EXPIRE_TIME': 37,
-            'SMTP_HOST': 'smtp.example.com',
-            'SMTP_PORT': 587,
-            'SMTP_USE_SSL': False,
-        }, tokens.DictStore(store))
+    mock_open.assert_called_with('template.txt')
+    res = handler.initiate_auth('mailto:alice@bob.example', 'http://cb/', '/redir')
+    assert res.cdata['message'] == 'check yr email'
 
-        mock_open.assert_called_with('template.txt')
-        res = handler.initiate_auth('mailto:alice@bob.example', 'http://cb/', '/redir')
-        assert res.cdata['message'] == 'check yr email'
-
-        assert len(store) == 1
-        mock_smtp.assert_called_with('smtp.example.com', 587)
+    assert len(store) == 1
+    mock_smtp.assert_called_with('smtp.example.com', 587)
 
 
-def test_please_wait():
+def test_please_wait(mocker):
     token_store = tokens.DictStore()
     pending = {}
-    mock_send = unittest.mock.MagicMock()
+    mock_send = mocker.MagicMock()
     handler = email_addr.EmailAddress(mock_send, "this is data", token_store,
                                       expires_time=60,
                                       pending_storage=pending)
 
-    with unittest.mock.patch('time.time') as mock_time:
-        assert mock_send.call_count == 0
-        mock_time.return_value = 10
+    mock_time = mocker.patch('time.time')
+    assert mock_send.call_count == 0
+    mock_time.return_value = 10
 
-        # First auth should call mock_send
-        handler.initiate_auth('mailto:foo@bar.com', 'http://example/', 'blop')
-        assert mock_send.call_count == 1
-        assert 'foo@bar.com' in pending
-        token_value = pending['foo@bar.com']
+    # First auth should call mock_send
+    handler.initiate_auth('mailto:foo@bar.com', 'http://example/', 'blop')
+    assert mock_send.call_count == 1
+    assert 'foo@bar.com' in pending
+    token_value = pending['foo@bar.com']
 
-        # Second auth should not
-        handler.initiate_auth('mailto:foo@bar.com', 'http://example/', 'blop')
-        assert mock_send.call_count == 1
-        assert 'foo@bar.com' in pending
-        assert token_value == pending['foo@bar.com']
+    # Second auth should not
+    handler.initiate_auth('mailto:foo@bar.com', 'http://example/', 'blop')
+    assert mock_send.call_count == 1
+    assert 'foo@bar.com' in pending
+    assert token_value == pending['foo@bar.com']
 
-        # Using the link should remove the pending item
-        handler.check_callback('http://example/', {'t': pending['foo@bar.com']}, {})
-        assert 'foo@bar.com' not in pending
+    # Using the link should remove the pending item
+    handler.check_callback('http://example/', {'t': pending['foo@bar.com']}, {})
+    assert 'foo@bar.com' not in pending
 
-        # Next auth should call mock_send again
-        handler.initiate_auth('mailto:foo@bar.com', 'http://example/', 'blop')
-        assert mock_send.call_count == 2
-        assert 'foo@bar.com' in pending
-        assert token_value != pending['foo@bar.com']
-        token_value = pending['foo@bar.com']
+    # Next auth should call mock_send again
+    handler.initiate_auth('mailto:foo@bar.com', 'http://example/', 'blop')
+    assert mock_send.call_count == 2
+    assert 'foo@bar.com' in pending
+    assert token_value != pending['foo@bar.com']
+    token_value = pending['foo@bar.com']
 
-        # Timing out the token should cause it to send again
-        mock_time.return_value = 1000
-        handler.initiate_auth('mailto:foo@bar.com', 'http://example/', 'blop')
-        assert mock_send.call_count == 3
-        assert 'foo@bar.com' in pending
-        assert token_value != pending['foo@bar.com']
-        token_value = pending['foo@bar.com']
+    # Timing out the token should cause it to send again
+    mock_time.return_value = 1000
+    handler.initiate_auth('mailto:foo@bar.com', 'http://example/', 'blop')
+    assert mock_send.call_count == 3
+    assert 'foo@bar.com' in pending
+    assert token_value != pending['foo@bar.com']
+    token_value = pending['foo@bar.com']
 
-        # And anything else that removes the token from the token_store should as well
-        token_store.remove(pending['foo@bar.com'])
-        handler.initiate_auth('mailto:foo@bar.com', 'http://example/', 'blop')
-        assert mock_send.call_count == 4
-        assert token_value != pending['foo@bar.com']
-        token_value = pending['foo@bar.com']
+    # And anything else that removes the token from the token_store should as well
+    token_store.remove(pending['foo@bar.com'])
+    handler.initiate_auth('mailto:foo@bar.com', 'http://example/', 'blop')
+    assert mock_send.call_count == 4
+    assert token_value != pending['foo@bar.com']
+    token_value = pending['foo@bar.com']
