@@ -54,7 +54,7 @@ might help to fix some of that.
 
 ## Documentation
 
-For now, see [the wiki](https://github.com/PlaidWeb/Authl/wiki).
+Full API documentation is hosted on [readthedocs](https://authl.readthedocs.io).
 
 ## Usage
 

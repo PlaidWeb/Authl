@@ -5,6 +5,7 @@ description = "Framework-agnostic authentication wrapper"
 authors = ["fluffy <fluffy@beesbuzz.biz>"]
 license = "MIT"
 readme = "README.md"
+homepage = "https://plaidweb.site/"
 repository = "https://github.com/PlaidWeb/Authl"
 documentation = "https://authl.readthedocs.io/"
 
