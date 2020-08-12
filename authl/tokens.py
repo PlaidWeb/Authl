@@ -13,6 +13,7 @@ backed by a shared data store such as Redis or a database.
 """
 
 import typing
+import uuid
 from abc import ABC, abstractmethod
 
 import expiringdict
@@ -59,29 +60,34 @@ class TokenStore(ABC):
 
 class DictStore(TokenStore):
     """
-    A token store that stores the token values in a dict-like container.
+    A token store that stores the values in a dict-like container.
 
     This is suitable for the general case of having a single persistent service
     running on a single endpoint.
 
-    The default storage is an `expiringdict`_ with a size limit of 1024 and a
-    maximum lifetime of 1 hour. This can be tuned to your needs. In particular,
-    the lifetime never needs to be any higher than your longest allowed
-    transaction lifetime, and the size limit generally needs to be no more than
-    the number of concurrent logins at any given time.
+    :param store: dict-like class that maps the generated key to the stored
+        value. Defaults to an `expiringdict`_ with a size limit of 1024 and a
+        maximum lifetime of 1 hour. This can be tuned to your needs. In
+        particular, the lifetime never needs to be any higher than your longest
+        allowed transaction lifetime, and the size limit generally needs to be
+        no more than the number of concurrent logins at any given time.
+
+    :param func keygen: A function to generate a non-colliding string key for
+        the stored token. This defaults to py:func:`uuid.uuid4`.
 
     .. _expiringdict: https://pypi.org/project/expiringdict/
     """
 
-    def __init__(self, store: dict = None):
+    def __init__(self, store: dict = None,
+                 keygen: typing.Callable[..., str] = lambda _: str(uuid.uuid4())):
         """ Initialize the store """
         self._store: dict = expiringdict.ExpiringDict(
             max_len=1024,
             max_age_seconds=3600) if store is None else store
+        self._keygen = keygen
 
     def put(self, value):
-        import uuid
-        key = str(uuid.uuid4())
+        key = self._keygen(value)
         self._store[key] = value
         return key
 

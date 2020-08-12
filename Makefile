@@ -39,7 +39,7 @@ preflight:
 
 .PHONY: test
 test:
-	poetry run coverage run -m pytest -v -Werror
+	poetry run coverage run -m pytest -vv -Werror
 
 .PHONY: cov
 cov: test
