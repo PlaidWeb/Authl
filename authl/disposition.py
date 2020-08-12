@@ -51,7 +51,7 @@ class Verified(Disposition):
 
     """
 
-    def __init__(self, identity, redir, profile=None):
+    def __init__(self, identity: str, redir: str, profile: dict = None):
         self.identity = identity
         self.redir = redir
         self.profile = profile or {}
@@ -88,7 +88,7 @@ class Error(Disposition):
     """
 
     def __init__(self, message, redir: str):
-        self.message = message
+        self.message = str(message)
         self.redir = redir
 
     def __str__(self):

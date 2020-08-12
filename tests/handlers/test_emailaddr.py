@@ -12,7 +12,7 @@ from . import parse_args
 LOGGER = logging.getLogger(__name__)
 
 
-def test_fixtures():
+def test_basics():
     handler = email_addr.EmailAddress(None, None, tokens.DictStore())
     assert handler.service_name == 'Email'
     assert handler.url_schemes

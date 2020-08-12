@@ -73,10 +73,10 @@ class Twitter(Handler):
         # pylint:disable=too-many-arguments
         self._client_key = client_key
         self._client_secret = client_secret
+        self._timeout = timeout or 600
         self._pending = expiringdict.ExpiringDict(
             max_len=128,
-            max_age_seconds=timeout) if storage is None else storage
-        self._timeout = timeout or 600
+            max_age_seconds=self._timeout) if storage is None else storage
 
     # regex to match a twitter URL and optionally extract the username
     twitter_regex = re.compile(r'(https?://)?[^/]*\.?twitter\.com/?@?([^?]*)')
@@ -87,7 +87,7 @@ class Twitter(Handler):
         if match:
             return 'https://twitter.com/' + match.group(2)
 
-        return False
+        return None
 
     @property
     def cb_id(self):
@@ -108,14 +108,15 @@ class Twitter(Handler):
             req = oauth_session.fetch_request_token('https://api.twitter.com/oauth/request_token')
 
             token = req.get('oauth_token')
+            secret = req.get('oauth_token_secret')
+
             params = {
                 'oauth_token': token,
-                'oauth_token_secret': req.get('oauth_token_secret')
             }
             if username:
                 params['screen_name'] = username
 
-            self._pending[token] = (params, callback_uri, redir, time.time())
+            self._pending[token] = (secret, callback_uri, redir, time.time())
 
             return disposition.Redirect(
                 'https://api.twitter.com/oauth/authorize?' + urllib.parse.urlencode(params))
@@ -130,10 +131,7 @@ class Twitter(Handler):
         if not token or token not in self._pending:
             return disposition.Error("Invalid transaction", '')
 
-        try:
-            params, callback_uri, redir, start_time = self._pending.pop(token)
-        except ValueError:
-            return disposition.Error("Invalid token", '')
+        secret, callback_uri, redir, start_time = self._pending.pop(token)
 
         if time.time() > start_time + self._timeout:
             return disposition.Error("Login timed out", redir)
@@ -141,12 +139,14 @@ class Twitter(Handler):
         if 'denied' in get or 'oauth_verifier' not in get:
             return disposition.Error("Twitter authorization declined", redir)
 
+        auth = None
+
         try:
             oauth_session = OAuth1Session(
                 client_key=self._client_key,
                 client_secret=self._client_secret,
-                resource_owner_key=params['oauth_token'],
-                resource_owner_secret=params['oauth_token_secret'],
+                resource_owner_key=token,
+                resource_owner_secret=secret,
                 callback_uri=callback_uri)
 
             oauth_session.parse_authorization_response(url)
@@ -162,34 +162,30 @@ class Twitter(Handler):
             user_info = requests.get(
                 'https://api.twitter.com/1.1/account/verify_credentials.json?skip_status=1',
                 auth=auth).json()
-            if 'errors' in user_info:
-                result = disposition.Error(
-                    f"Could not retrieve credentials: {user_info.get('errors')}",
-                    redir)
-            else:
-                result = disposition.Verified(
-                    # We include the user ID after the hash code to prevent folks from
-                    # logging in by taking over a username that someone changed/abandoned.
-                    f'https://twitter.com/{user_info["screen_name"]}#{user_info["id_str"]}',
-                    redir,
-                    self._build_profile(user_info))
-
-            # let's clean up after ourselves
-            request = requests.post('https://api.twitter.com/1.1/oauth/invalidate_token.json',
-                                    auth=auth)
-            LOGGER.debug("Token revocation request: %d %s", request.status_code, request.text)
-
-            return result
+            LOGGER.log(logging.WARNING if 'errors' in user_info else logging.NOTSET,
+                       "User profile showed error: %s", user_info.get('errors'))
+            return disposition.Verified(
+                # We include the user ID after the hash code to prevent folks from
+                # logging in by taking over a username that someone changed/abandoned.
+                f'https://twitter.com/{user_info["screen_name"]}#{user_info["id_str"]}',
+                redir,
+                self.build_profile(user_info))
         except Exception as err:  # pylint:disable=broad-except
-            return disposition.Error(err, redir)
+            return disposition.Error(str(err), redir)
+        finally:
+            if auth:
+                # let's clean up after ourselves
+                request = requests.post('https://api.twitter.com/1.1/oauth/invalidate_token.json',
+                                        auth=auth)
+                LOGGER.debug("Token revocation request: %d %s", request.status_code, request.text)
 
     @property
     def generic_url(self):
         return 'https://twitter.com/'
 
     @staticmethod
-    def _build_profile(user_info: dict) -> dict:
-        # Get the basic profile
+    def build_profile(user_info: dict) -> dict:
+        """ Convert a Twitter userinfo JSON into an Authl profile """
         entities = user_info.get('entities', {})
 
         def expand_entities(name):
