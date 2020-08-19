@@ -28,60 +28,86 @@ def test_find_endpoint_by_url(requests_mock):
     requests_mock.get('http://link.absolute/', text='Nothing to see',
                       headers={'Link': '<https://endpoint/>; rel="authorization_endpoint"'})
 
-    assert find_endpoint('http://link.absolute/') == 'https://endpoint/'
+    assert find_endpoint('http://link.absolute/')[0] == 'https://endpoint/'
 
     requests_mock.get('http://link.relative/', text='Nothing to see',
                       headers={'Link': '<invalid>; rel="authorization_endpoint"'})
-    assert find_endpoint('http://link.relative/') == 'invalid'
+    assert find_endpoint('http://link.relative/')[0] == 'invalid'
 
     requests_mock.get('http://content.absolute/',
                       text='<link rel="authorization_endpoint" href="https://endpoint/">')
-    assert find_endpoint('http://content.absolute/') == 'https://endpoint/'
+    assert find_endpoint('http://content.absolute/')[0] == 'https://endpoint/'
 
     requests_mock.get('http://content.relative/',
                       text='<link rel="authorization_endpoint" href="endpoint" >')
-    assert find_endpoint('http://content.relative/') == 'http://content.relative/endpoint'
+    assert find_endpoint('http://content.relative/')[0] == 'http://content.relative/endpoint'
 
     requests_mock.get('http://both/',
                       text='<link rel="authorization_endpoint" href="http://content/endpoint">',
                       headers={'Link': '<https://header/endpoint/>; rel="authorization_endpoint"'}
                       )
-    assert find_endpoint('http://both/') == 'https://header/endpoint/'
+    assert find_endpoint('http://both/')[0] == 'https://header/endpoint/'
 
     requests_mock.get('http://nothing/', text='nothing')
-    assert find_endpoint('http://nothing/') is None
+    assert find_endpoint('http://nothing/')[0] is None
 
-    assert find_endpoint('https://undefined.example') is None
+    assert find_endpoint('https://undefined.example')[0] is None
 
     # test the caching
     requests_mock.reset()
-    assert find_endpoint('http://link.absolute/') == 'https://endpoint/'
-    assert find_endpoint('http://link.relative/') == 'invalid'
-    assert find_endpoint('http://content.absolute/') == 'https://endpoint/'
-    assert find_endpoint('http://content.relative/') == 'http://content.relative/endpoint'
+    assert find_endpoint('http://link.absolute/')[0] == 'https://endpoint/'
+    assert find_endpoint('http://link.relative/')[0] == 'invalid'
+    assert find_endpoint('http://content.absolute/')[0] == 'https://endpoint/'
+    assert find_endpoint('http://content.relative/')[0] == 'http://content.relative/endpoint'
     assert not requests_mock.called
 
     # but a failed lookup shouldn't be cached
-    assert find_endpoint('http://nothing/') is None
+    assert find_endpoint('http://nothing/')[0] is None
     assert requests_mock.called
 
 
+def test_find_endpoint_redirections(requests_mock):
+    from authl.handlers.indieauth import find_endpoint
+    # test that redirections get handled correctly
+    requests_mock.get('http://start/', status_code=301,
+                      headers={'Location': 'http://perm-redirect/'})
+    requests_mock.get('http://perm-redirect/', status_code=302,
+                      headers={'Location': 'http://temp-redirect/'})
+    requests_mock.get('http://temp-redirect/',
+                      text='<link rel="authorization_endpoint" href="https://foobar/">')
+
+    # final URL should be the last permanent redirection
+    assert find_endpoint('http://start/') == ('https://foobar/', 'http://perm-redirect/')
+    assert requests_mock.call_count == 3
+
+    # endpoint should be cached for both the initial and permanent-redirect URLs
+    assert find_endpoint('http://start/') == ('https://foobar/', 'http://perm-redirect/')
+    assert find_endpoint(
+        'http://perm-redirect/') == ('https://foobar/', 'http://perm-redirect/')
+    assert requests_mock.call_count == 3
+
+
 def test_find_endpoint_by_content(requests_mock):
+    from authl.handlers.indieauth import find_endpoint
+
     links = {'authorization_endpoint': {'url': 'http://link_endpoint'}}
     rel_content = BeautifulSoup('<link rel="authorization_endpoint" href="foo">',
                                 'html.parser')
     abs_content = BeautifulSoup('<link rel="authorization_endpoint" href="http://foo/">',
                                 'html.parser')
 
-    assert indieauth.find_endpoint('http://example', links=links) == 'http://link_endpoint'
-    assert indieauth.find_endpoint('http://example',
-                                   content=rel_content) == 'http://example/foo'
-    assert indieauth.find_endpoint('http://example', content=abs_content) == 'http://foo/'
+    assert find_endpoint('http://example', links=links)[0] == 'http://link_endpoint'
+    assert find_endpoint('http://example',
+                         content=rel_content)[0] == 'http://example/foo'
+    assert find_endpoint('http://example', content=abs_content)[0] == 'http://foo/'
 
     # link header overrules page content
-    assert indieauth.find_endpoint('http://example',
-                                   links=links,
-                                   content=rel_content) == 'http://link_endpoint'
+    assert find_endpoint('http://example',
+                         links=links,
+                         content=rel_content)[0] == 'http://link_endpoint'
+
+    # final result should be cached
+    assert find_endpoint('http://example')[0] == 'http://link_endpoint'
 
     assert not requests_mock.called
 
@@ -116,6 +142,20 @@ def test_verify_id(requests_mock):
     requests_mock.get('http://upgrade.example', headers=endpoint_2)
     requests_mock.get('https://upgrade.example', headers=endpoint_2)
     assert indieauth.verify_id('http://upgrade.example', 'https://upgrade.example')
+
+    # redirect is fine as long as the domain matches
+    requests_mock.get('https://redir.example/user', headers=endpoint_1)
+    requests_mock.get('https://redir.example/me', status_code=301,
+                      headers={'Location': 'https://redir.example/target'})
+    requests_mock.get('https://redir.example/target', headers=endpoint_1)
+    assert indieauth.verify_id('https://redir.example/user', 'https://redir.example/me')
+
+    # redirect is NOT fine if the domain changes
+    requests_mock.get('https://redir.example/offsite', status_code=301,
+                      headers={'Location': 'https://redir.target/'})
+    requests_mock.get('https://redir.target/', headers=endpoint_1)
+    with pytest.raises(ValueError):
+        indieauth.verify_id('https://redir.example/user', 'https://redir.example/offsite')
 
 
 def test_handler_success(requests_mock):

@@ -127,3 +127,14 @@ def test_from_config(mocker):
 
     mock_test_handler.assert_called_once()
     assert mock_test_handler.call_args == (())
+
+
+def test_redir_url(requests_mock):
+    """ Ensure that redirected profile pages match URL rules for the redirect """
+    requests_mock.get('http://foo', status_code=301, headers={'Location': 'http://bar'})
+    requests_mock.get('http://bar', text='blah')
+    handler = UrlHandler('http://bar', 'foo')
+    instance = Authl([handler])
+
+    assert instance.get_handler_for_url('http://foo') == \
+        (handler, 'foo', 'http://bar')

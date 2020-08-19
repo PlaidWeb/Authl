@@ -80,10 +80,21 @@ class Authl:
 
         request = utils.request_url(url)
         if request:
+            profile = utils.permanent_url(request)
+            if profile != url:
+                LOGGER.debug("%s: got permanent redirect to %s", url, profile)
+                # the profile URL is different than the request URL, so re-run
+                # the URL matching logic just in case
+                for hid, handler in self._handlers.items():
+                    result = handler.handles_url(profile)
+                    if result:
+                        LOGGER.debug("%s URL matches %s", profile, handler)
+                        return handler, hid, result
+
             soup = BeautifulSoup(request.text, 'html.parser')
             for hid, handler in self._handlers.items():
-                if handler.handles_page(request.url, request.headers, soup, request.links):
-                    LOGGER.debug("%s response matches %s", request.url, handler)
+                if handler.handles_page(profile, request.headers, soup, request.links):
+                    LOGGER.debug("%s response matches %s", profile, handler)
                     return handler, hid, request.url
 
         LOGGER.debug("No handler found for URL %s", url)
