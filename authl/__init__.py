@@ -46,6 +46,14 @@ class Authl:
             raise ValueError("Already have handler with id " + cb_id)
         self._handlers[cb_id] = handler
 
+    def _match_url(self, url: str):
+        for hid, handler in self._handlers.items():
+            result = handler.handles_url(url)
+            if result:
+                LOGGER.debug("%s URL matches %s", url, handler)
+                return handler, hid, result
+        return None, None, None
+
     def get_handler_for_url(self, url: str) -> typing.Tuple[typing.Optional[handlers.Handler],
                                                             str,
                                                             str]:
@@ -72,11 +80,9 @@ class Authl:
         if not url:
             return None, '', ''
 
-        for hid, handler in self._handlers.items():
-            result = handler.handles_url(url)
-            if result:
-                LOGGER.debug("%s URL matches %s", url, handler)
-                return handler, hid, result
+        by_url = self._match_url(url)
+        if by_url[0]:
+            return by_url
 
         request = utils.request_url(url)
         if request:
@@ -85,11 +91,9 @@ class Authl:
                 LOGGER.debug("%s: got permanent redirect to %s", url, profile)
                 # the profile URL is different than the request URL, so re-run
                 # the URL matching logic just in case
-                for hid, handler in self._handlers.items():
-                    result = handler.handles_url(profile)
-                    if result:
-                        LOGGER.debug("%s URL matches %s", profile, handler)
-                        return handler, hid, result
+                by_url = self._match_url(profile)
+                if by_url[0]:
+                    return by_url
 
             soup = BeautifulSoup(request.text, 'html.parser')
             for hid, handler in self._handlers.items():
