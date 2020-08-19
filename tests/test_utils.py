@@ -54,3 +54,27 @@ def test_permanent_url(requests_mock):
 
     req = requests.get('http://perm-308.example')
     assert utils.permanent_url(req) == 'https://make-secure.example/308'
+
+    # make sure that it's the last pre-temporary redirect that counts
+    requests_mock.get('https://one/', status_code=301,
+                      headers={'Location': 'https://two/'})
+    requests_mock.get('https://two/', status_code=302,
+                      headers={'Location': 'https://three/'})
+    requests_mock.get('https://three/', status_code=301,
+                      headers={'Location': 'https://four/'})
+    requests_mock.get('https://four/', text="done")
+
+    req = requests.get('https://one/')
+    assert req.url == 'https://four/'
+    assert utils.permanent_url(req) == 'https://two/'
+    assert req.text == 'done'
+
+    req = requests.get('https://two/')
+    assert req.url == 'https://four/'
+    assert utils.permanent_url(req) == 'https://two/'
+    assert req.text == 'done'
+
+    req = requests.get('https://three/')
+    assert req.url == 'https://four/'
+    assert utils.permanent_url(req) == 'https://four/'
+    assert req.text == 'done'
