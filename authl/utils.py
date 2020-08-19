@@ -2,6 +2,7 @@
 
 import logging
 import os.path
+import typing
 
 import requests
 
@@ -19,26 +20,16 @@ def read_icon(filename):
     return read_file(os.path.join(os.path.dirname(__file__), 'icons', filename))
 
 
-def request_url(url):
+def request_url(url: str) -> typing.Optional[requests.Response]:
     """ Requests a URL, attempting to canonicize it as it goes """
-    # pylint:disable=broad-except
 
-    try:
-        return requests.get(url)
-    except requests.exceptions.MissingSchema:
-        LOGGER.info("Missing schema on URL %s", url)
-    except (requests.exceptions.InvalidSchema, requests.exceptions.InvalidURL):
-        LOGGER.info("Not a valid URL scheme: %s", url)
-        return None
-    except Exception as err:
-        LOGGER.info("%s failed: %s", url, err)
-
-    for prefix in ('https://', 'http://'):
+    for prefix in ('', 'https://', 'http://'):
+        attempt = prefix + url
         try:
-            attempt = prefix + url
-            LOGGER.debug("attempting %s", attempt)
             return requests.get(attempt)
-        except Exception as err:
+        except requests.exceptions.MissingSchema:
+            LOGGER.info("Missing schema on URL %s", attempt)
+        except Exception as err:  # pylint:disable=broad-except
             LOGGER.info("%s failed: %s", attempt, err)
 
     return None
@@ -49,3 +40,20 @@ def resolve_value(val):
     if callable(val):
         return val()
     return val
+
+
+def permanent_url(response: requests.Response) -> str:
+    """ Given a requests.Response object, determine what the permanent URL
+    for it is from the response history """
+
+    for item in response.history:
+        if item.status_code in (301, 308):
+            # permanent redirect means we continue on to the next URL in the
+            # redirection change
+            continue
+        # Any other status code is assumed to be a temporary redirect, so this
+        # is the last permanent URL
+        return item.url
+
+    # Last history item was a permanent redirect, or there was no history
+    return response.url

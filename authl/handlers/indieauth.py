@@ -42,14 +42,19 @@ _PROFILE_CACHE = expiringdict.ExpiringDict(max_len=128, max_age_seconds=1800)
 
 def find_endpoint(id_url: str,
                   links: typing.Dict = None,
-                  content: BeautifulSoup = None) -> typing.Optional[str]:
+                  content: BeautifulSoup = None) -> typing.Tuple[typing.Optional[str],
+                                                                 typing.Optional[str]]:
     """ Given an identity URL, discover its IndieAuth endpoint
 
     :param str id_url: an identity URL to check
     :param links: a request.links object from a requests operation
     :param BeautifulSoup content: a BeautifulSoup parse tree of an HTML document
+
+    :returns: a tuple of ``(endpoint_url, profile_url)``
     """
-    def _derive_endpoint(links, content):
+    profile = id_url
+
+    def _derive_endpoint(links, content) -> typing.Optional[str]:
         LOGGER.debug('links for %s: %s', id_url, links)
         if links and 'authorization_endpoint' in links:
             LOGGER.debug("Found link header")
@@ -65,8 +70,8 @@ def find_endpoint(id_url: str,
 
     # Get the cached endpoint value, but don't immediately use it if we have
     # links and/or content, as it might have changed
-    cached = _ENDPOINT_CACHE.get(id_url)
-    LOGGER.debug("Cached endpoint for %s: %s", id_url, cached)
+    cached, profile = _ENDPOINT_CACHE.get(id_url, (None, profile))
+    LOGGER.debug("Cached endpoint for %s: %s %s", id_url, cached, profile)
 
     found = (links or content) and _derive_endpoint(links, content)
     if id_url and not found and not cached:
@@ -77,17 +82,19 @@ def find_endpoint(id_url: str,
             links = request.links
             content = BeautifulSoup(request.text, 'html.parser')
             found = _derive_endpoint(links, content)
+            profile = utils.permanent_url(request)
 
     if found and id_url:
         # we found a new value so update the cache
         LOGGER.debug("Caching %s -> %s", id_url, found)
-        _ENDPOINT_CACHE[id_url] = found
+        _ENDPOINT_CACHE[id_url] = (found, profile)
+        _ENDPOINT_CACHE[profile] = (found, profile)
 
         # Let's also prefill the profile, while we're here
         if content:
-            get_profile(id_url, content)
+            get_profile(profile, content)
 
-    return found or cached
+    return (found or cached), profile
 
 
 def _parse_hcard(id_url, card):
@@ -174,10 +181,16 @@ def verify_id(request_id: str, response_id: str) -> str:
         LOGGER.debug("netloc mismatch %s %s", orig.netloc, resp.netloc)
         raise ValueError("Domain mismatch")
 
-    # If both pages have the same authorization-endpoint we assume they know
-    # what they are doing
-    req_endpoint = find_endpoint(request_id)
-    resp_endpoint = find_endpoint(response_id)
+    req_endpoint, _ = find_endpoint(request_id)
+    resp_endpoint, resp_profile = find_endpoint(response_id)
+
+    # Need to make sure the domains match with the final profile URLs too
+    resp = urllib.parse.urlparse(resp_profile)  # type:ignore
+    if orig.netloc != resp.netloc:
+        LOGGER.debug("redirected netloc mismatch %s %s", orig.netloc, resp.netloc)
+        raise ValueError("Domain mismatch (profile redirection)")
+
+    # Both the original and final profile must have the same endpoint
     LOGGER.debug('request endpoint=%s response endpoint=%s', req_endpoint, resp_endpoint)
     if req_endpoint != resp_endpoint:
         raise ValueError("Authorization endpoint mismatch")
@@ -242,15 +255,15 @@ class IndieAuth(Handler):
         through to :py:func:`handles_page`.
         """
         if url in _ENDPOINT_CACHE:
-            return url
+            return _ENDPOINT_CACHE[url][1]
         return None
 
     def handles_page(self, url, headers, content, links):
         """ :returns: whether an ``authorization_endpoint`` was found on the page. """
-        return find_endpoint(url, links, content) is not None
+        return find_endpoint(url, links, content)[0] is not None
 
     def initiate_auth(self, id_url, callback_uri, redir):
-        endpoint = find_endpoint(id_url)
+        endpoint, id_url = find_endpoint(id_url)
         if not endpoint:
             return disposition.Error("Failed to get IndieAuth endpoint", redir)
 
