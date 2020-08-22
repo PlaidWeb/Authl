@@ -3,6 +3,7 @@
 import logging
 import os.path
 import typing
+import urllib.parse
 
 import requests
 
@@ -46,6 +47,11 @@ def permanent_url(response: requests.Response) -> str:
     """ Given a requests.Response object, determine what the permanent URL
     for it is from the response history """
 
+    def normalize(url):
+        # normalize the netloc to lowercase
+        parsed = urllib.parse.urlparse(url)
+        return urllib.parse.urlunparse(parsed._replace(netloc=parsed.netloc.lower()))
+
     for item in response.history:
         if item.status_code in (301, 308):
             # permanent redirect means we continue on to the next URL in the
@@ -53,7 +59,7 @@ def permanent_url(response: requests.Response) -> str:
             continue
         # Any other status code is assumed to be a temporary redirect, so this
         # is the last permanent URL
-        return item.url
+        return normalize(item.url)
 
     # Last history item was a permanent redirect, or there was no history
-    return response.url
+    return normalize(response.url)

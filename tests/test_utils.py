@@ -47,6 +47,10 @@ def test_permanent_url(requests_mock):
     req = requests.get('https://make-secure.example/final')
     assert utils.permanent_url(req) == 'https://make-secure.example/final'
 
+    # correct case folding
+    req = requests.get('Https://Make-SecuRE.Example/final')
+    assert utils.permanent_url(req) == 'https://make-secure.example/final'
+
     # ensure 308 redirect works too
     requests_mock.get('http://perm-308.example', status_code=308,
                       headers={'Location': 'https://make-secure.example/308'})
