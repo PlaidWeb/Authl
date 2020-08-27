@@ -71,6 +71,8 @@ def test_get_handler_for_url(requests_mock):
     assert instance.get_handler_for_url('test://bar') == (handler_2, 'b', 'test://bar')
     assert instance.get_handler_for_url('test://baz') == (None, '', '')
 
+    assert instance.get_handler_for_url(' test://foo ') == (handler_1, 'a', 'test://foo')
+
     assert instance.get_handler_for_url('http://moo/link') == \
         (handler_3, 'c', 'http://moo/link')
     assert instance.get_handler_for_url('http://moo/header') == \

@@ -70,6 +70,8 @@ class Authl:
 
         """
 
+        url = url.strip()
+
         # If webfinger detects profiles for this address, try all of those first
         for profile in webfinger.get_profiles(url):
             LOGGER.debug("Checking profile %s", profile)

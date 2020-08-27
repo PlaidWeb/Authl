@@ -21,24 +21,35 @@ def test_basics():
 
     assert handler.handles_url('foo@bar.baz') == 'mailto:foo@bar.baz'
     assert handler.handles_url('mailto:foo@bar.baz') == 'mailto:foo@bar.baz'
+
+    # email addresses must be well-formed
     assert not handler.handles_url('mailto:foobar.baz')
+
+    # don't support other schemas
+    assert not handler.handles_url('email:foo@bar.baz')
     assert not handler.handles_url('@foo@bar.baz')
     assert not handler.handles_url('https://example.com/')
 
+    # handle leading/trailing spaces correctly
     assert handler.handles_url('  foo@bar.baz') == 'mailto:foo@bar.baz'
     assert handler.handles_url('mailto:  foo@bar.baz') == 'mailto:foo@bar.baz'
     assert handler.handles_url('mailto:foo@bar.baz  ') == 'mailto:foo@bar.baz'
 
+    # but don't allow embedded spaces
     assert not handler.handles_url('   foo @bar.baz')
 
+    # email address must be valid
     assert not handler.handles_url(' asdf[]@poiu_foo.baz!')
 
+    # don't allow bang-paths
     assert not handler.handles_url('bang!path!is!fun!bob')
     assert not handler.handles_url('bang.com!path!is!fun!bob')
     assert not handler.handles_url('bang!path!is!fun!bob@example.com')
 
+    # strip out non-email-address components
     assert handler.handles_url('mailto:foo@example.com?subject=pwned') == 'mailto:foo@example.com'
 
+    # handle case correctly
     assert handler.handles_url('MailtO:Foo@Example.Com') == 'mailto:foo@example.com'
 
 
