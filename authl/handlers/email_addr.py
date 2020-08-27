@@ -119,7 +119,7 @@ class EmailAddress(Handler):
             return None
 
         if validate_email.validate_email(address):
-            return 'mailto:' + address
+            return 'mailto:' + address.lower()
 
         return None
 

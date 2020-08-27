@@ -39,6 +39,8 @@ def test_basics():
 
     assert handler.handles_url('mailto:foo@example.com?subject=pwned') == 'mailto:foo@example.com'
 
+    assert handler.handles_url('MailtO:Foo@Example.Com') == 'mailto:foo@example.com'
+
 
 def test_success():
     store = {}
