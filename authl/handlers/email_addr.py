@@ -110,13 +110,16 @@ class EmailAddress(Handler):
         """
 
         parsed = urllib.parse.urlparse(url)
-        if parsed.scheme == 'mailto' and validate_email.validate_email(parsed.path):
-            return url
-        if parsed.scheme:
+        if parsed.scheme not in ('', 'mailto'):
             return None
 
-        if validate_email.validate_email(url):
-            return 'mailto:' + url
+        address = parsed.path.strip()
+
+        if ' ' in address or '!' in address:
+            return None
+
+        if validate_email.validate_email(address):
+            return 'mailto:' + address
 
         return None
 

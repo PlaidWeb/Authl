@@ -25,6 +25,20 @@ def test_basics():
     assert not handler.handles_url('@foo@bar.baz')
     assert not handler.handles_url('https://example.com/')
 
+    assert handler.handles_url('  foo@bar.baz') == 'mailto:foo@bar.baz'
+    assert handler.handles_url('mailto:  foo@bar.baz') == 'mailto:foo@bar.baz'
+    assert handler.handles_url('mailto:foo@bar.baz  ') == 'mailto:foo@bar.baz'
+
+    assert not handler.handles_url('   foo @bar.baz')
+
+    assert not handler.handles_url(' asdf[]@poiu_foo.baz!')
+
+    assert not handler.handles_url('bang!path!is!fun!bob')
+    assert not handler.handles_url('bang.com!path!is!fun!bob')
+    assert not handler.handles_url('bang!path!is!fun!bob@example.com')
+
+    assert handler.handles_url('mailto:foo@example.com?subject=pwned') == 'mailto:foo@example.com'
+
 
 def test_success():
     store = {}
