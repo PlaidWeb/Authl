@@ -129,8 +129,8 @@ class Serializer(TokenStore):
     def get(self, key, to_type=tuple):
         try:
             return to_type(self._serializer.loads(key))
-        except itsdangerous.BadData:
-            raise KeyError("Invalid token")
+        except itsdangerous.BadData as err:
+            raise KeyError("Invalid token") from err
 
     def remove(self, key):
         pass
