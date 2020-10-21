@@ -335,14 +335,15 @@ def test_get_profile(requests_mock):
     <link rel="authorization_endpoint" href="https://endpoint.example/">
     <div class="h-card">
     <a class="u-url p-name" href="https://example.foo/~user/">larry</a>
-    <p class="e-note">I'm <em>Larry</em>. And you're not. <span class="p-pronouns">he/him</span></p>
+    <p class="e-note">I'm <em>Larry</em>. And you're not. <span class="p-pronouns">he/him</span> or
+    <span class="p-pronoun">whatever</span></p>
     <a class="u-email" href="mailto:larry%40example.foo">larry at example dot foo</a>
     <img class="u-photo" src="plop.jpg">
     </div>"""
 
     profile_blob = {
         'avatar': "http://profile.example/plop.jpg",
-        'bio': "I'm Larry. And you're not. he/him",
+        'bio': "I'm Larry. And you're not. he/him or whatever",
         'email': "larry@example.foo",
         'name': "larry",
         'pronouns': "he/him",

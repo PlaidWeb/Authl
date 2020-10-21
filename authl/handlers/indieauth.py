@@ -125,7 +125,7 @@ def _parse_hcard(id_url, card):
         'email': urllib.parse.unquote(get_url('email', 'mailto')[1].path),
         'homepage': get_url('url')[0],
         'name': get_str('name'),
-        'pronouns': get_str('pronouns'),
+        'pronouns': get_str('pronouns') or get_str('pronoun'),
     }
 
 
