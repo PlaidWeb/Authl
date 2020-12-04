@@ -43,7 +43,7 @@ _PROFILE_CACHE = expiringdict.ExpiringDict(max_len=128, max_age_seconds=1800)
 def find_endpoint(id_url: str,
                   links: typing.Dict = None,
                   content: BeautifulSoup = None) -> typing.Tuple[typing.Optional[str],
-                                                                 typing.Optional[str]]:
+                                                                 str]:
     """ Given an identity URL, discover its IndieAuth endpoint
 
     :param str id_url: an identity URL to check
@@ -153,49 +153,31 @@ def verify_id(request_id: str, response_id: str) -> str:
 
     Given an ID from an identity request and its verification response, ensure
     that the verification response is a valid URL for the request. A response is
-    considered valid if it is on the same domain and declares the same
-    authorization_endpoint.
+    considered valid if it declares the same authorization_endpoint.
 
     :param str request_id: The original requested identity
     :param str response_id: The authorized response identity
 
     :returns: the verified response ID
     :raises: :py:class:`ValueError` if verification failed
-
-    This is a provisional extension to IndieAuth; see
-    `IndieAuth issue 35 <https://github.com/indieweb/indieauth/issues/35>`_ for
-    more information.
-
     """
 
     # exact match is always okay
     if request_id == response_id:
         return response_id
 
-    orig = urllib.parse.urlparse(request_id)
-    resp = urllib.parse.urlparse(response_id)
-    LOGGER.debug('orig=%s resp=%s', orig, resp)
-
-    # The host must match
-    if orig.netloc != resp.netloc:
-        LOGGER.debug("netloc mismatch %s %s", orig.netloc, resp.netloc)
-        raise ValueError("Domain mismatch")
-
     req_endpoint, _ = find_endpoint(request_id)
     resp_endpoint, resp_profile = find_endpoint(response_id)
 
-    # Need to make sure the domains match with the final profile URLs too
-    resp = urllib.parse.urlparse(resp_profile)  # type:ignore
-    if orig.netloc != resp.netloc:
-        LOGGER.debug("redirected netloc mismatch %s %s", orig.netloc, resp.netloc)
-        raise ValueError("Domain mismatch (profile redirection)")
+    if resp_endpoint is None:
+        raise ValueError(f'Profile {resp_profile} missing IndieAuth endpoint')
 
     # Both the original and final profile must have the same endpoint
     LOGGER.debug('request endpoint=%s response endpoint=%s', req_endpoint, resp_endpoint)
     if req_endpoint != resp_endpoint:
-        raise ValueError("Authorization endpoint mismatch")
+        raise ValueError(f'Authorization endpoint mismatch for {request_id} and {response_id}')
 
-    return response_id
+    return resp_profile
 
 
 class IndieAuth(Handler):
