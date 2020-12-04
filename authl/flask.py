@@ -432,7 +432,7 @@ class AuthlFlask:
         return self._handle_disposition(
             handler.check_callback(request.url, request.args, request.form))
 
-    @property
+    @ property
     def stylesheet(self) -> str:
         """ The stylesheet to use for the Flask templates """
         if self._stylesheet:
