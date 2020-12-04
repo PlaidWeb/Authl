@@ -120,17 +120,16 @@ def test_verify_id(requests_mock):
     assert indieauth.verify_id('https://matching.example',
                                'https://matching.example') == 'https://matching.example'
 
-    # Different URL is allowed as long as the domain and endpoint match
+    # Different URL is allowed as long as the endpoints match
     requests_mock.get('https://different.example/1', headers=endpoint_1)
     requests_mock.get('https://different.example/2', headers=endpoint_1)
     assert indieauth.verify_id('https://different.example/1',
                                'https://different.example/2') == 'https://different.example/2'
 
-    # Don't allow if the domain doesn't match, even if the endpoint does
-    requests_mock.get('https://one.example', headers=endpoint_1)
-    requests_mock.get('https://two.example', headers=endpoint_1)
-    with pytest.raises(ValueError):
-        indieauth.verify_id('https://one.example', 'https://two.example')
+    # Different domain is allowed as long as the endpoints match
+    requests_mock.get('https://different.domain/1', headers=endpoint_1)
+    assert indieauth.verify_id('https://different.example/1',
+                               'https://different.domain/1') == 'https://different.domain/1'
 
     # Don't allow if the endpoints mismatch, even if the domain matches
     requests_mock.get('https://same.example/alice', headers=endpoint_1)
@@ -138,24 +137,28 @@ def test_verify_id(requests_mock):
     with pytest.raises(ValueError):
         indieauth.verify_id('https://same.example/alice', 'https://same.example/bob')
 
-    # scheme upgrade is allowed as long as the endpoint stays the same
+    # scheme change is allowed as long as the endpoint stays the same
     requests_mock.get('http://upgrade.example', headers=endpoint_2)
     requests_mock.get('https://upgrade.example', headers=endpoint_2)
     assert indieauth.verify_id('http://upgrade.example', 'https://upgrade.example')
 
-    # redirect is fine as long as the domain matches
+    # redirect is fine as long as the final endpoint matches
     requests_mock.get('https://redir.example/user', headers=endpoint_1)
-    requests_mock.get('https://redir.example/me', status_code=301,
+    requests_mock.get('https://redir.example/perm', status_code=301,
+                      headers={'Location': 'https://redir.example/target'})
+    requests_mock.get('https://redir.example/temp', status_code=302,
                       headers={'Location': 'https://redir.example/target'})
     requests_mock.get('https://redir.example/target', headers=endpoint_1)
-    assert indieauth.verify_id('https://redir.example/user', 'https://redir.example/me')
+    assert indieauth.verify_id('https://redir.example/user',
+                               'https://redir.example/perm') == 'https://redir.example/target'
+    assert indieauth.verify_id('https://redir.example/user',
+                               'https://redir.example/temp') == 'https://redir.example/temp'
 
-    # redirect is NOT fine if the domain changes
-    requests_mock.get('https://redir.example/offsite', status_code=301,
-                      headers={'Location': 'https://redir.target/'})
-    requests_mock.get('https://redir.target/', headers=endpoint_1)
+    # Target page must have an endpoint
+    requests_mock.get('https://missing.example/src', headers=endpoint_1)
+    requests_mock.get('https://missing.example/dest', text='foo')
     with pytest.raises(ValueError):
-        indieauth.verify_id('https://redir.example/user', 'https://redir.example/offsite')
+        indieauth.verify_id('https://matching.example/src', 'https://missing.example/dest')
 
 
 def test_handler_success(requests_mock):
@@ -275,7 +278,10 @@ def test_handler_failures(requests_mock):
         response = handler.initiate_auth('http://example.user', 'http://client/cb', '/dest')
         assert isinstance(response, disposition.Redirect)
         assert len(store) == 1
-        data = {'state': parse_args(response.url)['state'], 'code': 'bogus'}
+        data = {
+            'state': parse_args(response.url)['state'],
+            'code': 'bogus'
+        }
         response = handler.check_callback('http://client/cb', data, {})
         assert isinstance(response, disposition.Error)
         assert message in response.message
@@ -289,10 +295,16 @@ def test_handler_failures(requests_mock):
     requests_mock.post('http://endpoint/', text='invalid json')
     check_failure('invalid response JSON')
 
-    # callback returns invalid identity URL
-    requests_mock.post('http://endpoint/', text=json.dumps({'me': 'http://whitehouse.gov'}))
-    requests_mock.get('http://whitehouse.gov', text='hello there')
-    check_failure('Domain mismatch')
+    # callback returns a page with no endpoint
+    requests_mock.post('http://endpoint/', json={'me': 'http://empty.user'})
+    requests_mock.get('http://empty.user', text='hello')
+    check_failure('missing IndieAuth endpoint')
+
+    # callback returns a page with a different endpoint
+    requests_mock.post('http://endpoint/', json={'me': 'http://different.user'})
+    requests_mock.get('http://different.user',
+                      headers={'Link': '<http://otherendpoint/>; rel="authorization_endpoint"'})
+    check_failure('Authorization endpoint mismatch')
 
 
 def test_login_timeout(mocker, requests_mock):
