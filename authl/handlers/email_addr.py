@@ -37,7 +37,28 @@ If this wasn't you, you can safely disregard this message.
 
 
 class EmailAddress(Handler):
-    """ Email via "magic link" """
+    """ Authenticate using a "magic link" sent via email.
+
+    :param sendmail: A function that, given an :py:class:`email.message`
+        object, sends it. It is the responsibility of this function to set
+        the From and Subject headers before it sends.
+    :param notify_cdata: the callback data to provide to the user for the
+        next step instructions
+    :param tokens.TokenStore token_store: Storage for the identity tokens
+    :param int expires_time: how long the email link should be valid for, in
+        seconds (default: 900)
+    :param dict pending_storage: Storage to keep track of pending email addresses,
+        for DDOS/abuse mitigation. Defaults to an ExpiringDict that expires
+        after ``expires_time``
+    :param str email_template_text: the plaintext template for the sent
+        email, provided as a template string
+
+    Email templates are formatted with the following parameters:
+
+    * ``{url}``: the URL that the user should visit to complete login
+    * ``{minutes}``:  how long the URL is valid for, in minutes
+
+    """
 
     @property
     def service_name(self):
@@ -69,29 +90,6 @@ class EmailAddress(Handler):
                  pending_storage: dict = None,
                  email_template_text: str = DEFAULT_TEMPLATE_TEXT,
                  ):
-        """ Instantiate a magic link email handler.
-
-        :param sendmail: A function that, given an :py:class:`email.message`
-            object, sends it. It is the responsibility of this function to set
-            the From and Subject headers before it sends.
-        :param notify_cdata: the callback data to provide to the user for the
-            next step instructions
-        :param tokens.TokenStore token_store: Storage for the identity tokens
-        :param int expires_time: how long the email link should be valid for, in
-            seconds (default: 900)
-        :param dict pending_storage: Storage to keep track of pending email addresses,
-            for DDOS/abuse mitigation. Defaults to an ExpiringDict that expires
-            after ``expires_time``
-        :param str email_template_text: the plaintext template for the sent
-            email, provided as a template string
-
-        Email templates are formatted with the following parameters:
-
-        * ``{url}``: the URL that the user should visit to complete login
-        * ``{minutes}``:  how long the URL is valid for, in minutes
-
-        """
-
         # pylint:disable=too-many-arguments
         self._sendmail = sendmail
         self._email_template_text = email_template_text
