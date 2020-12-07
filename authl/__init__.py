@@ -136,15 +136,15 @@ def from_config(config: typing.Dict[str, typing.Any],
 
     Handlers will be enabled based on truthy values of the following keys:
 
-    * ``EMAIL_FROM`` / ``EMAIL_SENDMAIL``: enable :py:mod:`handlers.email_addr`
+    * ``EMAIL_FROM`` / ``EMAIL_SENDMAIL``: enable :py:mod:`authl.handlers.email_addr`
 
-    * ``FEDIVERSE_NAME``: enable :py:mod:`handlers.fediverse`
+    * ``FEDIVERSE_NAME``: enable :py:mod:`authl.handlers.fediverse`
 
-    * ``INDIEAUTH_CLIENT_ID``: enable :py:mod:`handlers.indieauth`
+    * ``INDIEAUTH_CLIENT_ID``: enable :py:mod:`authl.handlers.indieauth`
 
-    * ``TWITTER_CLIENT_KEY``: enable :py:mod:`handlers.twitter`
+    * ``TWITTER_CLIENT_KEY``: enable :py:mod:`authl.handlers.twitter`
 
-    * ``TEST_ENABLED``: enable :py:mod:`handlers.test_handler`
+    * ``TEST_ENABLED``: enable :py:mod:`authl.handlers.test_handler`
 
     For additional configuration settings, see each handler's respective
     ``from_config()``.
