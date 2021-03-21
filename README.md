@@ -115,7 +115,7 @@ authl = authl.flask.AuthlFlask(
         'SMTP_PORT': 25,
         'EMAIL_FROM': 'authl@example.com',
         'EMAIL_SUBJECT': 'Login attempt for Authl test',
-        'INDIELOGIN_CLIENT_ID': 'http://localhost',
+        'INDIELOGIN_CLIENT_ID': authl.flask.client_id,
         'TEST_ENABLED': True,
         'MASTODON_NAME': 'authl testing',
         'MASTODON_HOMEPAGE': 'https://github.com/PlaidWeb/Authl'

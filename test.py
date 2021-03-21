@@ -2,8 +2,8 @@
 
 Run it locally with:
 
-    pipenv install --dev
-    FLASK_APP=test pipenv run flask run
+    poetry install --dev
+    FLASK_APP=test poetry run flask run
 
  """
 
@@ -39,7 +39,6 @@ authl.flask.setup(
 
         'INDIEAUTH_CLIENT_ID': authl.flask.client_id,
         'INDIEAUTH_PENDING_TTL': 10,
-        'INDIELOGIN_CLIENT_ID': authl.flask.client_id,
 
         'TEST_ENABLED': True,
 
