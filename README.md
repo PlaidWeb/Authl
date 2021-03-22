@@ -183,8 +183,3 @@ from Python, or e.g.
 ```
 
 from a Jinja template.
-
-## Notes
-
-At present, the Twitter handler doesn't perform well on load-balanced setups
-or on certain cloud-based app providers.
