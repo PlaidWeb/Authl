@@ -108,6 +108,8 @@ def find_endpoints(id_url: str,
         'token_endpoint',
         'ticket_endpoint',
         'webmention',
+        'micropub',
+        'microsub',
     ):
         endpoint = _derive_endpoint(links, content, rel)
         if endpoint:
