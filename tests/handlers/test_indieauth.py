@@ -24,11 +24,18 @@ def purge_endpoint_cache():
 
 
 def test_find_endpoint_by_url(requests_mock):
-    from authl.handlers.indieauth import find_endpoint
+    from authl.handlers.indieauth import find_endpoint, find_endpoints
     requests_mock.get('http://link.absolute/', text='Nothing to see',
-                      headers={'Link': '<https://endpoint/>; rel="authorization_endpoint"'})
+                      headers={'Link': '<https://endpoint/>; rel="authorization_endpoint",' +
+                               '<https://token/>; rel="token_endpoint"'}
+                      )
 
+    assert find_endpoints('http://link.absolute/')[0] == {
+        'authorization_endpoint': 'https://endpoint/',
+        'token_endpoint': 'https://token/'
+    }
     assert find_endpoint('http://link.absolute/')[0] == 'https://endpoint/'
+    assert find_endpoint('http://link.absolute/', rel='token_endpoint')[0] == 'https://token/'
 
     requests_mock.get('http://link.relative/', text='Nothing to see',
                       headers={'Link': '<invalid>; rel="authorization_endpoint"'})
@@ -36,38 +43,51 @@ def test_find_endpoint_by_url(requests_mock):
 
     requests_mock.get('http://content.absolute/',
                       text='<link rel="authorization_endpoint" href="https://endpoint/">')
-    assert find_endpoint('http://content.absolute/')[0] == 'https://endpoint/'
+    assert find_endpoint(
+        'http://content.absolute/')[0] == 'https://endpoint/'
 
     requests_mock.get('http://content.relative/',
                       text='<link rel="authorization_endpoint" href="endpoint" >')
-    assert find_endpoint('http://content.relative/')[0] == 'http://content.relative/endpoint'
+    assert find_endpoint(
+        'http://content.relative/')[0] == 'http://content.relative/endpoint'
 
     requests_mock.get('http://both/',
-                      text='<link rel="authorization_endpoint" href="http://content/endpoint">',
+                      text='''<link rel="authorization_endpoint" href="http://content/endpoint">
+                      <link rel="token_endpoint" href="http://content/token">
+                      <link rel="ticket_endpoint" href="/content/ticket">''',
                       headers={'Link': '<https://header/endpoint/>; rel="authorization_endpoint"'}
                       )
-    assert find_endpoint('http://both/')[0] == 'https://header/endpoint/'
+    assert find_endpoints('http://both/')[0] == {
+        'authorization_endpoint': 'https://header/endpoint/',
+        'token_endpoint': 'http://content/token',
+        'ticket_endpoint': 'http://both/content/ticket'
+    }
 
     requests_mock.get('http://nothing/', text='nothing')
-    assert find_endpoint('http://nothing/')[0] is None
+    assert not find_endpoints('http://nothing/')[0]
 
-    assert find_endpoint('https://undefined.example')[0] is None
+    assert not find_endpoints('https://undefined.example')[0]
 
     # test the caching
     requests_mock.reset()
-    assert find_endpoint('http://link.absolute/')[0] == 'https://endpoint/'
-    assert find_endpoint('http://link.relative/')[0] == 'invalid'
-    assert find_endpoint('http://content.absolute/')[0] == 'https://endpoint/'
-    assert find_endpoint('http://content.relative/')[0] == 'http://content.relative/endpoint'
+    assert find_endpoints('http://link.absolute/')[0] == {
+        'authorization_endpoint': 'https://endpoint/',
+        'token_endpoint': 'https://token/'
+    }
+    assert find_endpoints('http://link.relative/')[0]['authorization_endpoint'] == 'invalid'
+    assert find_endpoint(
+        'http://content.absolute/')[0] == 'https://endpoint/'
+    assert find_endpoint(
+        'http://content.relative/')[0] == 'http://content.relative/endpoint'
     assert not requests_mock.called
 
     # but a failed lookup shouldn't be cached
-    assert find_endpoint('http://nothing/')[0] is None
+    assert not find_endpoints('http://nothing/')[0]
     assert requests_mock.called
 
 
 def test_find_endpoint_redirections(requests_mock):
-    from authl.handlers.indieauth import find_endpoint
+    from authl.handlers.indieauth import find_endpoints
     # test that redirections get handled correctly
     requests_mock.get('http://start/', status_code=301,
                       headers={'Location': 'http://perm-redirect/'})
@@ -77,18 +97,21 @@ def test_find_endpoint_redirections(requests_mock):
                       text='<link rel="authorization_endpoint" href="https://foobar/">')
 
     # final URL should be the last permanent redirection
-    assert find_endpoint('http://start/') == ('https://foobar/', 'http://perm-redirect/')
+    assert find_endpoints('http://start/') == ({'authorization_endpoint': 'https://foobar/'},
+                                               'http://perm-redirect/')
     assert requests_mock.call_count == 3
 
     # endpoint should be cached for both the initial and permanent-redirect URLs
-    assert find_endpoint('http://start/') == ('https://foobar/', 'http://perm-redirect/')
-    assert find_endpoint(
-        'http://perm-redirect/') == ('https://foobar/', 'http://perm-redirect/')
+    assert find_endpoints('http://start/') == ({'authorization_endpoint': 'https://foobar/'},
+                                               'http://perm-redirect/')
+    assert find_endpoints(
+        'http://perm-redirect/') == ({'authorization_endpoint': 'https://foobar/'},
+                                     'http://perm-redirect/')
     assert requests_mock.call_count == 3
 
 
 def test_find_endpoint_by_content(requests_mock):
-    from authl.handlers.indieauth import find_endpoint
+    from authl.handlers.indieauth import find_endpoint, find_endpoints
 
     links = {'authorization_endpoint': {'url': 'http://link_endpoint'}}
     rel_content = BeautifulSoup('<link rel="authorization_endpoint" href="foo">',
@@ -96,10 +119,12 @@ def test_find_endpoint_by_content(requests_mock):
     abs_content = BeautifulSoup('<link rel="authorization_endpoint" href="http://foo/">',
                                 'html.parser')
 
-    assert find_endpoint('http://example', links=links)[0] == 'http://link_endpoint'
+    assert find_endpoints(
+        'http://example', links=links)[0] == {'authorization_endpoint': 'http://link_endpoint'}
     assert find_endpoint('http://example',
                          content=rel_content)[0] == 'http://example/foo'
-    assert find_endpoint('http://example', content=abs_content)[0] == 'http://foo/'
+    assert find_endpoint(
+        'http://example', content=abs_content)[0] == 'http://foo/'
 
     # link header overrules page content
     assert find_endpoint('http://example',
@@ -107,7 +132,7 @@ def test_find_endpoint_by_content(requests_mock):
                          content=rel_content)[0] == 'http://link_endpoint'
 
     # final result should be cached
-    assert find_endpoint('http://example')[0] == 'http://link_endpoint'
+    assert find_endpoints('http://example')[0] == {'authorization_endpoint': 'http://link_endpoint'}
 
     assert not requests_mock.called
 
@@ -360,6 +385,9 @@ def test_get_profile(requests_mock):
         'name': "larry",
         'pronouns': "he/him",
         'homepage': "https://example.foo/~user/",
+        'endpoints': {
+            'authorization_endpoint': 'https://endpoint.example/',
+        },
     }
 
     # test basic parsing

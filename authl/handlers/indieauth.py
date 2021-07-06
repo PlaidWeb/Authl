@@ -42,59 +42,88 @@ _PROFILE_CACHE = expiringdict.ExpiringDict(max_len=128, max_age_seconds=1800)
 
 def find_endpoint(id_url: str,
                   links: typing.Dict = None,
-                  content: BeautifulSoup = None) -> typing.Tuple[typing.Optional[str],
-                                                                 str]:
-    """ Given an identity URL, discover its IndieAuth endpoint
+                  content: BeautifulSoup = None,
+                  rel: str = "authorization_endpoint") -> typing.Tuple[typing.Optional[str],
+                                                                       str]:
+    """ Given an identity URL, get its IndieAuth endpoint
+
+    :param str id_url: an identity URL to check
+    :param links: a request.links object from a requests operation
+    :param BeautifulSoup content: a BeautifulSoup parse tree of an HTML document
+    :param str rel: the endpoint rel to retrieve
+
+    :returns: a tuple of ``(endpoint_url, profile_url)``
+    """
+    endpoints, profile = find_endpoints(id_url, links, content)
+    return endpoints.get(rel), profile
+
+
+def find_endpoints(id_url: str,
+                   links: typing.Dict = None,
+                   content: BeautifulSoup = None) -> typing.Tuple[typing.Dict[str, str],
+                                                                  str]:
+    """ Given an identity URL, discover its IndieWeb endpoints
 
     :param str id_url: an identity URL to check
     :param links: a request.links object from a requests operation
     :param BeautifulSoup content: a BeautifulSoup parse tree of an HTML document
 
-    :returns: a tuple of ``(endpoint_url, profile_url)``
+    :returns: a tuple of ``({endpoint_name:endpoint_url}, profile_url)``
     """
     profile = id_url
 
-    def _derive_endpoint(links, content) -> typing.Optional[str]:
+    def _derive_endpoint(links, content, rel) -> typing.Optional[str]:
         LOGGER.debug('links for %s: %s', id_url, links)
-        if links and 'authorization_endpoint' in links:
-            LOGGER.debug("Found link header")
-            return links['authorization_endpoint']['url']
+        if links and rel in links:
+            LOGGER.debug("%s: Found %s link header: %s", id_url, rel, links[rel]['url'])
+            return links[rel]['url']
 
         if content:
-            link = content.find('link', rel='authorization_endpoint')
+            link = content.find('link', rel=rel)
             if link:
-                LOGGER.debug("Found link tag")
+                LOGGER.debug("%s: Found %s link tag: %s", id_url, rel, link.get('href'))
                 return urllib.parse.urljoin(id_url, link.get('href'))
 
         return None
 
     # Get the cached endpoint value, but don't immediately use it if we have
     # links and/or content, as it might have changed
-    cached, profile = _ENDPOINT_CACHE.get(id_url, (None, profile))
-    LOGGER.debug("Cached endpoint for %s: %s %s", id_url, cached, profile)
+    cached, profile = _ENDPOINT_CACHE.get(id_url, ({}, profile))
+    LOGGER.debug("Cached endpoints for %s: %s %s", id_url, cached, profile)
 
-    found = (links or content) and _derive_endpoint(links, content)
-    if id_url and not found and not cached:
-        # We didn't find a new endpoint, and we didn't have a cached one
-        LOGGER.debug("Retrieving %s", id_url)
+    if not cached and not (links or content):
+        # We don't have cached endpoints, and we don't have a source to work with,
+        # so get the source
+        LOGGER.debug("find_endpoints: Retrieving %s", id_url)
         request = utils.request_url(id_url)
         if request is not None:
             links = request.links
             content = BeautifulSoup(request.text, 'html.parser')
-            found = _derive_endpoint(links, content)
             profile = utils.permanent_url(request)
 
-    if found and id_url:
+    # Derive the useful IndieAuth endpoints
+    endpoints = cached.copy()
+    for rel in (
+        'authorization_endpoint',
+        'token_endpoint',
+        'ticket_endpoint',
+        'webmention',
+    ):
+        endpoint = _derive_endpoint(links, content, rel)
+        if endpoint:
+            endpoints[rel] = endpoint
+
+    if endpoints and id_url:
         # we found a new value so update the cache
-        LOGGER.debug("Caching %s -> %s", id_url, found)
-        _ENDPOINT_CACHE[id_url] = (found, profile)
-        _ENDPOINT_CACHE[profile] = (found, profile)
+        LOGGER.debug("Caching %s -> %s", id_url, endpoints)
+        _ENDPOINT_CACHE[id_url] = (endpoints, profile)
+        _ENDPOINT_CACHE[profile] = (endpoints, profile)
 
-        # Let's also prefill the profile, while we're here
+        # Let's also prefill the profile cache, while we're here
         if content:
-            get_profile(profile, content)
+            get_profile(profile, content=content, links=links, endpoints=endpoints)
 
-    return (found or cached), profile
+    return endpoints, profile
 
 
 def _parse_hcard(id_url, card):
@@ -129,20 +158,32 @@ def _parse_hcard(id_url, card):
     }
 
 
-def get_profile(id_url: str, content: BeautifulSoup = None) -> dict:
+def get_profile(id_url: str, links=None, content: BeautifulSoup = None, endpoints=None) -> dict:
     """ Given an identity URL, try to parse out an Authl profile """
-    if content:
-        h_cards = mf2py.Parser(doc=content).to_dict(filter_by_type="h-card")
-    elif id_url in _PROFILE_CACHE:
-        return _PROFILE_CACHE[id_url]
-    else:
-        h_cards = mf2py.Parser(url=id_url).to_dict(filter_by_type="h-card")
+    if not content:
+        if id_url in _PROFILE_CACHE:
+            LOGGER.debug("Reusing %s profile from cache", id_url)
+            return _PROFILE_CACHE[id_url]
+
+        LOGGER.debug("get_profile: Retrieving %s", id_url)
+        request = utils.request_url(id_url)
+        if request is not None:
+            links = request.links
+            content = BeautifulSoup(request.text, 'html.parser')
+
+    h_cards = mf2py.Parser(doc=content).to_dict(filter_by_type="h-card")
+    LOGGER.debug("get_profile(%s): found %d h-cards", id_url, len(h_cards))
 
     profile = {}
     for card in h_cards:
         items = _parse_hcard(id_url, card)
 
         profile.update({k: v for k, v in items.items() if v and k not in profile})
+
+    if not endpoints:
+        endpoints, _ = find_endpoints(id_url, links=links, content=content)
+    if endpoints:
+        profile['endpoints'] = endpoints
 
     _PROFILE_CACHE[id_url] = profile
     return profile
@@ -169,11 +210,12 @@ def verify_id(request_id: str, response_id: str) -> str:
     req_endpoint, _ = find_endpoint(request_id)
     resp_endpoint, resp_profile = find_endpoint(response_id)
 
-    if resp_endpoint is None:
+    if not resp_endpoint:
         raise ValueError(f'Profile {resp_profile} missing IndieAuth endpoint')
 
     # Both the original and final profile must have the same endpoint
-    LOGGER.debug('request endpoint=%s response endpoint=%s', req_endpoint, resp_endpoint)
+    LOGGER.debug('request endpoint=%s response endpoint=%s',
+                 req_endpoint, resp_endpoint)
     if req_endpoint != resp_endpoint:
         raise ValueError(f'Authorization endpoint mismatch for {request_id} and {response_id}')
 
@@ -242,7 +284,7 @@ class IndieAuth(Handler):
 
     def handles_page(self, url, headers, content, links):
         """ :returns: whether an ``authorization_endpoint`` was found on the page. """
-        return find_endpoint(url, links, content)[0] is not None
+        return find_endpoint(url, links, content)[0]
 
     def initiate_auth(self, id_url, callback_uri, redir):
         endpoint, id_url = find_endpoint(id_url)
