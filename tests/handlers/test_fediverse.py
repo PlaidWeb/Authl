@@ -90,7 +90,8 @@ def test_auth_success(mocker, requests_mock):
     assert isinstance(result, disposition.Verified)
     assert result.identity == 'https://mastodon.example/@moo'
     assert result.redir == 'qwerpoiu'
-    assert result.profile == {
+    assert result.profile == {  # pylint:disable=no-member
+                                # https://github.com/PyCQA/pylint/issues/4693
         'name': 'moo friend',
         'bio': 'a cow',
         'avatar': 'https://placekitten.com/1280/1024',
