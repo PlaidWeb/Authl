@@ -49,7 +49,7 @@ class Verified(Disposition):
         * ``name``: The user's display/familiar name
         * ``pronouns``: The user's declared pronouns
         * ``endpoints``: A dictionary of key-value pairs referring to the user's
-            various integration services
+          various integration services
 
     """
 
