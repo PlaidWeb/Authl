@@ -73,7 +73,6 @@ def find_endpoints(id_url: str,
     profile = id_url
 
     def _derive_endpoint(links, content, rel) -> typing.Optional[str]:
-        LOGGER.debug('links for %s: %s', id_url, links)
         if links and rel in links:
             LOGGER.debug("%s: Found %s link header: %s", id_url, rel, links[rel]['url'])
             return links[rel]['url']
@@ -103,6 +102,8 @@ def find_endpoints(id_url: str,
 
     # Derive the useful IndieAuth endpoints
     endpoints = cached.copy()
+
+    LOGGER.debug('links for %s: %s', id_url, links)
     for rel in (
         'authorization_endpoint',
         'token_endpoint',
