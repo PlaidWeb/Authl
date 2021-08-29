@@ -233,7 +233,11 @@ def test_handler_success(requests_mock):
         assert args['client_id'] == ['http://client/']
         assert 'redirect_uri' in args
         return json.dumps({
-            'me': 'https://example.user/bob'
+            'me': 'https://example.user/bob',
+            'profile': {
+                'email': 'foo@bar.baz',
+                'url': 'https://bob.example.user/'
+            }
         })
     requests_mock.post('https://auth.example/endpoint', text=verify_callback)
 
@@ -249,6 +253,13 @@ def test_handler_success(requests_mock):
     assert isinstance(response, disposition.Verified)
     assert response.identity == 'https://example.user/bob'
     assert response.redir == '/dest'
+
+    for key, val in {
+        # provided by profile scope
+        'homepage': 'https://bob.example.user/',
+        'email': 'foo@bar.baz',
+    }.items():
+        assert response.profile[key] == val
 
     # trying to replay the same transaction should fail
     response = handler.check_callback(
@@ -436,3 +447,49 @@ def test_profile_partial(requests_mock):
     requests_mock.get('https://partial.example', text=profile_html)
     profile = indieauth.get_profile('https://partial.example')
     assert profile == profile_blob
+
+
+def test_server_profile(requests_mock):
+    profile_html = r"""
+    <link rel="authorization_endpoint" href="https://endpoint.example/">
+    <div class="h-card">
+    <a class="u-url p-name" href="https://example.foo/~user/">larry</a>
+    <p class="e-note">I'm <em>Larry</em>. And you're not. <span class="p-pronouns">he/him</span> or
+    <span class="p-pronoun">whatever</span></p>
+    <a class="u-email" href="mailto:larry%40example.foo">larry at example dot foo</a>
+    <img class="u-photo" src="plop.jpg">
+    </div>"""
+
+    identity_profile = {
+        'email': 'larry-forreals@example.foo',
+        'url': 'https://meow.meow/',
+        'name': 'Larry Fairchild',
+        'photo': 'https://placekitten.com/1280/1024'
+    }
+
+    profile_blob = {
+        'avatar': "https://placekitten.com/1280/1024",
+        'bio': "I'm Larry. And you're not. he/him or whatever",
+        'email': "larry-forreals@example.foo",
+        'name': "Larry Fairchild",
+        'pronouns': "he/him",
+        'homepage': "https://meow.meow/",
+        'endpoints': {
+            'authorization_endpoint': 'https://endpoint.example/',
+        },
+    }
+
+    profile_mock = requests_mock.get('http://server.example', text=profile_html)
+
+    # prefill the cache without the server response
+    indieauth.get_profile('http://server.example')
+
+    # actually set the response profile, make sure it updates
+    profile = indieauth.get_profile('http://server.example', server_profile=identity_profile)
+    assert profile == profile_blob
+
+    # check to make sure it's still in the cache
+    profile = indieauth.get_profile('http://server.example')
+    assert profile == profile_blob
+
+    assert profile_mock.call_count == 1

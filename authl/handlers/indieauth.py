@@ -161,33 +161,57 @@ def _parse_hcard(id_url, card):
     }
 
 
-def get_profile(id_url: str, links=None, content: BeautifulSoup = None, endpoints=None) -> dict:
-    """ Given an identity URL, try to parse out an Authl profile """
-    if not content:
-        if id_url in _PROFILE_CACHE:
-            LOGGER.debug("Reusing %s profile from cache", id_url)
-            return _PROFILE_CACHE[id_url]
+def get_profile(id_url: str,
+                server_profile: dict = None,
+                links=None,
+                content: BeautifulSoup = None,
+                endpoints=None) -> dict:
+    """ Given an identity URL, try to parse out an Authl profile
 
+    :param str id_url: The profile page to parse
+    :param dict server_profile: An IndieAuth response profile
+    :param dict links: Profile response's links dictionary
+    :param content: Pre-parsed page content
+    :param dict endpoints: Pre-parsed page endpoints
+    """
+
+    if id_url in _PROFILE_CACHE:
+        LOGGER.debug("Reusing %s profile from cache", id_url)
+        profile = _PROFILE_CACHE[id_url]
+    else:
+        profile = {}
+
+    if not content and id_url not in _PROFILE_CACHE:
         LOGGER.debug("get_profile: Retrieving %s", id_url)
         request = utils.request_url(id_url)
         if request is not None:
             links = request.links
             content = BeautifulSoup(request.text, 'html.parser')
 
-    h_cards = mf2py.Parser(doc=content).to_dict(filter_by_type="h-card")
-    LOGGER.debug("get_profile(%s): found %d h-cards", id_url, len(h_cards))
+    if content:
+        h_cards = mf2py.Parser(doc=content).to_dict(filter_by_type="h-card")
+        LOGGER.debug("get_profile(%s): found %d h-cards", id_url, len(h_cards))
 
-    profile = {}
-    for card in h_cards:
-        items = _parse_hcard(id_url, card)
+        for card in h_cards:
+            items = _parse_hcard(id_url, card)
 
-        profile.update({k: v for k, v in items.items() if v and k not in profile})
+            profile.update({k: v for k, v in items.items() if v and k not in profile})
+
+    if server_profile:
+        # The IndieAuth server also provided a profile, which should supercede the h-card
+        for in_key, out_key in (('name', 'name'),
+                                ('photo', 'avatar'),
+                                ('url', 'homepage'),
+                                ('email', 'email')):
+            if in_key in server_profile:
+                profile[out_key] = server_profile[in_key]
 
     if not endpoints:
         endpoints, _ = find_endpoints(id_url, links=links, content=content)
     if endpoints:
         profile['endpoints'] = endpoints
 
+    LOGGER.debug("Stashing %s profile", id_url)
     _PROFILE_CACHE[id_url] = profile
     return profile
 
@@ -304,7 +328,7 @@ class IndieAuth(Handler):
             'client_id': client_id,
             'state': state,
             'response_type': 'code',
-            'scope': 'profile',
+            'scope': 'profile email',
             'me': id_url})
         return disposition.Redirect(url)
 
@@ -346,7 +370,10 @@ class IndieAuth(Handler):
                 return disposition.Error("Got invalid response JSON", redir)
 
             response_id = verify_id(id_url, response['me'])
-            return disposition.Verified(response_id, redir, get_profile(response_id))
+            return disposition.Verified(
+                response_id, redir,
+                get_profile(response_id,
+                            server_profile=response.get('profile')))
         except KeyError as key:
             return disposition.Error("Missing " + str(key), redir)
         except ValueError as err:
