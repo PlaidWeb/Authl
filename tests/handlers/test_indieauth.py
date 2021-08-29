@@ -506,3 +506,34 @@ def test_server_profile(requests_mock):
     assert profile == hcard_blob
 
     assert profile_mock.call_count == 1
+
+
+def test_hcard_cache_invalidation(requests_mock):
+    old_profile = r"""<link rel="authorization_endpoint" href="https://cached.example/">
+    <div class="h-card"><a class="u-url p-name" href="https://foo.bar/old">old user</a>
+    <a class="p-note">a note</a></div>
+    """
+
+    new_profile = r"""<link rel="authorization_endpoint" href="https://cached.example/">
+    <div class="h-card"><a class="u-url p-name" href="https://foo.bar/new">new user</a></div>
+    """
+
+    profile_mock = requests_mock.get('http://cached.example', text=old_profile)
+
+    profile = indieauth.get_profile('http://cached.example')
+    assert profile['homepage'] == 'https://foo.bar/old'
+    assert profile['name'] == 'old user'
+    assert profile['bio'] == 'a note'
+
+    profile = indieauth.get_profile('http://cached.example',
+                                    content=BeautifulSoup(new_profile, 'html.parser'))
+    assert profile['homepage'] == 'https://foo.bar/new'
+    assert profile['name'] == 'new user'
+    assert 'bio' not in profile
+
+    profile = indieauth.get_profile('http://cached.example')
+    assert profile['homepage'] == 'https://foo.bar/new'
+    assert profile['name'] == 'new user'
+    assert 'bio' not in profile
+
+    assert profile_mock.call_count == 1

@@ -34,10 +34,10 @@ LOGGER = logging.getLogger(__name__)
 
 # We do this instead of functools.lru_cache so that IndieAuth.handles_page
 # and find_endpoint can both benefit from the same endpoint cache
-_ENDPOINT_CACHE = expiringdict.ExpiringDict(max_len=128, max_age_seconds=1800)
+_ENDPOINT_CACHE = expiringdict.ExpiringDict(max_len=128, max_age_seconds=300)
 
-# And similar for retrieving user profiles
-_PROFILE_CACHE = expiringdict.ExpiringDict(max_len=128, max_age_seconds=1800)
+# And similar for retrieving user h-cards
+_PROFILE_CACHE = expiringdict.ExpiringDict(max_len=128, max_age_seconds=300)
 
 
 def find_endpoint(id_url: str,
@@ -189,6 +189,7 @@ def get_profile(id_url: str,
             content = BeautifulSoup(request.text, 'html.parser')
 
     if content:
+        profile = {}
         h_cards = mf2py.Parser(doc=content).to_dict(filter_by_type="h-card")
         LOGGER.debug("get_profile(%s): found %d h-cards", id_url, len(h_cards))
 
