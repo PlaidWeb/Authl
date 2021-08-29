@@ -467,7 +467,19 @@ def test_server_profile(requests_mock):
         'photo': 'https://placekitten.com/1280/1024'
     }
 
-    profile_blob = {
+    hcard_blob = {
+        'avatar': "http://server.example/plop.jpg",
+        'bio': "I'm Larry. And you're not. he/him or whatever",
+        'email': "larry@example.foo",
+        'name': "larry",
+        'pronouns': "he/him",
+        'homepage': "https://example.foo/~user/",
+        'endpoints': {
+            'authorization_endpoint': 'https://endpoint.example/',
+        },
+    }
+
+    composite_blob = {
         'avatar': "https://placekitten.com/1280/1024",
         'bio': "I'm Larry. And you're not. he/him or whatever",
         'email': "larry-forreals@example.foo",
@@ -482,14 +494,15 @@ def test_server_profile(requests_mock):
     profile_mock = requests_mock.get('http://server.example', text=profile_html)
 
     # prefill the cache without the server response
-    indieauth.get_profile('http://server.example')
+    profile = indieauth.get_profile('http://server.example')
+    assert profile == hcard_blob
 
     # actually set the response profile, make sure it updates
     profile = indieauth.get_profile('http://server.example', server_profile=identity_profile)
-    assert profile == profile_blob
+    assert profile == composite_blob
 
-    # check to make sure it's still in the cache
+    # check to make sure it's still in the cache (but only the hcard version)
     profile = indieauth.get_profile('http://server.example')
-    assert profile == profile_blob
+    assert profile == hcard_blob
 
     assert profile_mock.call_count == 1

@@ -177,7 +177,7 @@ def get_profile(id_url: str,
 
     if id_url in _PROFILE_CACHE:
         LOGGER.debug("Reusing %s profile from cache", id_url)
-        profile = _PROFILE_CACHE[id_url]
+        profile = _PROFILE_CACHE[id_url].copy()
     else:
         profile = {}
 
@@ -197,6 +197,11 @@ def get_profile(id_url: str,
 
             profile.update({k: v for k, v in items.items() if v and k not in profile})
 
+    # Only stash the version without the IndieAuth server profile addons, in case
+    # the user logs in again without the profile/email scopes
+    LOGGER.debug("Stashing %s profile", id_url)
+    _PROFILE_CACHE[id_url] = profile.copy()
+
     if server_profile:
         # The IndieAuth server also provided a profile, which should supercede the h-card
         for in_key, out_key in (('name', 'name'),
@@ -211,8 +216,6 @@ def get_profile(id_url: str,
     if endpoints:
         profile['endpoints'] = endpoints
 
-    LOGGER.debug("Stashing %s profile", id_url)
-    _PROFILE_CACHE[id_url] = profile
     return profile
 
 
