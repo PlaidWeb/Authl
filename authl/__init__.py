@@ -163,13 +163,13 @@ def from_config(config: typing.Dict[str, typing.Any],
         from .handlers import email_addr
         instance.add_handler(email_addr.from_config(config, token_storage))
 
-    if config.get('FEDIVERSE_NAME') or config.get('MASTODON_NAME'):
-        from .handlers import fediverse
-        instance.add_handler(fediverse.from_config(config, token_storage))
-
     if config.get('INDIEAUTH_CLIENT_ID'):
         from .handlers import indieauth
         instance.add_handler(indieauth.from_config(config, token_storage))
+
+    if config.get('FEDIVERSE_NAME') or config.get('MASTODON_NAME'):
+        from .handlers import fediverse
+        instance.add_handler(fediverse.from_config(config, token_storage))
 
     if config.get('TWITTER_CLIENT_KEY'):
         from .handlers import twitter
