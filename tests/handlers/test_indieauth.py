@@ -508,7 +508,7 @@ def test_server_profile(requests_mock):
     assert profile_mock.call_count == 1
 
 
-def test_hcard_cache_invalidation(requests_mock):
+def test_profile_caching(requests_mock):
     old_profile = r"""<link rel="authorization_endpoint" href="https://cached.example/">
     <div class="h-card"><a class="u-url p-name" href="https://foo.bar/old">old user</a>
     <a class="p-note">a note</a></div>
@@ -535,5 +535,26 @@ def test_hcard_cache_invalidation(requests_mock):
     assert profile['homepage'] == 'https://foo.bar/new'
     assert profile['name'] == 'new user'
     assert 'bio' not in profile
+
+    profile = indieauth.get_profile('http://cached.example',
+                                    server_profile={'email': 'foo@bar.baz'})
+    assert profile['homepage'] == 'https://foo.bar/new'
+    assert profile['name'] == 'new user'
+    assert 'bio' not in profile
+    assert profile['email'] == 'foo@bar.baz'
+
+    profile = indieauth.get_profile('http://cached.example',
+                                    content=BeautifulSoup(old_profile, 'html.parser'))
+    assert profile['homepage'] == 'https://foo.bar/old'
+    assert profile['name'] == 'old user'
+    assert profile['bio'] == 'a note'
+    assert 'email' not in profile
+
+    profile = indieauth.get_profile('http://cached.example',
+                                    server_profile={'email': 'qwer@poiu.fojar'})
+    assert profile['homepage'] == 'https://foo.bar/old'
+    assert profile['name'] == 'old user'
+    assert profile['bio'] == 'a note'
+    assert profile['email'] == 'qwer@poiu.fojar'
 
     assert profile_mock.call_count == 1
