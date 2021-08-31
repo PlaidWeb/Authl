@@ -113,6 +113,9 @@ class Serializer(TokenStore):
     need to share the same secret_key.
 
     Also note that tokens stored in this way cannot be revoked individually.
+
+    Additionally, this token storage mechanism may limit the security of some
+    of the identity providers.
     """
 
     def __init__(self, secret_key):

@@ -2,6 +2,7 @@
 # pylint:disable=missing-docstring
 
 
+import pytest
 import requests
 
 from authl import utils
@@ -82,3 +83,10 @@ def test_permanent_url(requests_mock):
     assert req.url == 'https://four/'
     assert utils.permanent_url(req) == 'https://four/'
     assert req.text == 'done'
+
+
+def test_pkce_challenge():
+    assert utils.pkce_challenge('asdf', 'plain') == 'asdf'
+    assert utils.pkce_challenge('foo', 'S256') == 'LCa0a2j_xo_5m0U8HTBBNBNCLXBkg7-g-YpeiGJm564'
+    with pytest.raises(Exception):
+        utils.pkce_challenge('moo', 'plap')

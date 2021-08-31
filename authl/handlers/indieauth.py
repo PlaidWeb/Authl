@@ -18,6 +18,7 @@ whatever framework you're using. Please note also that the scheme (``http`` vs.
 """
 
 import logging
+import secrets
 import time
 import typing
 import urllib.parse
@@ -254,15 +255,7 @@ def verify_id(request_id: str, response_id: str) -> str:
 
 
 class IndieAuth(Handler):
-    """ Supports login via IndieAuth.
-
-    **SECURITY NOTE:** When used with tokens.Serializer, this is subject to certain
-    classes of replay attack; for example, if the user endpoint uses irrevocable
-    signed tokens for the code grant (which is done in many endpoints, e.g.
-    SelfAuth), an attacker can replay a transaction that it intercepts. As such
-    it is very important that the timeout be configured to a reasonably short
-    time to mitigate this.
-    """
+    """ Supports login via IndieAuth. """
 
     @property
     def service_name(self):
@@ -292,7 +285,12 @@ class IndieAuth(Handler):
         :param client_id: The client_id to send to the remote IndieAuth
             provider. Can be a string or a function that returns a string.
 
-        :param token_store: Storage for the tokens
+        :param token_store: Storage for the tokens.
+
+            ***Security note:*** :py:class:`tokens.Serializer` is not supported,
+            as it makes this handler subject to replay attacks when used with
+            many common IndieAuth servers, and also prevents PKCE from being
+            effective.
 
         :param int timeout: Maximum time to wait for login to complete
             (default: 600)
@@ -302,6 +300,11 @@ class IndieAuth(Handler):
         self._client_id = client_id
         self._token_store = token_store
         self._timeout = timeout or 600
+
+        if isinstance(token_store, tokens.Serializer):
+            LOGGER.error(
+                "Cannot use tokens.Serializer with IndieAuth due to security considerations")
+            raise ValueError("Cannot use tokens.Serializer with IndieAuth")
 
     def handles_url(self, url):
         """
@@ -322,7 +325,9 @@ class IndieAuth(Handler):
         if not endpoint:
             return disposition.Error("Failed to get IndieAuth endpoint", redir)
 
-        state = self._token_store.put((id_url, endpoint, callback_uri, time.time(), redir))
+        verifier = secrets.token_urlsafe()
+        state = self._token_store.put(
+            (id_url, endpoint, callback_uri, verifier, time.time(), redir))
 
         client_id = utils.resolve_value(self._client_id)
         LOGGER.debug("Using client_id %s", client_id)
@@ -331,20 +336,22 @@ class IndieAuth(Handler):
             'redirect_uri': callback_uri,
             'client_id': client_id,
             'state': state,
+            'code_challenge': utils.pkce_challenge(verifier),
+            'code_challenge_method': 'S256',
             'response_type': 'code',
             'scope': 'profile email',
             'me': id_url})
         return disposition.Redirect(url)
 
     def check_callback(self, url, get, data):
-        # pylint:disable=too-many-return-statements
+        # pylint:disable=too-many-return-statements,too-many-locals
 
         state = get.get('state')
         if not state:
             return disposition.Error("No transaction provided", '')
 
         try:
-            id_url, endpoint, callback_uri, when, redir = self._token_store.pop(state)
+            id_url, endpoint, callback_uri, verifier, when, redir = self._token_store.pop(state)
         except (KeyError, ValueError):
             return disposition.Error("Invalid token", '')
 
@@ -356,7 +363,8 @@ class IndieAuth(Handler):
             request = requests.post(endpoint, data={
                 'code': get['code'],
                 'client_id': utils.resolve_value(self._client_id),
-                'redirect_uri': callback_uri
+                'redirect_uri': callback_uri,
+                'code_verifier': verifier,
             }, headers={'accept': 'application/json'})
 
             if request.status_code != 200:
