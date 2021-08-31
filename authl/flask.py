@@ -216,9 +216,7 @@ class AuthlFlask:
         browser window closing
 
     :param tokens.TokenStore token_storage: Storage for token data for
-        methods which use it. Defaults to :py:class:`tokens.Serializer` using
-        the Flask ``app.secret_key``; this is suitable for load-balancing
-        scenarios as long as all service nodes use the same secret_key.
+        methods which use it. Uses the same default as :py:func:`authl.from_config`.
 
         Note that if the default is used, the ``app.secret_key`` **MUST** be set
         before this class is initialized.
@@ -257,10 +255,6 @@ class AuthlFlask:
 
         if state_storage is None:
             state_storage = flask.session
-
-        if token_storage is None:
-            assert app.secret_key, "app.secret_key must be set to use default token_storage"
-            token_storage = tokens.Serializer(app.secret_key)
 
         self.authl = from_config(
             config,
