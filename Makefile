@@ -19,7 +19,7 @@ flake8:
 
 .PHONY: mypy
 mypy:
-	poetry run mypy -p authl -m test --ignore-missing-imports
+	poetry run mypy -p authl -m test_app --ignore-missing-imports
 
 .PHONY: preflight
 preflight:
