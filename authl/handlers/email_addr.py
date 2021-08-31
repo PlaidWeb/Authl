@@ -265,7 +265,8 @@ def from_config(config, token_store: tokens.TokenStore):
           data. Defaults to a simple string-based message.
 
         * ``EMAIL_TEMPLATE_FILE``: A path to a text file for the email message; if
-          not specified a default template will be used.
+          not specified a default template will be used. This file must use an
+          UTF-8 encoding.
 
         * ``EMAIL_EXPIRE_TIME``: How long a login email is valid for, in seconds
           (defaults to the :py:class:`EmailAddress` default value)
@@ -290,7 +291,7 @@ def from_config(config, token_store: tokens.TokenStore):
     check_message = config.get('EMAIL_CHECK_MESSAGE', 'Check your email for a login link')
 
     if 'EMAIL_TEMPLATE_FILE' in config:
-        with open(config['EMAIL_TEMPLATE_FILE']) as file:
+        with open(config['EMAIL_TEMPLATE_FILE'], encoding='utf-8') as file:
             email_template_text = file.read()
     else:
         email_template_text = DEFAULT_TEMPLATE_TEXT

@@ -247,14 +247,14 @@ class AuthlFlask:
                  stylesheet: typing.Union[str, typing.Callable] = None,
                  on_verified: typing.Callable = None,
                  make_permanent: bool = True,
-                 state_storage: dict = None,
+                 state_storage: typing.Dict = None,
                  token_storage: tokens.TokenStore = None,
                  session_namespace='_authl',
                  ):
         # pylint:disable=too-many-arguments,too-many-locals,too-many-statements
 
         if state_storage is None:
-            state_storage = flask.session
+            state_storage = typing.cast(typing.Dict, flask.session)
 
         self.authl = from_config(
             config,
@@ -316,7 +316,7 @@ class AuthlFlask:
 
             LOGGER.info("Successful login: %s", disp.identity)
             if self._session_auth_name is not None:
-                flask.session.permanent = self.make_permanent
+                flask.session.permanent = self.make_permanent  # pylint:disable=assigning-non-slot
                 flask.session[self._session_auth_name] = disp.identity
 
             if self._on_verified:
