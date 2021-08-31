@@ -2,6 +2,8 @@
 # pylint:disable=missing-docstring,duplicate-code
 
 
+import base64
+import hashlib
 import json
 import logging
 
@@ -224,6 +226,8 @@ def test_handler_success(requests_mock):
     assert user_get['state'] in store
     assert user_get['response_type'] == 'code'
     assert 'me' in user_get
+    challenge = user_get['code_challenge']
+    assert user_get['code_challenge_method'] == 'S256'
 
     # fake the verification response
     def verify_callback(request, _):
@@ -232,6 +236,9 @@ def test_handler_success(requests_mock):
         assert args['code'] == ['asdf']
         assert args['client_id'] == ['http://client/']
         assert 'redirect_uri' in args
+        verifier = args['code_verifier'][0]
+        assert base64.urlsafe_b64encode(hashlib.sha256(
+            verifier.encode()).digest()) == challenge.encode()
         return json.dumps({
             'me': 'https://example.user/bob',
             'profile': {
@@ -558,3 +565,8 @@ def test_profile_caching(requests_mock):
     assert profile['email'] == 'qwer@poiu.fojar'
 
     assert profile_mock.call_count == 1
+
+
+def test_security_requirements():
+    with pytest.raises(Exception):
+        indieauth.IndieAuth('foobarbaz', tokens.Serializer('qwerpoiu'))
