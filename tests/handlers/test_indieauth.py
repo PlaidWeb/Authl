@@ -2,8 +2,6 @@
 # pylint:disable=missing-docstring,duplicate-code
 
 
-import base64
-import hashlib
 import json
 import logging
 
@@ -11,7 +9,7 @@ import pytest
 import requests
 from bs4 import BeautifulSoup
 
-from authl import disposition, tokens
+from authl import disposition, tokens, utils
 from authl.handlers import indieauth
 
 from . import parse_args
@@ -237,8 +235,7 @@ def test_handler_success(requests_mock):
         assert args['client_id'] == ['http://client/']
         assert 'redirect_uri' in args
         verifier = args['code_verifier'][0]
-        assert base64.urlsafe_b64encode(hashlib.sha256(
-            verifier.encode()).digest()) == challenge.encode()
+        assert utils.pkce_challenge(verifier) == challenge
         return json.dumps({
             'me': 'https://example.user/bob',
             'profile': {

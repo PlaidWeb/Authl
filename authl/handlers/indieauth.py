@@ -17,8 +17,6 @@ whatever framework you're using. Please note also that the scheme (``http`` vs.
 
 """
 
-import base64
-import hashlib
 import logging
 import secrets
 import time
@@ -336,7 +334,7 @@ class IndieAuth(Handler):
             'redirect_uri': callback_uri,
             'client_id': client_id,
             'state': state,
-            'code_challenge': base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()),
+            'code_challenge': utils.pkce_challenge(verifier),
             'code_challenge_method': 'S256',
             'response_type': 'code',
             'scope': 'profile email',

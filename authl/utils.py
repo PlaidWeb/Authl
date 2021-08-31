@@ -1,5 +1,7 @@
 """ Utility functions """
 
+import base64
+import hashlib
 import logging
 import os.path
 import typing
@@ -63,3 +65,19 @@ def permanent_url(response: requests.Response) -> str:
 
     # Last history item was a permanent redirect, or there was no history
     return normalize(response.url)
+
+
+def pkce_challenge(verifier: str, method: str = 'S256') -> str:
+    """ Convert a PKCE verifier string to a challenge string
+
+    See RFC 7636 """
+
+    if method == 'plain':
+        return verifier
+
+    if method == 'S256':
+        hashed = hashlib.sha256(verifier.encode()).digest()
+        encoded = base64.urlsafe_b64encode(hashed)
+        return encoded.decode().strip('=')
+
+    raise ValueError(f'Unknown PKCE method {method}')
