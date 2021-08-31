@@ -202,7 +202,7 @@ def test_from_config(mocker):
         'SMTP_USE_SSL': False,
     }, tokens.DictStore(store))
 
-    mock_open.assert_called_with('template.txt')
+    mock_open.assert_called_with('template.txt', encoding='utf-8')
     res = handler.initiate_auth('mailto:alice@bob.example', 'http://cb/', '/redir')
     assert res.cdata['message'] == 'check yr email'
 
