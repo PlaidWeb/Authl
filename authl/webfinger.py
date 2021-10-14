@@ -10,6 +10,8 @@ import typing
 
 import requests
 
+from . import utils
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -32,7 +34,8 @@ def get_profiles(url: str) -> typing.Set[str]:
         LOGGER.debug("webfinger: user=%s domain=%s", user, domain)
 
         resource = html.escape(f'acct:{user}@{domain}')
-        request = requests.get(f'https://{domain}/.well-known/webfinger?resource={resource}')
+        request = requests.get(f'https://{domain}/.well-known/webfinger?resource={resource}',
+                               headers={'User-Agent': utils.USER_AGENT})
 
         if not 200 <= request.status_code < 300:
             LOGGER.info("Webfinger query %s returned status code %d",

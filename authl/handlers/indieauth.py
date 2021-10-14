@@ -360,12 +360,16 @@ class IndieAuth(Handler):
 
         try:
             # Verify the auth code
+            client_id = utils.resolve_value(self._client_id)
             request = requests.post(endpoint, data={
                 'code': get['code'],
-                'client_id': utils.resolve_value(self._client_id),
+                'client_id': client_id,
                 'redirect_uri': callback_uri,
                 'code_verifier': verifier,
-            }, headers={'accept': 'application/json'})
+            }, headers={
+                'accept': 'application/json',
+                'User-Agent': f'{utils.USER_AGENT} for {client_id}',
+            })
 
             if request.status_code != 200:
                 LOGGER.error("Request returned code %d: %s", request.status_code, request.text)

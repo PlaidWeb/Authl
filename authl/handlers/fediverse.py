@@ -236,7 +236,8 @@ class Fediverse(Handler):
                 'client_secret': client_secret,
                 'token': access_token
             }, headers={
-                'Authorization': f'Bearer {access_token}'
+                'Authorization': f'Bearer {access_token}',
+                'User-Agent': utils.get_user_agent(self._homepage),
             })
             LOGGER.info("OAuth token revocation: %d %s",
                         request.status_code,
