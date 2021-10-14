@@ -288,7 +288,7 @@ def from_config(config, token_store: tokens.TokenStore):
         )
         send_func = simple_sendmail(connector, config['EMAIL_FROM'], config['EMAIL_SUBJECT'])
 
-    check_message = config.get('EMAIL_CHECK_MESSAGE', 'Check your email for a login link')
+    check_message = config.get('EMAIL_CHECK_MESSAGE', 'Check your email for a login link.')
 
     if 'EMAIL_TEMPLATE_FILE' in config:
         with open(config['EMAIL_TEMPLATE_FILE'], encoding='utf-8') as file:
