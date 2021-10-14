@@ -165,9 +165,7 @@ class Twitter(Handler):
             LOGGER.log(logging.WARNING if 'errors' in user_info else logging.NOTSET,
                        "User profile showed error: %s", user_info.get('errors'))
             return disposition.Verified(
-                # We include the user ID after the hash code to prevent folks from
-                # logging in by taking over a username that someone changed/abandoned.
-                f'https://twitter.com/{user_info["screen_name"]}#{user_info["id_str"]}',
+                f'https://twitter.com/i/user/{user_info["id_str"]}',
                 redir,
                 self.build_profile(user_info))
         except Exception as err:  # pylint:disable=broad-except
@@ -206,6 +204,8 @@ class Twitter(Handler):
                    )
         profile = {p_key: expand_entities(t_key)
                    for p_key, t_key in mapping if t_key in user_info}
+
+        profile['profile_url'] = f'https://twitter.com/{user_info["screen_name"]}'
 
         # attempt to get a more suitable image
         if 'avatar' in profile:
