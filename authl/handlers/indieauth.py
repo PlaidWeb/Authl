@@ -369,7 +369,7 @@ class IndieAuth(Handler):
 
             if request.status_code != 200:
                 LOGGER.error("Request returned code %d: %s", request.status_code, request.text)
-                return disposition.Error("Authorization endpoint returned %d" % request.status_code,
+                return disposition.Error(f"Authorization endpoint returned {request.status_code}",
                                          redir)
 
             try:

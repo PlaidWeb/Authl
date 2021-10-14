@@ -48,6 +48,9 @@ class Verified(Disposition):
         * ``location``: The user's stated location
         * ``name``: The user's display/familiar name
         * ``pronouns``: The user's declared pronouns
+        * ``profile_url``: A human-readable URL to link to the user's
+          service-specific profile (which may or may not be the same as their
+          identity URL).
         * ``endpoints``: A dictionary of key-value pairs referring to the user's
           various integration services
 

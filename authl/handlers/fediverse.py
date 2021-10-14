@@ -178,6 +178,7 @@ class Fediverse(Handler):
 
         # mastodon.py doesn't support a state parameter for some reason, so we
         # have to add it ourselves
+        # pylint:disable=consider-using-f-string
         url = '{}&{}'.format(
             client.auth_request_url(
                 redirect_uris=callback_uri,

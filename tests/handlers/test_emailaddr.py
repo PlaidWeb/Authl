@@ -68,8 +68,9 @@ def test_success():
         LOGGER.info('check_callback(%s,%s): %s', url, args, result)
 
         assert isinstance(result, disposition.Verified)
-        assert result.identity == 'mailto:user@example.com'
-        assert result.redir == '/redir'
+        store['result'] = result
+
+        store['is_done'] = result.identity
 
     handler = email_addr.EmailAddress(do_callback, 'some data', tokens.DictStore(store),
                                       email_template_text='{url}')
@@ -78,6 +79,9 @@ def test_success():
     LOGGER.info('initiate_auth: %s', result)
     assert isinstance(result, disposition.Notify)
     assert result.cdata == 'some data'
+
+    assert store['result'].identity == 'mailto:user@example.com'
+    assert store['result'].redir == '/redir'
 
 
 def test_failures(mocker):

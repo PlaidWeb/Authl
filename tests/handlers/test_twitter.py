@@ -64,14 +64,14 @@ def test_auth_success(mocker, requests_mock):
         'oauth_token_secret': 'my_secret'
     }
 
-    result = handler.initiate_auth('https://twitter.com/fluffy', 'http://cb', 'redir')
+    result = handler.initiate_auth('https://twitter.com/fakeinput', 'http://cb', 'redir')
 
     assert isinstance(result, disposition.Redirect), str(result)
     assert result.url.startswith('https://api.twitter.com')
 
     args = parse_args(result.url)
     print(result.url)
-    assert args['screen_name'] == 'fluffy'
+    assert args['screen_name'] == 'fakeinput'
     assert args['oauth_token'] == 'my_token'
     assert 'my_token' in storage
 
@@ -90,7 +90,8 @@ def test_auth_success(mocker, requests_mock):
     result = handler.check_callback('foo', args, {})
     assert isinstance(result, disposition.Verified), str(result)
     assert result.redir == 'redir'
-    assert result.identity == 'https://twitter.com/foo#12345'
+    assert result.identity == 'https://twitter.com/i/user/12345'
+    assert result.profile['profile_url'] == 'https://twitter.com/foo'
 
     # guard against replay attacks
     result = handler.check_callback('foo', args, {})
@@ -185,7 +186,8 @@ def test_profile(requests_mock):
                     {'url': 'https://is.gd/notareallink', 'expanded_url': 'https://beesbuzz.biz/'}
                 ]
             }
-        }
+        },
+        'screen_name': 'qwerpoiufojar',
     }
 
     requests_mock.head('http://example.com/foo_400x400.jpg', status_code=200)
@@ -194,5 +196,6 @@ def test_profile(requests_mock):
     profile = handler.build_profile(user_info)
     assert profile == {
         'avatar': 'http://example.com/foo_400x400.jpg',
-        'bio': 'this is a biography. see more at https://beesbuzz.biz/'
+        'bio': 'this is a biography. see more at https://beesbuzz.biz/',
+        'profile_url': 'https://twitter.com/qwerpoiufojar',
     }
