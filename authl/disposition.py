@@ -10,6 +10,7 @@ transaction, and tells the top-level application what to do next.
 
 
 from abc import ABC
+from typing import Optional
 
 
 class Disposition(ABC):
@@ -56,7 +57,7 @@ class Verified(Disposition):
 
     """
 
-    def __init__(self, identity: str, redir: str, profile: dict = None):
+    def __init__(self, identity: str, redir: str, profile: Optional[dict] = None):
         self.identity = identity
         self.redir = redir
         self.profile = profile or {}

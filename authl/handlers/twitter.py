@@ -21,6 +21,7 @@ import logging
 import re
 import time
 import urllib.parse
+from typing import Optional
 
 import expiringdict
 import requests
@@ -68,8 +69,8 @@ class Twitter(Handler):
 
     def __init__(self, client_key: str,
                  client_secret: str,
-                 timeout: int = None,
-                 storage: dict = None):
+                 timeout: Optional[int] = None,
+                 storage: Optional[dict] = None):
         # pylint:disable=too-many-arguments
         self._client_key = client_key
         self._client_secret = client_secret
@@ -77,12 +78,12 @@ class Twitter(Handler):
         self._pending = expiringdict.ExpiringDict(
             max_len=128,
             max_age_seconds=self._timeout) if storage is None else storage
+        self._http_timeout = 30
 
     # regex to match a twitter URL and optionally extract the username
     twitter_regex = re.compile(r'(https?://)?[^/]*\.?twitter\.com/?@?([^?]*)')
 
-    @staticmethod
-    def handles_url(url):
+    def handles_url(self, url):
         match = Twitter.twitter_regex.match(url)
         if match:
             return 'https://twitter.com/' + match.group(2)
@@ -161,7 +162,7 @@ class Twitter(Handler):
 
             user_info = requests.get(
                 'https://api.twitter.com/1.1/account/verify_credentials.json?skip_status=1',
-                auth=auth).json()
+                auth=auth, timeout=self._http_timeout).json()
             LOGGER.log(logging.WARNING if 'errors' in user_info else logging.NOTSET,
                        "User profile showed error: %s", user_info.get('errors'))
             return disposition.Verified(
@@ -174,15 +175,14 @@ class Twitter(Handler):
             if auth:
                 # let's clean up after ourselves
                 request = requests.post('https://api.twitter.com/1.1/oauth/invalidate_token.json',
-                                        auth=auth)
+                                        auth=auth, timeout=self._http_timeout)
                 LOGGER.debug("Token revocation request: %d %s", request.status_code, request.text)
 
     @property
     def generic_url(self):
         return 'https://twitter.com/'
 
-    @staticmethod
-    def build_profile(user_info: dict) -> dict:
+    def build_profile(self, user_info: dict) -> dict:
         """ Convert a Twitter userinfo JSON into an Authl profile """
         entities = user_info.get('entities', {})
 
@@ -210,7 +210,8 @@ class Twitter(Handler):
         # attempt to get a more suitable image
         if 'avatar' in profile:
             for rendition in ('_400x400', ''):
-                req = requests.head(profile['avatar'].replace('_normal', rendition))
+                req = requests.head(profile['avatar'].replace('_normal', rendition),
+                                    timeout=self._http_timeout)
                 if 200 <= req.status_code < 300:
                     LOGGER.info("Found better avatar rendition: %s", req.url)
                     profile['avatar'] = req.url

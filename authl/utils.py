@@ -6,6 +6,7 @@ import logging
 import os.path
 import typing
 import urllib.parse
+from typing import Optional
 
 import requests
 
@@ -16,7 +17,7 @@ LOGGER = logging.getLogger(__name__)
 USER_AGENT = f'Authl v{__version__.__version__}; +https://plaidweb.site/'
 
 
-def get_user_agent(client_id: str = None):
+def get_user_agent(client_id: Optional[str] = None):
     ''' Make a useful user-agent string for a request '''
     return f'{USER_AGENT} for {client_id}' if client_id else USER_AGENT
 
@@ -32,15 +33,19 @@ def read_icon(filename):
     return read_file(os.path.join(os.path.dirname(__file__), 'icons', filename))
 
 
-def request_url(url: str, client_id: str = None) -> typing.Optional[requests.Response]:
+def request_url(url: str,
+                client_id: Optional[str] = None,
+                timeout: int = 30) -> typing.Optional[requests.Response]:
     """ Requests a URL, attempting to canonicize it as it goes """
 
     for prefix in ('', 'https://', 'http://'):
         attempt = prefix + url
         try:
             return requests.get(attempt, headers={
-                'User-Agent': get_user_agent(client_id),
-            })
+                'User-Agent': get_user_agent(client_id)
+            },
+                timeout=timeout
+            )
         except requests.exceptions.MissingSchema:
             LOGGER.info("Missing schema on URL %s", attempt)
         except Exception as err:  # pylint:disable=broad-except

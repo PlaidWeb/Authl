@@ -45,7 +45,7 @@ class Handler(ABC):
         Whatever value this returns will be passed back in to initiate_auth, so
         if that value matters, return a reasonable URL.
         """
-        # pylint:disable=no-self-use,unused-argument
+        # pylint:disable=unused-argument
         return None
 
     def handles_page(self, url: str, headers, content, links) -> bool:
@@ -64,7 +64,7 @@ class Handler(ABC):
         .. _Requests: https://requests.readthedocs.io/
         .. _BeautifulSoup4: https://pypi.org/project/beautifulsoup4/
         """
-        # pylint:disable=no-self-use,unused-argument
+        # pylint:disable=unused-argument
         return False
 
     @property

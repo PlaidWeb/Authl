@@ -3,6 +3,7 @@
 
 import json
 import logging
+import urllib.parse
 
 import mastodon
 
@@ -52,12 +53,20 @@ def test_handles_url(requests_mock):
     assert not handler.handles_url('https://also-not.example/')
 
 
+def mock_auth_request_url(**args):
+    def mock_url(redirect_uris, scopes, state):
+        # pylint:disable=unused-argument
+        return f"https://cb/?{urllib.parse.urlencode({'state':state, **args})}"
+    return mock_url
+
+
 def test_auth_success(mocker, requests_mock):
     store = tokens.DictStore()
     handler = fediverse.Fediverse('test', store, homepage='http://foo.example/')
     mock_mastodon = mocker.patch('mastodon.Mastodon')
     mock_mastodon.create_app.return_value = ('the id', 'the secret')
-    mock_mastodon().auth_request_url.return_value = 'https://cb?code=12345'
+
+    mock_mastodon().auth_request_url.side_effect = mock_auth_request_url(code=12345)
     mock_mastodon().log_in.return_value = 'some_auth_token'
     mock_mastodon().me.return_value = {
         'url': 'https://mastodon.example/@moo',
@@ -84,7 +93,8 @@ def test_auth_success(mocker, requests_mock):
     result = handler.initiate_auth('mastodon.example', 'https://cb', 'qwerpoiu')
     assert isinstance(result, disposition.Redirect)
     mock_mastodon().auth_request_url.assert_called_with(
-        redirect_uris='https://cb', scopes=['read:accounts'])
+        redirect_uris='https://cb', scopes=['read:accounts'],
+        state=mocker.ANY)
 
     result = handler.check_callback(result.url, parse_args(result.url), {})
     assert isinstance(result, disposition.Verified)
@@ -127,7 +137,7 @@ def test_auth_failures(requests_mock, mocker):
     mock_mastodon.create_app.return_value = ('the id', 'the secret')
 
     # missing auth code
-    mock_mastodon().auth_request_url.return_value = 'https://cb?foo=bar'
+    mock_mastodon().auth_request_url.side_effect = mock_auth_request_url(foo='bar')
     result = handler.initiate_auth('fail.example', 'https://cb', 'qwerpoiu')
     assert isinstance(result, disposition.Redirect)
     result = handler.check_callback(result.url, parse_args(result.url), {})
@@ -135,14 +145,14 @@ def test_auth_failures(requests_mock, mocker):
     assert "Missing 'code'" in result.message
 
     # Login was aborted
-    mock_mastodon().auth_request_url.return_value = 'https://cb?code=12345&error=nope'
+    mock_mastodon().auth_request_url.side_effect = mock_auth_request_url(code=12345, error='bloop')
     result = handler.initiate_auth('fail.example', 'https://cb', 'qwerpoiu')
     assert isinstance(result, disposition.Redirect)
     result = handler.check_callback(result.url, parse_args(result.url), {})
     assert isinstance(result, disposition.Error)
     assert "Error signing into instance" in result.message
 
-    mock_mastodon().auth_request_url.return_value = 'https://cb?code=yep'
+    mock_mastodon().auth_request_url.side_effect = mock_auth_request_url(code=12345)
 
     # login failed for some other reason
     mock_mastodon().log_in.side_effect = mastodon.MastodonRatelimitError("stop it")
@@ -191,7 +201,8 @@ def test_attack_mitigations(requests_mock, mocker):
     mock_mastodon = mocker.patch('mastodon.Mastodon')
 
     mock_mastodon.create_app.return_value = ('the id', 'the secret')
-    mock_mastodon().auth_request_url.return_value = 'https://cb?code=12345'
+
+    mock_mastodon().auth_request_url.side_effect = mock_auth_request_url(code=12345)
     mock_mastodon().log_in.return_value = 'some_auth_token'
 
     requests_mock.get('https://mastodon.example/api/v1/instance',

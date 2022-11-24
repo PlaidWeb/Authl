@@ -22,6 +22,7 @@ import secrets
 import time
 import typing
 import urllib.parse
+from typing import Optional
 
 import expiringdict
 import mf2py
@@ -42,8 +43,8 @@ _PROFILE_CACHE = expiringdict.ExpiringDict(max_len=128, max_age_seconds=300)
 
 
 def find_endpoint(id_url: str,
-                  links: typing.Dict = None,
-                  content: BeautifulSoup = None,
+                  links: Optional[typing.Dict] = None,
+                  content: Optional[BeautifulSoup] = None,
                   rel: str = "authorization_endpoint") -> typing.Tuple[typing.Optional[str],
                                                                        str]:
     """ Given an identity URL, get its IndieAuth endpoint
@@ -60,9 +61,9 @@ def find_endpoint(id_url: str,
 
 
 def find_endpoints(id_url: str,
-                   links: typing.Dict = None,
-                   content: BeautifulSoup = None) -> typing.Tuple[typing.Dict[str, str],
-                                                                  str]:
+                   links: Optional[typing.Dict] = None,
+                   content: Optional[BeautifulSoup] = None) -> typing.Tuple[typing.Dict[str, str],
+                                                                            str]:
     """ Given an identity URL, discover its IndieWeb endpoints
 
     :param str id_url: an identity URL to check
@@ -163,9 +164,9 @@ def _parse_hcard(id_url, card):
 
 
 def get_profile(id_url: str,
-                server_profile: dict = None,
+                server_profile: Optional[dict] = None,
                 links=None,
-                content: BeautifulSoup = None,
+                content: Optional[BeautifulSoup] = None,
                 endpoints=None) -> dict:
     """ Given an identity URL, try to parse out an Authl profile
 
@@ -280,7 +281,7 @@ class IndieAuth(Handler):
         return [(utils.read_icon('indieauth.svg'), 'IndieAuth')]
 
     def __init__(self, client_id: typing.Union[str, typing.Callable[..., str]],
-                 token_store: tokens.TokenStore, timeout: int = None):
+                 token_store: tokens.TokenStore, timeout: Optional[int] = None):
         """
         :param client_id: The client_id to send to the remote IndieAuth
             provider. Can be a string or a function that returns a string.
@@ -300,6 +301,7 @@ class IndieAuth(Handler):
         self._client_id = client_id
         self._token_store = token_store
         self._timeout = timeout or 600
+        self._http_timeout = 5
 
         if isinstance(token_store, tokens.Serializer):
             LOGGER.error(
@@ -369,7 +371,7 @@ class IndieAuth(Handler):
             }, headers={
                 'accept': 'application/json',
                 'User-Agent': f'{utils.USER_AGENT} for {client_id}',
-            })
+            }, timeout=self._http_timeout)
 
             if request.status_code != 200:
                 LOGGER.error("Request returned code %d: %s", request.status_code, request.text)

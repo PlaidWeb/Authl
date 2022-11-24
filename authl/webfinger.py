@@ -15,7 +15,7 @@ from . import utils
 LOGGER = logging.getLogger(__name__)
 
 
-def get_profiles(url: str) -> typing.Set[str]:
+def get_profiles(url: str, timeout: int = 30) -> typing.Set[str]:
     """
 
     Get the potential identity URLs from a webfinger address.
@@ -35,7 +35,8 @@ def get_profiles(url: str) -> typing.Set[str]:
 
         resource = html.escape(f'acct:{user}@{domain}')
         request = requests.get(f'https://{domain}/.well-known/webfinger?resource={resource}',
-                               headers={'User-Agent': utils.USER_AGENT})
+                               headers={'User-Agent': utils.USER_AGENT},
+                               timeout=timeout)
 
         if not 200 <= request.status_code < 300:
             LOGGER.info("Webfinger query %s returned status code %d",

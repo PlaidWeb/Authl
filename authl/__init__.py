@@ -13,6 +13,7 @@ look up the handler for a transaction in progress.
 import collections
 import logging
 import typing
+from typing import Optional
 
 import expiringdict
 from bs4 import BeautifulSoup
@@ -30,7 +31,7 @@ class Authl:
 
     """
 
-    def __init__(self, cfg_handlers: typing.List[handlers.Handler] = None):
+    def __init__(self, cfg_handlers: Optional[typing.List[handlers.Handler]] = None):
         """ Initialize an Authl library instance. """
         self._handlers: typing.Dict[str, handlers.Handler] = collections.OrderedDict()
         if cfg_handlers:
@@ -117,8 +118,8 @@ class Authl:
 
 
 def from_config(config: typing.Dict[str, typing.Any],
-                state_storage: dict = None,
-                token_storage: tokens.TokenStore = None) -> Authl:
+                state_storage: Optional[dict] = None,
+                token_storage: Optional[tokens.TokenStore] = None) -> Authl:
     """ Generate an Authl handler set from provided configuration directives.
 
     :param dict config: a configuration dictionary. See the individual handlers'

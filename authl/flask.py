@@ -59,6 +59,7 @@ import logging
 import os
 import typing
 import urllib.parse
+from typing import Optional
 
 import flask
 import werkzeug.exceptions as http_error
@@ -239,16 +240,16 @@ class AuthlFlask:
                  callback_name: str = 'authl.callback',
                  callback_path: str = '/cb',
                  tester_name: str = 'authl.test',
-                 tester_path: str = None,
-                 login_render_func: typing.Callable = None,
-                 notify_render_func: typing.Callable = None,
+                 tester_path: Optional[str] = None,
+                 login_render_func: Optional[typing.Callable] = None,
+                 notify_render_func: Optional[typing.Callable] = None,
                  session_auth_name: typing.Optional[str] = 'me',
                  force_https: bool = False,
-                 stylesheet: typing.Union[str, typing.Callable] = None,
-                 on_verified: typing.Callable = None,
+                 stylesheet: Optional[typing.Union[str, typing.Callable]] = None,
+                 on_verified: Optional[typing.Callable] = None,
                  make_permanent: bool = True,
-                 state_storage: typing.Dict = None,
-                 token_storage: tokens.TokenStore = None,
+                 state_storage: Optional[typing.Dict] = None,
+                 token_storage: Optional[tokens.TokenStore] = None,
                  session_namespace='_authl',
                  ):
         # pylint:disable=too-many-arguments,too-many-locals,too-many-statements

@@ -226,7 +226,7 @@ def test_app_render_hook():
         assert response.data == b'please login'
         response = client.get('/login/?me=test:poiu')
         assert flask.session['me'] == 'test:poiu'
-        assert response.headers['Location'] == 'http://localhost/'
+        assert response.headers['Location'] == '/'
         response = client.get('/')
         assert response.data == b'hello test:poiu'
 
@@ -277,7 +277,7 @@ def test_generic_login():
         link = soup.find('a', title='generic_logo')
         response = client.get(link['href'])
         assert flask.session['me'] == 'https://login.example/larry/auth'
-        assert response.headers['Location'] == 'http://localhost/'
+        assert response.headers['Location'] == '/'
         response = client.get('/')
         assert response.data == b'hello https://login.example/larry/auth'
 

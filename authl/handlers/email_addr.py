@@ -16,6 +16,7 @@ import logging
 import math
 import time
 import urllib.parse
+from typing import Optional
 
 import expiringdict
 import validate_email
@@ -86,8 +87,8 @@ class EmailAddress(Handler):
                  sendmail,
                  notify_cdata,
                  token_store: tokens.TokenStore,
-                 expires_time: int = None,
-                 pending_storage: dict = None,
+                 expires_time: Optional[int] = None,
+                 pending_storage: Optional[dict] = None,
                  email_template_text: str = DEFAULT_TEMPLATE_TEXT,
                  ):
         # pylint:disable=too-many-arguments

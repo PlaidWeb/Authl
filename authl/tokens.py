@@ -15,6 +15,7 @@ backed by a shared data store such as Redis or a database.
 import typing
 import uuid
 from abc import ABC, abstractmethod
+from typing import Optional
 
 import expiringdict
 import itsdangerous
@@ -78,7 +79,7 @@ class DictStore(TokenStore):
     .. _expiringdict: https://pypi.org/project/expiringdict/
     """
 
-    def __init__(self, store: dict = None,
+    def __init__(self, store: Optional[dict] = None,
                  keygen: typing.Callable[..., str] = lambda _: str(uuid.uuid4())):
         """ Initialize the store """
         self._store: dict = expiringdict.ExpiringDict(

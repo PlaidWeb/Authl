@@ -1,5 +1,5 @@
 """ Tests for the various utility functions """
-# pylint:disable=missing-docstring
+# pylint:disable=missing-docstring,missing-timeout
 
 
 import pytest

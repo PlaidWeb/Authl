@@ -1,5 +1,5 @@
 """ Tests of the IndieAuth handler """
-# pylint:disable=missing-docstring,duplicate-code
+# pylint:disable=missing-docstring,duplicate-code,missing-timeout
 
 
 import json
@@ -88,6 +88,7 @@ def test_find_endpoint_by_url(requests_mock):
 
 def test_find_endpoint_redirections(requests_mock):
     from authl.handlers.indieauth import find_endpoints
+
     # test that redirections get handled correctly
     requests_mock.get('http://start/', status_code=301,
                       headers={'Location': 'http://perm-redirect/'})

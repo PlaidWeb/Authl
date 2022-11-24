@@ -67,9 +67,10 @@ class Fediverse(Handler):
         self._homepage = homepage
         self._token_store = token_store
         self._timeout = timeout or 600
+        self._http_timeout = 30
 
     @staticmethod
-    def _get_instance(url) -> typing.Optional[str]:
+    def _get_instance(url, timeout: int) -> typing.Optional[str]:
         parsed = urllib.parse.urlparse(url)
         if not parsed.netloc:
             parsed = urllib.parse.urlparse('https://' + url)
@@ -79,7 +80,7 @@ class Fediverse(Handler):
 
         try:
             LOGGER.debug("Trying Fediverse instance: %s", instance)
-            request = requests.get(instance + '/api/v1/instance')
+            request = requests.get(instance + '/api/v1/instance', timeout=timeout)
             if request.status_code != 200:
                 LOGGER.debug("Instance endpoint returned error %d", request.status_code)
                 return None
@@ -104,7 +105,7 @@ class Fediverse(Handler):
         """
         LOGGER.info("Checking URL %s", url)
 
-        instance = self._get_instance(url)
+        instance = self._get_instance(url, self._http_timeout)
         if not instance:
             LOGGER.debug("Not a Fediverse instance: %s", url)
             return None
@@ -151,7 +152,7 @@ class Fediverse(Handler):
 
     def initiate_auth(self, id_url, callback_uri, redir):
         try:
-            instance = self._get_instance(id_url)
+            instance = self._get_instance(id_url, self._http_timeout)
             client_id, client_secret = mastodon.Mastodon.create_app(
                 api_base_url=instance,
                 client_name=self._name,
@@ -176,19 +177,16 @@ class Fediverse(Handler):
             redir
         ))
 
-        # mastodon.py doesn't support a state parameter for some reason, so we
-        # have to add it ourselves
-        # pylint:disable=consider-using-f-string
-        url = '{}&{}'.format(
-            client.auth_request_url(
-                redirect_uris=callback_uri,
-                scopes=['read:accounts'],
-            ),
-            urllib.parse.urlencode({'state': state}))
+        url = client.auth_request_url(
+            redirect_uris=callback_uri,
+            scopes=['read:accounts'],
+            state=state
+        )
 
         return disposition.Redirect(url)
 
     def check_callback(self, url, get, data):
+        print(url, get)
         try:
             (
                 instance,
@@ -215,7 +213,7 @@ class Fediverse(Handler):
         )
 
         try:
-            access_token = client.log_in(
+            client.log_in(
                 code=get['code'],
                 redirect_uri=url,
                 scopes=['read:accounts'],
@@ -228,22 +226,7 @@ class Fediverse(Handler):
         result = self._get_identity(instance, client.me(), redir)
 
         # clean up after ourselves
-        # mastodon.py does not currently support the revoke endpoint; see
-        # https://github.com/halcy/Mastodon.py/issues/217
-        try:
-            request = requests.post(instance + '/oauth/revoke', data={
-                'client_id': client_id,
-                'client_secret': client_secret,
-                'token': access_token
-            }, headers={
-                'Authorization': f'Bearer {access_token}',
-                'User-Agent': utils.get_user_agent(self._homepage),
-            })
-            LOGGER.info("OAuth token revocation: %d %s",
-                        request.status_code,
-                        request.text)
-        except Exception as err:  # pylint:disable=broad-except
-            LOGGER.warning("Token revocation failed: %s", err)
+        client.revoke_access_token()
 
         return result
 

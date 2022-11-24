@@ -6,7 +6,7 @@ setup:
 
 .PHONY: format
 format:
-	poetry run isort -y
+	poetry run isort .
 	poetry run autopep8 -r --in-place .
 
 .PHONY: pylint
