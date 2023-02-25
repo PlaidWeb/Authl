@@ -48,6 +48,9 @@ def request_url(url: str,
             )
         except requests.exceptions.MissingSchema:
             LOGGER.info("Missing schema on URL %s", attempt)
+        except requests.exceptions.InvalidSchema:
+            LOGGER.info("Unsupported schema on URL %s", attempt)
+            return None
         except Exception as err:  # pylint:disable=broad-except
             LOGGER.info("%s failed: %s", attempt, err)
 

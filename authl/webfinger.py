@@ -25,12 +25,12 @@ def get_profiles(url: str, timeout: int = 30) -> typing.Set[str]:
     :returns: A :py:type:`set` of potential identity URLs
 
     """
-    webfinger = re.match(r'@([^@]+)@(.*)$', url)
+    webfinger = re.match(r'(@|acct:)([^@]+)@(.*)$', url)
     if not webfinger:
         return set()
 
     try:
-        user, domain = webfinger.group(1, 2)
+        user, domain = webfinger.group(2, 3)
         LOGGER.debug("webfinger: user=%s domain=%s", user, domain)
 
         resource = html.escape(f'acct:{user}@{domain}')

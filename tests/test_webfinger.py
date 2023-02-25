@@ -39,6 +39,9 @@ def test_resource(requests_mock):
     assert webfinger.get_profiles(
         "@profile@example.com") == {'https://profile.example.com/u/moo',
                                     'https://self.example.com/u/moo'}
+    assert webfinger.get_profiles(
+        "acct:profile@example.com") == {'https://profile.example.com/u/moo',
+                                        'https://self.example.com/u/moo'}
 
     requests_mock.get('https://example.com/.well-known/webfinger?resource=acct:empty@example.com',
                       json={

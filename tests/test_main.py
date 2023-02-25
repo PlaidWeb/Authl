@@ -85,18 +85,6 @@ def test_get_handler_for_url(requests_mock):
     assert instance.get_handler_for_url('') == (None, '', '')
 
 
-def test_webmention_url(mocker):
-    """ test handles_url on a webmention profile """
-    handler_1 = UrlHandler('test://foo', 'a')
-    handler_2 = UrlHandler('test://bar', 'b')
-    instance = Authl([handler_1, handler_2])
-
-    wgp = mocker.patch('authl.webfinger.get_profiles')
-    wgp.side_effect = lambda url: {'test://cat', 'test://bar'} if url == '@foo@bar.baz' else {}
-
-    assert instance.get_handler_for_url('@foo@bar.baz') == (handler_2, 'b', 'test://bar')
-
-
 def test_from_config(mocker):
     """ Ensure the main from_config function calls the appropriate proxied ones """
     test_config = {
@@ -140,3 +128,33 @@ def test_redir_url(requests_mock):
 
     assert instance.get_handler_for_url('http://foo') == \
         (handler, 'foo', 'http://bar')
+
+
+def test_webfinger_profiles(mocker):
+    """ test handles_url on a webfinger profile """
+    handler_1 = UrlHandler('test://foo', 'a')
+    handler_2 = UrlHandler('test://bar', 'b')
+    instance = Authl([handler_1, handler_2])
+
+    wgp = mocker.patch('authl.webfinger.get_profiles')
+    wgp.side_effect = lambda url: {'test://cat',
+                                   'test://bar'} if url == 'fake webfinger address' else {}
+
+    assert instance.get_handler_for_url('fake webfinger address') == (handler_2, 'b', 'test://bar')
+
+
+def test_scheme_fallback(requests_mock):
+    """ Ensure that unknown and missing schemes fall back correctly """
+    requests_mock.get('https://foo/bar', text='blah')
+    requests_mock.get('http://foo/bar', text='blah')
+
+    handler_https = UrlHandler('https://foo/bar', 'secure')
+    handler_http = UrlHandler('http://foo/bar', 'insecure')
+    instance = Authl([handler_https, handler_http])
+
+    assert instance.get_handler_for_url(
+        'https://foo/bar') == (handler_https, 'secure', 'https://foo/bar')
+    assert instance.get_handler_for_url(
+        'http://foo/bar') == (handler_http, 'insecure', 'http://foo/bar')
+    assert instance.get_handler_for_url('foo/bar') == (handler_https, 'secure', 'https://foo/bar')
+    assert instance.get_handler_for_url('example://foo') == (None, '', '')
