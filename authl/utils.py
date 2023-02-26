@@ -100,3 +100,19 @@ def pkce_challenge(verifier: str, method: str = 'S256') -> str:
         return encoded.decode().strip('=')
 
     raise ValueError(f'Unknown PKCE method {method}')
+
+
+def extract_rel(rel: str, base_url, content, links) -> typing.Set[str]:
+    """ Given a parsed page/response, extract all of the URLs that match a particular link rel """
+    result: typing.Set[str] = set()
+
+    if links and rel in links:
+        LOGGER.debug("%s: Found %s link header: %s", base_url, rel, links[rel]['url'])
+        result.add(links[rel]['url'])
+
+    if content:
+        for link in content.find_all(('link', 'a'), rel=rel):
+            LOGGER.debug("%s: Found %s link tag: %s", base_url, rel, link.get('href'))
+            result.add(urllib.parse.urljoin(base_url, link.get('href')))
+
+    return result

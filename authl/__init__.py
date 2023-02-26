@@ -70,18 +70,16 @@ class Authl:
         :returns: a tuple of ``(handler, hander_id, profile_url)``.
 
         """
+        # pylint:disable=too-many-return-statements
 
         url = url.strip()
-
-        # If webfinger detects profiles for this address, try all of those first
-        for profile in webfinger.get_profiles(url):
-            LOGGER.debug("Checking profile %s", profile)
-            resp = self.get_handler_for_url(profile)
-            if resp[0]:
-                return resp
-
         if not url:
             return None, '', ''
+
+        # check webfinger profiles
+        resp = self.check_profiles(webfinger.get_profiles(url))
+        if resp and resp[0]:
+            return resp
 
         by_url = self._match_url(url)
         if by_url[0]:
@@ -104,12 +102,27 @@ class Authl:
                     LOGGER.debug("%s response matches %s", profile, handler)
                     return handler, hid, request.url
 
+            # check for RelMeAuth candidates
+            resp = self.check_profiles(utils.extract_rel('me', profile, soup, request.links))
+            if resp and resp[0]:
+                return resp
+
         LOGGER.debug("No handler found for URL %s", url)
         return None, '', ''
 
     def get_handler_by_id(self, handler_id):
         """ Get the handler with the given ID, for a transaction in progress. """
         return self._handlers.get(handler_id)
+
+    def check_profiles(self, profiles) -> typing.Tuple[typing.Optional[handlers.Handler], str, str]:
+        """ Given a list of profile URLs, check them for a handle-able identity """
+        for profile in profiles:
+            LOGGER.debug("Checking profile %s", profile)
+            resp = self.get_handler_for_url(profile)
+            if resp and resp[0]:
+                return resp
+
+        return None, '', ''
 
     @property
     def handlers(self):

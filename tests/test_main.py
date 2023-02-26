@@ -158,3 +158,32 @@ def test_scheme_fallback(requests_mock):
         'http://foo/bar') == (handler_http, 'insecure', 'http://foo/bar')
     assert instance.get_handler_for_url('foo/bar') == (handler_https, 'secure', 'https://foo/bar')
     assert instance.get_handler_for_url('example://foo') == (None, '', '')
+
+
+def test_relme_auth(requests_mock):
+    """ test RelMeAuth profile support """
+    handler_1 = UrlHandler('test://foo', 'a')
+    handler_2 = UrlHandler('https://social.example/bob', 'b')
+    instance = Authl([handler_1, handler_2])
+
+    requests_mock.get('https://foo-link.example/', text='<link rel="me" href="test://foo">')
+    requests_mock.get('https://foo-a.example/', text='<a rel="me" href="test://foo">')
+    requests_mock.get('https://header.example/', headers={'Link': '<test://foo>; rel="me"'})
+
+    requests_mock.get('https://social.example/relative-link', text='<link rel="me" href="bob">')
+    requests_mock.get('https://social.example/relative-a', text='<a rel="me" href="bob">')
+    requests_mock.get('https://multiple.example/', text='''
+        <link rel="me" href="test://bar">
+        <link rel="me" href="test://baz">
+        <a href="https://social.example/bob" rel="me">
+        ''')
+
+    for url in ('https://foo-link.example/',
+                'https://foo-a.example',
+                'https://header.example'):
+        assert instance.get_handler_for_url(url) == (handler_1, 'a', 'test://foo')
+
+    for url in ('https://social.example/relative-link',
+                'https://social.example/relative-a',
+                'https://multiple.example/'):
+        assert instance.get_handler_for_url(url) == (handler_2, 'b', 'https://social.example/bob')
