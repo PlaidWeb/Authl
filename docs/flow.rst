@@ -53,6 +53,8 @@ Example (pseudo-)code follows:
             return redirect(disp.redir)
         if isinstance(disp, disposition.Notify):
             return render_notification_page(message=disp.cdata)
+        if isinstance(disp, disposition.NeedsPost):
+            return render_post_form(message=disp.message, url=disp.url, data=disp.data)
         if isinstance(disp, disposition.Error):
             return render_login_form(error=disp.message, redir=disp.redir)
         raise RuntimeError("Unknown disposition type " + disp)

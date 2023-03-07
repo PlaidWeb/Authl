@@ -465,7 +465,7 @@ class AuthlFlask:
 
 def client_id():
     """ A shim to generate a client ID based on the current site URL, for use
-    with IndieAuth. """
+    with IndieAuth, Fediverse, and so on. """
     from flask import request
     parsed = urllib.parse.urlparse(request.base_url)
     baseurl = f'{parsed.scheme}://{parsed.hostname}'

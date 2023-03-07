@@ -11,7 +11,7 @@ as appropriate.
 Installation
 ------------
 
-Authl requires Python 3.6 or later.
+Authl requires Python 3.8.1 or later.
 
 Install with pip::
 
