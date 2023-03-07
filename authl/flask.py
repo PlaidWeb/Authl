@@ -194,6 +194,15 @@ class AuthlFlask:
 
             * ``cdata``: the client data for the handler
 
+    :param function post_form_render_func: The function to call to render a
+        necessary post-login form; if not specified a default will be provided.
+
+        This function takes the following arguments:
+
+            * ``message``: the notification message for the user
+            * ``data``: the data to pass along in the POST request
+            * ``url``: the URL to send the POST request to
+
     :param str session_auth_name: The session parameter to use for the
         authenticated user. Set to None if you want to use your own session
         management.
@@ -243,6 +252,7 @@ class AuthlFlask:
                  tester_path: Optional[str] = None,
                  login_render_func: Optional[typing.Callable] = None,
                  notify_render_func: Optional[typing.Callable] = None,
+                 post_form_render_func: Optional[typing.Callable] = None,
                  session_auth_name: typing.Optional[str] = 'me',
                  force_https: bool = False,
                  stylesheet: Optional[typing.Union[str, typing.Callable]] = None,
@@ -269,6 +279,7 @@ class AuthlFlask:
         self._tester_path = tester_path
         self._login_render_func = login_render_func
         self._notify_render_func = notify_render_func
+        self._post_form_render_func = post_form_render_func
         self._session_auth_name = session_auth_name
         self.force_https = force_https
         self._stylesheet = stylesheet
@@ -335,18 +346,35 @@ class AuthlFlask:
             # The user's login failed
             return self.render_login_form(destination=disp.redir, error=disp.message)
 
+        if isinstance(disp, disposition.NeedsPost):
+            # A POST request is required to proceed
+            return self._render_post_form(url=disp.url, message=disp.message, data=disp.data)
+
         # unhandled disposition
-        raise http_error.InternalServerError("Unknown disposition type " + str(type(disp)))
+        raise http_error.InternalServerError(f"Unknown disposition type {str(type(disp))}")
 
     @_nocache()
     def _render_notify(self, cdata):
         if self._notify_render_func:
-            result = self._notify_render_func(cdata)
+            result = self._notify_render_func(cdata=cdata)
             if result:
                 return result
 
         return flask.render_template_string(load_template('notify.html'),
                                             cdata=cdata,
+                                            stylesheet=self.stylesheet)
+
+    @_nocache()
+    def _render_post_form(self, url, message, data):
+        if self._post_form_render_func:
+            result = self._post_form_render_func(url=url, message=message, data=data)
+            if result:
+                return result
+
+        return flask.render_template_string(load_template('post-needed.html'),
+                                            url=url,
+                                            message=message,
+                                            data=data,
                                             stylesheet=self.stylesheet)
 
     def render_login_form(self, destination: str, error: typing.Optional[str] = None):
@@ -425,7 +453,7 @@ class AuthlFlask:
         if not handler:
             return self._handle_disposition(disposition.Error("Invalid handler", ''))
         return self._handle_disposition(
-            handler.check_callback(request.url, request.args, request.form))
+            handler.check_callback(request.base_url, request.args, request.form))
 
     @ property
     def stylesheet(self) -> str:

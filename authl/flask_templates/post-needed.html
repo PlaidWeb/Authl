@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Complete your login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="{{stylesheet}}">
+
+<script>
+window.addEventListener("load", () => {
+    document.forms['proxy'].submit();
+});
+</script>
+
+<body>
+    <div id="login">
+        <h1>Next Step</h1>
+
+        <div id="notify">
+            {{message}}
+
+            <form id="proxy" method="POST" action="{{url}}">
+                {% for name,value in data.items() %}
+                <input type="hidden" name="{{name}}" value="{{value}}">
+                {% endfor %}
+                <input type="submit" value="Log In">
+            </form>
+        </div>
+
+        <div id="powered">
+            <p>Powered by <a href="https://github.com/PlaidWeb/Authl">Authl</a></p>
+        </div>
+    </div>
+</body>
+</html>
