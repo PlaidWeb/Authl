@@ -144,8 +144,12 @@ class EmailAddress(Handler):
         token = self._token_store.put((dest_addr, redir, time.time()))
         self._pending[dest_addr] = token
 
+        LOGGER.debug("Generated token %s", token)
+
         link_url = (callback_uri + ('&' if '?' in callback_uri else '?') +
                     urllib.parse.urlencode({'t': token}))
+
+        LOGGER.debug("Link URL %s", link_url)
 
         msg = email.message.EmailMessage()
         msg['To'] = dest_addr
@@ -160,7 +164,10 @@ class EmailAddress(Handler):
         return disposition.Notify(self._cdata)
 
     def check_callback(self, url, get, data):
-        token = get.get('t')
+        if 't' in get:
+            return disposition.NeedsPost(url, "Complete your login", {'t': get['t']})
+
+        token = data.get('t')
 
         if not token:
             return disposition.Error('Missing token', None)
@@ -174,6 +181,8 @@ class EmailAddress(Handler):
 
         if time.time() > when + self._lifetime:
             return disposition.Error("Login timed out", redir)
+
+        LOGGER.debug("addr=%s redir=%s when=%s", email_addr, redir, when)
 
         return disposition.Verified('mailto:' + email_addr, redir, {'email': email_addr})
 

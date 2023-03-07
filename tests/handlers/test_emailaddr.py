@@ -67,7 +67,12 @@ def test_success():
         result = handler.check_callback(url, parse_args(url), {})
         LOGGER.info('check_callback(%s,%s): %s', url, args, result)
 
+        assert isinstance(result, disposition.NeedsPost)
+
+        result = handler.check_callback(result.url, {}, result.data)
+
         assert isinstance(result, disposition.Verified)
+
         store['result'] = result
 
         store['is_done'] = result.identity
@@ -105,7 +110,7 @@ def test_failures(mocker):
 
     # check for missing or invalid tokens
     assert 'Missing token' in str(handler.check_callback('foo', {}, {}))
-    assert 'Invalid token' in str(handler.check_callback('foo', {'t': 'bogus'}, {}))
+    assert 'Invalid token' in str(handler.check_callback('foo', {}, {'t': 'bogus'}))
 
     def initiate(addr, redir):
         result = handler.initiate_auth('mailto:' + addr, 'http://example/', redir)
@@ -114,7 +119,10 @@ def test_failures(mocker):
 
     def check_pending(addr):
         url = pending[addr]
-        return handler.check_callback(url, parse_args(url), {})
+        result = handler.check_callback(url, parse_args(url), {})
+        if isinstance(result, disposition.NeedsPost):
+            result = handler.check_callback(result.url, {}, result.data)
+        return result
 
     # check for timeout failure
     mock_time = mocker.patch('time.time')
@@ -239,7 +247,7 @@ def test_please_wait(mocker):
     assert token_value == pending['foo@bar.com']
 
     # Using the link should remove the pending item
-    handler.check_callback('http://example/', {'t': pending['foo@bar.com']}, {})
+    handler.check_callback('http://example/', {}, {'t': pending['foo@bar.com']})
     assert 'foo@bar.com' not in pending
 
     # Next auth should call mock_send again

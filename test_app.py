@@ -31,7 +31,7 @@ def on_login(verified):
 authl.flask.setup(
     app,
     {
-        'EMAIL_SENDMAIL': print,
+        'EMAIL_SENDMAIL': lambda message: print(message.get_payload(decode=True).decode('utf-8')),
         'EMAIL_FROM': 'nobody@example.com',
         'EMAIL_SUBJECT': 'Log in to authl test',
         'EMAIL_CHECK_MESSAGE': 'Use the link printed to the test console',

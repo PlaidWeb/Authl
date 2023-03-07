@@ -30,7 +30,7 @@ class Redirect(Disposition):
         self.url = url
 
     def __str__(self):
-        return 'REDIR:' + self.url
+        return f'REDIR:{self.url}'
 
 
 class Verified(Disposition):
@@ -63,7 +63,7 @@ class Verified(Disposition):
         self.profile = profile or {}
 
     def __str__(self):
-        return 'VERIFIED:' + self.identity
+        return f'VERIFIED:{self.identity}'
 
 
 class Notify(Disposition):
@@ -81,7 +81,7 @@ class Notify(Disposition):
         self.cdata = cdata
 
     def __str__(self):
-        return 'NOTIFY:' + str(self.cdata)
+        return f'NOTIFY:{str(self.cdata)}'
 
 
 class Error(Disposition):
@@ -98,4 +98,22 @@ class Error(Disposition):
         self.redir = redir
 
     def __str__(self):
-        return 'ERROR:' + self.message
+        return f'ERROR:{self.message}'
+
+
+class NeedsPost(Disposition):
+    """
+    Indicates that the callback needs to be re-triggered as a POST request.
+
+    :param str url: The URL that needs to be POSTed to
+    :param str message: A user-friendly message to display
+    :param dict data: POST data to be sent in the request, as key-value pairs
+    """
+
+    def __init__(self, url: str, message, data: dict):
+        self.url = url
+        self.message = str(message)
+        self.data = data
+
+    def __str__(self):
+        return f'NEEDS-POST:{self.message}'

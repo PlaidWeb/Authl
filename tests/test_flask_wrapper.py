@@ -65,6 +65,8 @@ def test_dispositions_and_hooks(mocker):
                 return disposition.Notify(redir)
             if id_url == 'error':
                 return disposition.Error('something', redir)
+            if id_url == 'posty':
+                return disposition.NeedsPost('http://foo.bar/', 'foo', {'val': 123})
             if id_url == 'invalid':
                 return InvalidDisposition()
             raise ValueError("nope")
@@ -72,6 +74,7 @@ def test_dispositions_and_hooks(mocker):
     notify_render = mocker.Mock(return_value="notified")
     login_render = mocker.Mock(return_value="login form")
     on_verified = mocker.Mock(return_value="verified")
+    post_render = mocker.Mock(return_value="postform")
 
     app = flask.Flask(__name__)
     app.secret_key = __name__
@@ -80,6 +83,7 @@ def test_dispositions_and_hooks(mocker):
                                  session_auth_name=None,
                                  notify_render_func=notify_render,
                                  login_render_func=login_render,
+                                 post_form_render_func=post_render,
                                  on_verified=on_verified)
     instance.add_handler(Dispositioner())
 
@@ -95,7 +99,7 @@ def test_dispositions_and_hooks(mocker):
 
     with app.test_client() as client:
         assert client.get(login_url + '/bobble?me=notify').data == b'notified'
-        notify_render.assert_called_with('/bobble')
+        notify_render.assert_called_with(cdata='/bobble')
 
     with app.test_client() as client:
         assert client.get(login_url + '/chomp?me=error').data == b"login form"
@@ -106,6 +110,13 @@ def test_dispositions_and_hooks(mocker):
                                         error='something',
                                         redir='/chomp'
                                         )
+
+    with app.test_client() as client:
+        assert client.get(login_url + '/chomp?me=posty').data == b"postform"
+        post_render.assert_called_with(url="http://foo.bar/",
+                                       message="foo",
+                                       data={'val': 123}
+                                       )
 
     with app.test_client() as client:
         assert client.get(login_url + '/chomp?me=invalid').status_code == 500
@@ -301,3 +312,33 @@ def test_session_override():
         assert 'me' not in flask.session
         assert isinstance(stash['v'], disposition.Verified)
         assert stash['v'].identity == 'test:poiu'
+
+
+def test_post_form_render():
+    app = flask.Flask(__name__)
+    app.secret_key = 'qwer'
+
+    def no_login(*args, **kwargs):
+        raise ValueError(f"Got spurious login func. args={args} kwargs={kwargs}")
+
+    aflask = authl.flask.AuthlFlask(app, {}, login_render_func=no_login)
+
+    class PostProxyHandler(TestHandler):
+        @property
+        def cb_id(self):
+            return 'posty'
+
+        def check_callback(self, url, get, data):
+            return disposition.NeedsPost('fake-url', 'This is a message', {'proxied': get['bogus']})
+
+    aflask.authl.add_handler(PostProxyHandler())
+
+    with app.test_request_context('https://foo.bar/'):
+        cb_url = flask.url_for('authl.callback', hid='posty', bogus='fancy')
+
+    with app.test_client() as client:
+        response = client.get(cb_url)
+        soup = BeautifulSoup(response.data, 'html.parser')
+        assert soup.find('form', method='POST', action='fake-url')
+        assert 'This is a message' in soup.find('div', id='notify').text
+        assert soup.find('input', {'type': 'hidden', 'name': 'proxied', 'value': 'fancy'})

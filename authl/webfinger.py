@@ -52,5 +52,5 @@ def get_profiles(url: str, timeout: int = 30) -> typing.Set[str]:
         return {link['href'] for link in profile['links']
                 if link['rel'] in ('http://webfinger.net/rel/profile-page', 'profile', 'self')}
     except Exception:  # pylint:disable=broad-except
-        LOGGER.exception("Failed to decode %s profile", resource)
+        LOGGER.info("Failed to decode %s profile", resource)
         return set()

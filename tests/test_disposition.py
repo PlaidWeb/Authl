@@ -9,3 +9,4 @@ def test_dispositions():
     assert 'foo' in str(disposition.Verified('foo', None))
     assert 'foo' in str(disposition.Notify('foo'))
     assert 'foo' in str(disposition.Error('foo', None))
+    assert 'foo' in str(disposition.NeedsPost('', 'foo', {}))
