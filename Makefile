@@ -68,5 +68,8 @@ upload: clean build
 	poetry publish
 
 .PHONY: doc
-doc:
+doc: requirements.txt
 	poetry run sphinx-build -b html docs/ docs/_build
+
+requirements.txt: poetry.lock
+	poetry export -o requirements.txt
