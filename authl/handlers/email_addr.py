@@ -9,6 +9,8 @@ work with your regular email provider.
 
 See :py:func:`from_config` for the simplest configuration mechanism.
 
+This handler registers itself with a ``cb_id`` of ``"e"``.
+
 """
 
 import email
@@ -49,7 +51,7 @@ class EmailAddress(Handler):
     :param int expires_time: how long the email link should be valid for, in
         seconds (default: 900)
     :param dict pending_storage: Storage to keep track of pending email addresses,
-        for DDOS/abuse mitigation. Defaults to an ExpiringDict that expires
+        for DDOS/abuse mitigation. Defaults to an :py:class:`ExpiringDict` that expires
         after ``expires_time``
     :param str email_template_text: the plaintext template for the sent
         email, provided as a template string

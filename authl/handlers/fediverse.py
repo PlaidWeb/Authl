@@ -8,6 +8,8 @@ supported, as is anything else with basic support for the Mastodon client API.
 
 See :py:func:`from_config` for the simplest configuration mechanism.
 
+This handler registers itself with a ``cb_id`` of ``"fv"``.
+
 """
 
 import logging

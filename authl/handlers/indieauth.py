@@ -15,6 +15,8 @@ this with your public-facing domain name, or retrieve the domain name from
 whatever framework you're using. Please note also that the scheme (``http`` vs.
 ``https``) must match.
 
+This handler registers itself with a ``cb_id`` of ``"ia"``.
+
 """
 
 import logging
@@ -112,7 +114,7 @@ def find_endpoints(id_url: str,
         'ticket_endpoint',
         'webmention',
         'micropub',
-        'microsub',
+        'microsub'
     ):
         endpoint = _derive_endpoint(links, content, rel)
         if endpoint:

@@ -1,6 +1,6 @@
-beautifulsoup4==4.11.2 ; python_full_version >= "3.8.1" and python_full_version < "4.0.0" \
-    --hash=sha256:0e79446b10b3ecb499c1556f7e228a53e64a2bfcebd455f370d8927cb5b59e39 \
-    --hash=sha256:bc4bdda6717de5a2987436fb8d72f45dc90dd856bdfd512a1314ce90349a0106
+beautifulsoup4==4.12.2 ; python_full_version >= "3.8.1" and python_full_version < "4.0.0" \
+    --hash=sha256:492bbc69dca35d12daac71c4db1bfff0c876c00ef4a2ffacce226d4638eb72da \
+    --hash=sha256:bd2520ca0d9d7d12694a53d44ac482d181b4ec1888909b035a3dbf40d0f57d4a
 blurhash==1.1.4 ; python_full_version >= "3.8.1" and python_full_version < "4.0.0" \
     --hash=sha256:7611c1bc41383d2349b6129208587b5d61e8792ce953893cb49c38beeb400d1d \
     --hash=sha256:da56b163e5a816e4ad07172f5639287698e09d7f3dc38d18d9726d9c1dbc4cee
@@ -124,9 +124,9 @@ six==1.16.0 ; python_full_version >= "3.8.1" and python_full_version < "4.0.0" \
 soupsieve==2.4 ; python_full_version >= "3.8.1" and python_full_version < "4.0.0" \
     --hash=sha256:49e5368c2cda80ee7e84da9dbe3e110b70a4575f196efb74e51b94549d921955 \
     --hash=sha256:e28dba9ca6c7c00173e34e4ba57448f0688bb681b7c5e8bf4971daafc093d69a
-urllib3==1.26.14 ; python_full_version >= "3.8.1" and python_version < "4" \
-    --hash=sha256:076907bf8fd355cde77728471316625a4d2f7e713c125f51953bb5b3eecf4f72 \
-    --hash=sha256:75edcdc2f7d85b137124a6c3c9fc3933cdeaa12ecb9a6a959f22797a0feca7e1
+urllib3==1.26.15 ; python_full_version >= "3.8.1" and python_version < "4" \
+    --hash=sha256:8a388717b9476f934a21484e8c8e61875ab60644d29b9b39e11e4b9dc1c6b305 \
+    --hash=sha256:aa751d169e23c7479ce47a0cb0da579e3ede798f994f5816a74e4f4500dcea42
 validate-email==1.3 ; python_full_version >= "3.8.1" and python_full_version < "4.0.0" \
     --hash=sha256:784719dc5f780be319cdd185dc85dd93afebdb6ebb943811bc4c7c5f9c72aeaf
 webencodings==0.5.1 ; python_full_version >= "3.8.1" and python_full_version < "4.0.0" \
