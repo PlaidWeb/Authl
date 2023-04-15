@@ -40,7 +40,7 @@ class Handler(ABC):
         It is okay to check for an API endpoint (relative to the URL) in
         implementing this. However, if the content kept at the URL itself needs
         to be parsed to make the determination, implement that in
-        :py:func:`handles_page` instead.
+        :py:meth:`handles_page` instead.
 
         Whatever value this returns will be passed back in to initiate_auth, so
         if that value matters, return a reasonable URL.

@@ -5,7 +5,7 @@ IndieAuth handler
 
 This handler allows people to log in from their own websites using the
 `IndieAuth <https://indieauth.net/>`_ federated protocol. See
-:py:func:`from_config` for the simplest configuration mechanism.
+:py:func:`authl.from_config` for the simplest configuration mechanism.
 
 Note that the client ID must match the domain name of your website. If you're
 using this with :py:mod:`authl.flask`, there is a function,
@@ -314,7 +314,7 @@ class IndieAuth(Handler):
         """
         If this page is already known to have an IndieAuth endpoint, we reuse
         that; otherwise this returns ``None`` so the Authl instance falls
-        through to :py:func:`handles_page`.
+        through to :py:meth:`authl.handlers.indieauth.IndieAuth.handles_page`.
         """
         if url in _ENDPOINT_CACHE:
             return _ENDPOINT_CACHE[url][1]

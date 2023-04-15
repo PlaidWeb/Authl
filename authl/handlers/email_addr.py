@@ -7,7 +7,7 @@ It requires an SMTP server of some sort; see your hosting provider's
 documentation for the appropriate configuration. This should also be able to
 work with your regular email provider.
 
-See :py:func:`from_config` for the simplest configuration mechanism.
+See :py:func:`authl.from_config` for the simplest configuration mechanism.
 
 This handler registers itself with a ``cb_id`` of ``"e"``.
 
@@ -224,8 +224,8 @@ def simple_sendmail(connector, sender_address, subject):
 
     :param function connector: A factory-type function that returns an
         :py:class:`smtplib.SMTP`-compatible object in the connected state.
-        Use :py:func:`smtplib_connector` for an easy-to-use general-purpose
-        connector.
+        Use :py:func:`authl.handlers.email_addr.smtplib_connector` for an
+        easy-to-use general-purpose connector.
     :param str sender_address: The email address to use for the sender
     :param str subject: the subject line to attach to the message
 
@@ -255,7 +255,8 @@ def from_config(config, token_store: tokens.TokenStore):
         keys:
 
         * ``EMAIL_SENDMAIL``: a function to call to send the email; if omitted,
-          generates one using :py:func:`simple_sendmail` configured with:
+          generates one using :py:func:`authl.handlers.email_addr.simple_sendmail`
+          configured with:
 
             * ``EMAIL_FROM``: the ``From:`` address to use when sending an email
 

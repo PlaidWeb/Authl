@@ -13,7 +13,7 @@ It is **highly recommended** that you only store the ``client_key`` and
 ``client_secret`` in an environment variable rather than by checked-in code, as
 a basic security precaution against credential leaks.
 
-See :py:func:`from_config` for the simplest configuration mechanism.
+See :py:func:`authl.from_config` for the simplest configuration mechanism.
 
 This handler registers itself with a ``cb_id`` of ``"t"``.
 

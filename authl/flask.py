@@ -148,7 +148,7 @@ class AuthlFlask:
     :param str callback_path: The mount point of the callback handler endpoints.
         For example, if this is set to ``/login_cb`` then your actual handler
         callbacks will be at ``/login_cb/{cb_id}`` for the handler's ``cb_id``
-        property; for example, the py:class:`handler.email_addr.EmailAddress`
+        property; for example, the :py:class:`authl.handlers.email_addr.EmailAddress`
         handler's callback will be mounted at ``/login_cb/e``.
 
     :param str tester_name: The endpoint name for the URL tester, for
@@ -173,7 +173,7 @@ class AuthlFlask:
         This function takes the following arguments; note that more may
         be added so it should also take a ``**kwargs`` for future compatibility:
 
-        * ``auth``: the authl.Authl object
+        * ``auth``: the :py:class:`authl.Authl` object
 
         * ``login_url``: the URL to use for the login form
 
@@ -220,7 +220,7 @@ class AuthlFlask:
     :param function on_verified: A function to call on successful login (called
         after setting the session value)
 
-        This function receives the :py:class:`disposition.Verified` object, and
+        This function receives the :py:class:`authl.disposition.Verified` object, and
         may return a Flask response of its own, which should ideally be a
         ``flask.redirect()``. This can be used to capture more information about
         the user (such as filling out a user profile) or to redirect certain

@@ -6,7 +6,7 @@ This handler allows login via Fediverse instances; currently `Mastodon
 <https://joinmastodon.org>`_ and `Pleroma <https://pleroma.social>`_ are
 supported, as is anything else with basic support for the Mastodon client API.
 
-See :py:func:`from_config` for the simplest configuration mechanism.
+See :py:func:`authl.from_config` for the simplest configuration mechanism.
 
 This handler registers itself with a ``cb_id`` of ``"fv"``.
 
