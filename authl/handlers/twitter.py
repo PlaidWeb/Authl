@@ -15,6 +15,8 @@ a basic security precaution against credential leaks.
 
 See :py:func:`from_config` for the simplest configuration mechanism.
 
+This handler registers itself with a ``cb_id`` of ``"t"``.
+
 """
 
 import logging

@@ -145,7 +145,11 @@ class AuthlFlask:
     :param str callback_name: The endpoint name for the callback handler,
         for flask.url_for()
 
-    :param str callback_path: The mount point of the callback handler endpoint
+    :param str callback_path: The mount point of the callback handler endpoints.
+        For example, if this is set to ``/login_cb`` then your actual handler
+        callbacks will be at ``/login_cb/{cb_id}`` for the handler's ``cb_id``
+        property; for example, the py:class:`handler.email_addr.EmailAddress`
+        handler's callback will be mounted at ``/login_cb/e``.
 
     :param str tester_name: The endpoint name for the URL tester, for
         flask.url_for()
