@@ -91,7 +91,7 @@ def test_from_config(mocker):
         'EMAIL_FROM': 'hello',
         'FEDIVERSE_NAME': 'hello',
         'INDIEAUTH_CLIENT_ID': 'hello',
-        'TWITTER_CLIENT_KEY': 'hello',
+        'TWITTER_CLIENT_ID': 'hello',
         'TEST_ENABLED': True
     }
 

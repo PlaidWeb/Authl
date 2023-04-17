@@ -156,7 +156,7 @@ def from_config(config: typing.Dict[str, typing.Any],
 
     * ``INDIEAUTH_CLIENT_ID``: enable :py:mod:`authl.handlers.indieauth`
 
-    * ``TWITTER_CLIENT_KEY``: enable :py:mod:`authl.handlers.twitter`
+    * ``TWITTER_CLIENT_ID``: enable :py:mod:`authl.handlers.twitter`
 
     * ``TEST_ENABLED``: enable :py:mod:`authl.handlers.test_handler`
 
@@ -185,7 +185,7 @@ def from_config(config: typing.Dict[str, typing.Any],
         from .handlers import fediverse
         instance.add_handler(fediverse.from_config(config, token_storage))
 
-    if config.get('TWITTER_CLIENT_KEY'):
+    if config.get('TWITTER_CLIENT_ID'):
         from .handlers import twitter
         instance.add_handler(twitter.from_config(config, state_storage))
 

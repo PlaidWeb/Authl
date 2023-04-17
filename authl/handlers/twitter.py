@@ -5,11 +5,11 @@ Twitter
 This handler allows third-party login using `Twitter <https://twitter.com/>`_.
 To use it you will need to register your website as an application via the
 `Twitter developer portal <https://developer.twitter.com/en>`_ and retrieve your
-``client_key`` and ``client_secret`` from there. You will also need to register
+``client_id`` and ``client_secret`` from there. You will also need to register
 your website's Twitter callback handler(s). Remember to include all URLs that
 the callback might be accessed from, including test domains.
 
-It is **highly recommended** that you only store the ``client_key`` and
+It is **highly recommended** that you only store the ``client_id`` and
 ``client_secret`` in an environment variable rather than by checked-in code, as
 a basic security precaution against credential leaks.
 
@@ -23,11 +23,14 @@ import logging
 import re
 import time
 import urllib.parse
+import base64
+import os
+import hashlib
 from typing import Optional
 
 import expiringdict
 import requests
-from requests_oauthlib import OAuth1, OAuth1Session
+from requests_oauthlib import OAuth2Session
 
 from .. import disposition, utils
 from . import Handler
@@ -39,7 +42,7 @@ class Twitter(Handler):
     """
     Twitter login handler.
 
-    :param str client_key: The Twitter ``client_key`` value
+    :param str client_id: The Twitter ``client_id`` value
 
     :param str client_secret: The Twitter ``client_secret`` value
 
@@ -69,12 +72,12 @@ class Twitter(Handler):
     def logo_html(self):
         return [(utils.read_icon("twitter.svg"), 'Twitter')]
 
-    def __init__(self, client_key: str,
+    def __init__(self, client_id: str,
                  client_secret: str,
                  timeout: Optional[int] = None,
                  storage: Optional[dict] = None):
         # pylint:disable=too-many-arguments
-        self._client_key = client_key
+        self._client_id = client_id
         self._client_secret = client_secret
         self._timeout = timeout or 600
         self._pending = expiringdict.ExpiringDict(
@@ -96,6 +99,11 @@ class Twitter(Handler):
     def cb_id(self):
         return 't'
 
+    def get_client(self, callback_uri):
+        return OAuth2Session(self._client_id,
+                             redirect_uri=callback_uri,
+                             scope=['tweet.read', 'users.read'])
+
     def initiate_auth(self, id_url, callback_uri, redir):
         match = Twitter.twitter_regex.match(id_url)
         if not match:
@@ -103,70 +111,67 @@ class Twitter(Handler):
 
         try:
             username = match.group(2)
-            oauth_session = OAuth1Session(
-                client_key=self._client_key,
-                client_secret=self._client_secret,
-                callback_uri=callback_uri)
 
-            req = oauth_session.fetch_request_token('https://api.twitter.com/oauth/request_token')
+            # Create a code verifier
+            code_verifier = base64.urlsafe_b64encode(os.urandom(30)).decode("utf-8")
+            code_verifier = re.sub("[^a-zA-Z0-9]+", "", code_verifier)
 
-            token = req.get('oauth_token')
-            secret = req.get('oauth_token_secret')
+            # Create a code challenge
+            code_challenge = hashlib.sha256(code_verifier.encode("utf-8")).digest()
+            code_challenge = base64.urlsafe_b64encode(code_challenge).decode("utf-8")
+            code_challenge = code_challenge.replace("=", "")
 
-            params = {
-                'oauth_token': token,
-            }
-            if username:
-                params['screen_name'] = username
+            client = self.get_client(callback_uri)
+            authorization_url, state = client.authorizaton_url(
+                "https://twitter.com/i/oauth2/authorize",
+                code_challenge=code_challenge,
+                code_chalelnge_method="S256"
+            )
 
-            self._pending[token] = (secret, callback_uri, redir, time.time())
+            self._pending[state] = (callback_uri, redir, code_verifier, time.time())
 
-            return disposition.Redirect(
-                'https://api.twitter.com/oauth/authorize?' + urllib.parse.urlencode(params))
+            return disposition.Redirect(authorization_url)
         except Exception as err:  # pylint:disable=broad-except
             return disposition.Error(err, redir)
 
     def check_callback(self, url, get, data):
-        if 'denied' in get:
-            token = get['denied']
-        elif 'oauth_token' in get:
-            token = get['oauth_token']
-        if not token or token not in self._pending:
+        code = get.get('code')
+        if not code or code not in self._pending:
             return disposition.Error("Invalid transaction", '')
 
-        secret, callback_uri, redir, start_time = self._pending.pop(token)
+        callback_uri, redir, code_verifier, start_time = self._pending.pop(code)
 
         if time.time() > start_time + self._timeout:
             return disposition.Error("Login timed out", redir)
 
-        if 'denied' in get or 'oauth_verifier' not in get:
-            return disposition.Error("Twitter authorization declined", redir)
-
-        auth = None
+        client = self.get_client(callback_uri)
 
         try:
-            oauth_session = OAuth1Session(
-                client_key=self._client_key,
+            token = client.fetch_token(
+                token_url="https://api.twitter.com/2/oauth2/token",
                 client_secret=self._client_secret,
-                resource_owner_key=token,
-                resource_owner_secret=secret,
-                callback_uri=callback_uri)
+                code_verifier=code_verifier,
+                code=code)
 
-            oauth_session.parse_authorization_response(url)
+            headers = {
+                "Authorizaton": f"Bearer{token['access_token']}",
+                "Content-Type": "application/json"
+            }
 
-            request = oauth_session.fetch_access_token('https://api.twitter.com/oauth/access_token')
-            token = request.get('oauth_token')
-            auth = OAuth1(
-                client_key=self._client_key,
-                client_secret=self._client_secret,
-                resource_owner_key=token,
-                resource_owner_secret=request.get('oauth_token_secret'))
+            response = client.get("https://api.twitter.com/2/users/me", {
+                "user.fields": ",".join("id",
+                                        "name",
+                                        "username",
+                                        "description",
+                                        "entities",
+                                        "location",
+                                        "profile_image_url",
+                                        "url")
+            }, headers=headers, timeout=self._http_timeout)
 
-            user_info = requests.get(
-                'https://api.twitter.com/1.1/account/verify_credentials.json?skip_status=1',
-                auth=auth, timeout=self._http_timeout).json()
-            LOGGER.log(logging.WARNING if 'errors' in user_info else logging.NOTSET,
-                       "User profile showed error: %s", user_info.get('errors'))
+            user_info = response.json()
+            LOGGER.debug("Got user info: %s", user_info)
+
             return disposition.Verified(
                 f'https://twitter.com/i/user/{user_info["id_str"]}',
                 redir,
@@ -174,10 +179,11 @@ class Twitter(Handler):
         except Exception as err:  # pylint:disable=broad-except
             return disposition.Error(str(err), redir)
         finally:
-            if auth:
+            if token:
                 # let's clean up after ourselves
-                request = requests.post('https://api.twitter.com/1.1/oauth/invalidate_token.json',
-                                        auth=auth, timeout=self._http_timeout)
+                request = requests.post('https://api.twitter.com/oauth2/invalidate_token',
+                                        data={'access_token': token},
+                                        headers=headers, timeout=self._http_timeout)
                 LOGGER.debug("Token revocation request: %d %s", request.status_code, request.text)
 
     @property
@@ -197,7 +203,7 @@ class Twitter(Handler):
                     text = text.replace(tco, real)
             return text
 
-        mapping = (('avatar', 'profile_image_url_https'),
+        mapping = (('avatar', 'profile_image_url'),
                    ('bio', 'description'),
                    ('email', 'email'),
                    ('homepage', 'url'),
@@ -227,7 +233,7 @@ def from_config(config, storage):
 
     Posible configuration values:
 
-    * ``TWITTER_CLIENT_KEY``: The Twitter app's client_key
+    * ``TWITTER_CLIENT_ID``: The Twitter app's client_id
 
     * ``TWITTER_CLIENT_SECRET``: The Twitter app's client_secret
 
@@ -239,7 +245,7 @@ def from_config(config, storage):
     file system.
     """
 
-    return Twitter(config['TWITTER_CLIENT_KEY'],
+    return Twitter(config['TWITTER_CLIENT_ID'],
                    config['TWITTER_CLIENT_SECRET'],
                    config.get('TWITTER_TIMEOUT'),
                    storage)

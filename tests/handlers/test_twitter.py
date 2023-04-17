@@ -11,9 +11,9 @@ from . import parse_args
 
 def test_from_config():
     with pytest.raises(KeyError):
-        twitter.from_config({'TWITTER_CLIENT_KEY': 'foo'}, {})
+        twitter.from_config({'TWITTER_CLIENT_ID': 'foo'}, {})
 
-    handler = twitter.from_config({'TWITTER_CLIENT_KEY': 'foo',
+    handler = twitter.from_config({'TWITTER_CLIENT_ID': 'foo',
                                    'TWITTER_CLIENT_SECRET': 'bar'}, {})
     assert isinstance(handler, twitter.Twitter)
 
