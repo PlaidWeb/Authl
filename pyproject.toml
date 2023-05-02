@@ -23,7 +23,7 @@ mastodon-py = "^1.7.0"
 [tool.poetry.group.dev.dependencies]
 autopep8 = "^2.0.2"
 flake8 = "^6.0.0"
-flask = "^2.2.3"
+flask = "^2.3.0"
 isort = "^5.12.0"
 mypy = "^1.1.1"
 pylint = "^2.16.4"
