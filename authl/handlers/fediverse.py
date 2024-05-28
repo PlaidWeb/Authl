@@ -247,15 +247,6 @@ def from_config(config, token_store: tokens.TokenStore):
     :param tokens.TokenStore token_store: The authentication token storage
     """
 
-    def get_cfg(key: str, dfl=None):
-        for pfx in ('FEDIVERSE_', 'MASTODON_'):
-            if pfx + key in config:
-                if pfx != 'FEDIVERSE_':
-                    LOGGER.warning("Configuration key %s has changed to %s",
-                                   pfx + key, 'FEDIVERSE_' + key)
-                return config[pfx + key]
-        return dfl
-
-    return Fediverse(get_cfg('NAME'), token_store,
-                     timeout=get_cfg('TIMEOUT'),
-                     homepage=get_cfg('HOMEPAGE'))
+    return Fediverse(config.get('FEDIVERSE_NAME'), token_store,
+                     timeout=config.get('FEDIVERSE_TIMEOUT'),
+                     homepage=config.get('FEDIVERSE_HOMEPAGE'))

@@ -18,7 +18,7 @@ LOGGER = logging.getLogger(__name__)
 def test_basics():
     handler = fediverse.from_config({
         'FEDIVERSE_NAME': 'test',
-        'MASTODON_HOMEPAGE': 'http://foo.bar/',
+        'FEDIVERSE_HOMEPAGE': 'http://foo.bar/',
     }, tokens.DictStore())
     assert handler.service_name
     assert handler.url_schemes
