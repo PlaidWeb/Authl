@@ -2,9 +2,10 @@ version: 2
 sphinx:
   configuration: docs/conf.py
 python:
-  setup_py_install: true
   install:
     - requirements: docs/requirements.txt
+    - method: pip
+      path: .
 build:
   os: ubuntu-22.04
   tools:
