@@ -91,7 +91,6 @@ def test_from_config(mocker):
         'EMAIL_FROM': 'hello',
         'FEDIVERSE_NAME': 'hello',
         'INDIEAUTH_CLIENT_ID': 'hello',
-        'TWITTER_CLIENT_KEY': 'hello',
         'TEST_ENABLED': True
     }
 
@@ -100,7 +99,7 @@ def test_from_config(mocker):
     handler_modules = (('email_addr', tokens.DictStore),
                        ('fediverse', tokens.DictStore),
                        ('indieauth', tokens.DictStore),
-                       ('twitter', dict))
+                       )
 
     for name, _ in handler_modules:
         mocks[name] = mocker.patch(f'authl.handlers.{name}.from_config')

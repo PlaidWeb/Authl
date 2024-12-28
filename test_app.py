@@ -8,7 +8,6 @@ Run it locally with:
  """
 
 import logging
-import os
 
 import flask
 

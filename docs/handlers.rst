@@ -13,9 +13,6 @@ Authentication handlers
 .. automodule:: authl.handlers.indieauth
     :members:
 
-.. automodule:: authl.handlers.twitter
-    :members:
-
 .. automodule:: authl.handlers.test_handler
     :members:
 
