@@ -44,10 +44,6 @@ authl.flask.setup(
 
         'FEDIVERSE_NAME': 'authl testing',
         'FEDIVERSE_HOMEPAGE': 'https://github.com/PlaidWeb/Authl',
-
-        'TWITTER_CLIENT_KEY': os.environ.get('TWITTER_CLIENT_KEY'),
-        'TWITTER_CLIENT_SECRET': os.environ.get('TWITTER_CLIENT_SECRET'),
-        'TWITTER_REQUEST_EMAIL': True,
     },
     tester_path='/check_url',
     on_verified=on_login
