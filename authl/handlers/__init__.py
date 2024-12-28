@@ -137,3 +137,17 @@ class Handler(ABC):
         pointing to a publicly-usable ``https:`` URL.
         """
         return None
+
+    def get_data(self, path:str, get:dict, data:dict) -> disposition.Disposition:
+        """ Allows a callback to return configuration data and the like.
+
+        :param str path: The path component of the data blob
+        :param dict get: Any GET parameters passed along
+        :param dict data: Any POST parameters passed along
+
+        :returns: a :py:mod:`authl.disposition` object to be handled by the
+            frontend. Any errors which get raised internally should be caught and
+            returned as an appropriate :py:class:`authl.disposition.Error`.
+        """
+        #pylint:disable=unused-argument
+        return disposition.Error("Invalid request", '')

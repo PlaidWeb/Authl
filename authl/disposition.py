@@ -117,3 +117,14 @@ class NeedsPost(Disposition):
 
     def __str__(self):
         return f'NEEDS-POST:{self.message}'
+
+class Data(Disposition):
+    """ Indicates that this is data that should be returned directly
+    to the requestor, such as to provide configuration data
+
+    :param str data: The data to return
+    :param dict headers: Any additional HTTP headers for the response
+    """
+    def __init__(self, data:str, headers:dict):
+        self.data = data
+        self.headers = headers

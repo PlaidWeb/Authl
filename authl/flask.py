@@ -252,6 +252,7 @@ class AuthlFlask:
                  login_path: str = '/login',
                  callback_name: str = 'authl.callback',
                  callback_path: str = '/cb',
+                 data_name: str = 'authl.data',
                  tester_name: str = 'authl.test',
                  tester_path: Optional[str] = None,
                  login_render_func: Optional[typing.Callable] = None,
@@ -274,11 +275,13 @@ class AuthlFlask:
         self.authl = from_config(
             config,
             state_storage,
-            token_storage)
+            token_storage,
+            self.make_data_url)
 
         self._session = state_storage
         self.login_name = login_name
         self.callback_name = callback_name
+        self.data_name = data_name
         self.tester_name = tester_name
         self._tester_path = tester_path
         self._login_render_func = login_render_func
@@ -297,6 +300,10 @@ class AuthlFlask:
         app.add_url_rule(callback_path + '/<hid>',
                          callback_name,
                          self._callback_endpoint,
+                         methods=('GET', 'POST'))
+        app.add_url_rule(callback_path + '/<hid>/<path:path>',
+                         data_name,
+                         self._data_endpoint,
                          methods=('GET', 'POST'))
 
         if tester_path:
@@ -353,6 +360,10 @@ class AuthlFlask:
         if isinstance(disp, disposition.NeedsPost):
             # A POST request is required to proceed
             return self._render_post_form(url=disp.url, message=disp.message, data=disp.data)
+
+        if isinstance(disp, disposition.Data):
+            # Raw data comes back
+            return flask.make_response(disp.data, headers=disp.headers)
 
         # unhandled disposition
         raise http_error.InternalServerError(f"Unknown disposition type {str(type(disp))}")
@@ -459,7 +470,23 @@ class AuthlFlask:
         return self._handle_disposition(
             handler.check_callback(request.base_url, request.args, request.form))
 
-    @ property
+    def _data_endpoint(self, hid:str, path:str):
+        from flask import request
+
+        handler = self.authl.get_handler_by_id(hid)
+        if not handler:
+            return self._handle_disposition(disposition.Error("Invalid handler", ''))
+
+        return self._handle_disposition(
+            handler.get_data(path,
+                request.args,
+                request.form))
+
+    def make_data_url(self, cb_id:str, path:str):
+        """ Form a URL for retrieving the given handler's data item """
+        return flask.url_for(self.data_name, hid=cb_id, path=path, _external=True)
+
+    @property
     def stylesheet(self) -> str:
         """ The stylesheet to use for the Flask templates """
         if self._stylesheet:

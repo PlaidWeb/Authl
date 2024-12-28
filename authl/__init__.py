@@ -29,14 +29,20 @@ class Authl:
     :param cfg_handlers: The list of configured handlers, in decreasing priority
         order.
 
+    :param Callable make_data_url: A callback function for forming a data URL from a tuple of ``(cb_id,path)``
+
     """
 
-    def __init__(self, cfg_handlers: Optional[typing.List[handlers.Handler]] = None):
+    def __init__(self, cfg_handlers: Optional[typing.List[handlers.Handler]] = None,
+        make_data_url: Optional[Callable] = None):
         """ Initialize an Authl library instance. """
+
         self._handlers: typing.Dict[str, handlers.Handler] = collections.OrderedDict()
         if cfg_handlers:
             for handler in cfg_handlers:
                 self.add_handler(handler)
+
+        self.make_data_url = make_data_url
 
     def add_handler(self, handler: handlers.Handler):
         """
@@ -182,6 +188,10 @@ def from_config(config: typing.Dict[str, typing.Any],
     if config.get('FEDIVERSE_NAME') or config.get('MASTODON_NAME'):
         from .handlers import fediverse
         instance.add_handler(fediverse.from_config(config, token_storage))
+
+    if config.get('BLUESKY_NAME'):
+        from .handlers import bluesky
+        instance.add_handler(bluesky.from_config(config, token_storage, instance))
 
     if config.get('TEST_ENABLED'):
         from .handlers import test_handler

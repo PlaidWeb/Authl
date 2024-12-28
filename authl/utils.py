@@ -116,3 +116,4 @@ def extract_rel(rel: str, base_url, content, links) -> typing.Set[str]:
             result.add(urllib.parse.urljoin(base_url, link.get('href')))
 
     return result
+
