@@ -119,13 +119,13 @@ def test_auth_failures(requests_mock, mocker):
     # nonexistent instance
     result = handler.initiate_auth('fail.example', 'https://cb', 'qwerpoiu')
     assert isinstance(result, disposition.Error)
-    assert 'Failed to register client' in result.message
+    assert 'Could not register client' in result.message
 
     # not a mastodon instance
     requests_mock.get('https://fail.example/api/v1/instance', text="'lolwut'")
     result = handler.initiate_auth('fail.example', 'https://cb', 'qwerpoiu')
     assert isinstance(result, disposition.Error)
-    assert 'Failed to register client' in result.message
+    assert 'Could not register client' in result.message
 
     # okay now it's an instance
     requests_mock.get('https://fail.example/api/v1/instance',

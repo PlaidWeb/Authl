@@ -167,11 +167,11 @@ class Fediverse(Handler):
                     redirect_uris=callback_uri,
                 )
                 break
-            except Exception as err:  # pylint:disable=broad-except
+            except Exception:  # pylint:disable=broad-except
                 LOGGER.info("Instance %s refused scope %s", instance, scope)
 
         if not client_id or not client_secret:
-            return disposition.Error(f"Could not register client", redir)
+            return disposition.Error("Could not register client", redir)
 
         client = mastodon.Mastodon(
             api_base_url=instance,
