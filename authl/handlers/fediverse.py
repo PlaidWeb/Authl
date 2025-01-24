@@ -153,17 +153,25 @@ class Fediverse(Handler):
             return disposition.Error('Malformed user profile', redir)
 
     def initiate_auth(self, id_url, callback_uri, redir):
-        try:
-            instance = self._get_instance(id_url, self._http_timeout)
-            client_id, client_secret = mastodon.Mastodon.create_app(
-                api_base_url=instance,
-                client_name=self._name,
-                website=self._homepage,
-                scopes=['profile'],
-                redirect_uris=callback_uri,
-            )
-        except Exception as err:  # pylint:disable=broad-except
-            return disposition.Error(f"Failed to register client: {err}", redir)
+        client_id, client_secret = None, None
+
+        for scope in ('profile', 'read:accounts'):
+            scopes = [scope]
+            try:
+                instance = self._get_instance(id_url, self._http_timeout)
+                client_id, client_secret = mastodon.Mastodon.create_app(
+                    api_base_url=instance,
+                    client_name=self._name,
+                    website=self._homepage,
+                    scopes=scopes,
+                    redirect_uris=callback_uri,
+                )
+                break
+            except Exception as err:  # pylint:disable=broad-except
+                LOGGER.info("Instance %s refused scope %s", instance, scope)
+
+        if not client_id or not client_secret:
+            return disposition.Error(f"Could not register client", redir)
 
         client = mastodon.Mastodon(
             api_base_url=instance,
@@ -175,29 +183,32 @@ class Fediverse(Handler):
             instance,
             client_id,
             client_secret,
+            scopes,
             time.time(),
             redir
         ))
 
         url = client.auth_request_url(
             redirect_uris=callback_uri,
-            scopes=['profile'],
+            scopes=scopes,
             state=state
         )
 
         return disposition.Redirect(url)
 
     def check_callback(self, url, get, data):
-        print(url, get)
+        LOGGER.debug("check_callback: %s %s", url, get)
         try:
             (
                 instance,
                 client_id,
                 client_secret,
+                scopes,
                 when,
                 redir
             ) = self._token_store.pop(get['state'])
         except (KeyError, ValueError):
+            LOGGER.exception("Invalid transaction")
             return disposition.Error("Invalid transaction", '')
 
         if 'error' in get:
@@ -218,7 +229,7 @@ class Fediverse(Handler):
             client.log_in(
                 code=get['code'],
                 redirect_uri=url,
-                scopes=['profile'],
+                scopes=scopes,
             )
         except KeyError as err:
             return disposition.Error(f"Missing {err}", redir)

@@ -47,7 +47,7 @@ def get_profiles(url: str, timeout: int = 30) -> typing.Set[str]:
             return {f'https://{domain}/@{user}'}
 
         profile = request.json()
-        print(repr(profile))
+        LOGGER.debug("Profile: %s", repr(profile))
 
         return {link['href'] for link in profile['links']
                 if link['rel'] in ('http://webfinger.net/rel/profile-page', 'profile', 'self')}
