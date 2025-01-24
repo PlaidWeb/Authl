@@ -93,7 +93,7 @@ def test_auth_success(mocker, requests_mock):
     result = handler.initiate_auth('mastodon.example', 'https://cb', 'qwerpoiu')
     assert isinstance(result, disposition.Redirect)
     mock_mastodon().auth_request_url.assert_called_with(
-        redirect_uris='https://cb', scopes=['read:accounts'],
+        redirect_uris='https://cb', scopes=['profile'],
         state=mocker.ANY)
 
     result = handler.check_callback(result.url, parse_args(result.url), {})

@@ -159,7 +159,7 @@ class Fediverse(Handler):
                 api_base_url=instance,
                 client_name=self._name,
                 website=self._homepage,
-                scopes=['read:accounts'],
+                scopes=['profile'],
                 redirect_uris=callback_uri,
             )
         except Exception as err:  # pylint:disable=broad-except
@@ -181,7 +181,7 @@ class Fediverse(Handler):
 
         url = client.auth_request_url(
             redirect_uris=callback_uri,
-            scopes=['read:accounts'],
+            scopes=['profile'],
             state=state
         )
 
@@ -218,7 +218,7 @@ class Fediverse(Handler):
             client.log_in(
                 code=get['code'],
                 redirect_uri=url,
-                scopes=['read:accounts'],
+                scopes=['profile'],
             )
         except KeyError as err:
             return disposition.Error(f"Missing {err}", redir)
