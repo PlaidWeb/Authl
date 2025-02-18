@@ -248,6 +248,7 @@ class AuthlFlask:
     def __init__(self,
                  app: flask.Flask,
                  config: typing.Dict[str, typing.Any],
+                 *,
                  login_name: str = 'authl.login',
                  login_path: str = '/login',
                  callback_name: str = 'authl.callback',
@@ -459,7 +460,7 @@ class AuthlFlask:
         return self._handle_disposition(
             handler.check_callback(request.base_url, request.args, request.form))
 
-    @ property
+    @property
     def stylesheet(self) -> str:
         """ The stylesheet to use for the Flask templates """
         if self._stylesheet:

@@ -99,7 +99,7 @@ def test_failures(mocker):
 
     handler = email_addr.EmailAddress(accept,
                                       'some data', tokens.DictStore(store),
-                                      10,
+                                      expires_time=10,
                                       email_template_text='{url}')
 
     # must be well-formed mailto: URL
