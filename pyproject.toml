@@ -10,7 +10,7 @@ repository = "https://github.com/PlaidWeb/Authl"
 documentation = "https://authl.readthedocs.io/"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<4.0"
+python = ">=3.9.2,<4.0"
 beautifulsoup4 = "^4.13.3"
 expiringdict = "^1.2.2"
 itsdangerous = "^2.2.0"
