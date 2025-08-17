@@ -56,7 +56,7 @@ def test_handles_url(requests_mock):
 def mock_auth_request_url(**args):
     def mock_url(redirect_uris, scopes, state):
         # pylint:disable=unused-argument
-        return f"https://cb/?{urllib.parse.urlencode({'state':state, **args})}"
+        return f"https://cb/?{urllib.parse.urlencode({'state': state, **args})}"
     return mock_url
 
 
