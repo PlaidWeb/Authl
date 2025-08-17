@@ -14,12 +14,16 @@ This handler registers itself with a ``cb_id`` of ``"e"``.
 """
 
 import email
+import hashlib
 import logging
 import math
+import re
 import time
 import urllib.parse
-from typing import Optional
+from typing import Any, Dict, Optional
 
+import dns.exception
+import dns.resolver
 import expiringdict
 import validate_email
 
@@ -55,6 +59,9 @@ class EmailAddress(Handler):
         after ``expires_time``
     :param str email_template_text: the plaintext template for the sent
         email, provided as a template string
+    :param int avatar_size: The libravatar image size to use
+    :param str avatar_default: The libravatar fallback style; see the
+        `Libravatar API <https://wiki.libravatar.org/api/>`__ for details
 
     Email templates are formatted with the following parameters:
 
@@ -62,6 +69,7 @@ class EmailAddress(Handler):
     * ``{minutes}``:  how long the URL is valid for, in minutes
 
     """
+    # pylint:disable=too-many-instance-attributes
 
     @property
     def service_name(self):
@@ -92,17 +100,22 @@ class EmailAddress(Handler):
                  *,
                  expires_time: Optional[int] = None,
                  pending_storage: Optional[dict] = None,
-                 email_template_text: str = DEFAULT_TEMPLATE_TEXT,
+                 email_template_text: Optional[str] = None,
+                 avatar_size: Optional[int] = None,
+                 avatar_default: Optional[str] = None
                  ):
         # pylint:disable=too-many-arguments
         self._sendmail = sendmail
-        self._email_template_text = email_template_text
+        self._email_template_text = (
+            email_template_text if email_template_text else DEFAULT_TEMPLATE_TEXT)
         self._cdata = notify_cdata
         self._token_store = token_store
         self._lifetime = expires_time or 900
         self._pending = expiringdict.ExpiringDict(
             max_len=1024,
             max_age_seconds=self._lifetime) if pending_storage is None else pending_storage
+        self._avatar_size = avatar_size
+        self._avatar_default = avatar_default
 
     def handles_url(self, url):
         """
@@ -187,7 +200,48 @@ class EmailAddress(Handler):
 
         LOGGER.debug("addr=%s redir=%s when=%s", email_addr, redir, when)
 
-        return disposition.Verified('mailto:' + email_addr, redir, {'email': email_addr})
+        profile = {'email': email_addr}
+        avatar = lookup_avatar(email_addr, self._avatar_size, self._avatar_default)
+        if avatar:
+            profile['avatar'] = avatar
+
+        return disposition.Verified('mailto:' + email_addr, redir, profile)
+
+
+def lookup_avatar(email_addr, size: Optional[int] = None,
+                  default: Optional[str] = None) -> Optional[str]:
+    """ Look up an avatar URL from the Libravatar service.
+
+    Code adapted from https://wiki.libravatar.org/api/
+    """
+    _, domain = email_addr.split('@')
+
+    scheme = 'https'
+
+    try:
+        answer = dns.resolver.resolve(f'_avatars._tcp.{domain}', 'SRV')[0]
+        netloc = re.sub(r'\.$', '', str(answer.target))
+        if answer.port != 443:
+            scheme = 'http'
+            if answer.port != 80:
+                netloc = f'{netloc}:{answer.port}'
+    except dns.exception.DNSException:
+        netloc = 'seccdn.libravatar.org'
+
+    query: Dict[str, Any] = {}
+    if size:
+        query['s'] = size
+    if default:
+        query['d'] = default
+
+    hashcode = hashlib.md5(email_addr.strip().lower().encode('utf-8')).hexdigest()
+
+    return urllib.parse.urlunparse((scheme, netloc,
+                                    f'/avatar/{hashcode}',
+                                    '',
+                                    urllib.parse.urlencode(query),
+                                    ''
+                                    ))
 
 
 def smtplib_connector(hostname, port, username=None, password=None, use_ssl=False):
@@ -285,6 +339,11 @@ def from_config(config, token_store: tokens.TokenStore):
         * ``EMAIL_EXPIRE_TIME``: How long a login email is valid for, in seconds
           (defaults to the :py:class:`EmailAddress` default value)
 
+        * ``EMAIL_AVATAR_SIZE``: The size of avatar to query from Libravatar
+
+        * ``EMAIL_AVATAR_DEFAULT``: The default avatar style to request from
+          Libravatar; see the `Libravatar API <https://wiki.libravatar.org/api/>`__ for details
+
     :param tokens.TokenStore token_store: the authentication token storage
         mechanism; see :py:mod:`authl.tokens` for more information.
 
@@ -316,4 +375,7 @@ def from_config(config, token_store: tokens.TokenStore):
         token_store,
         expires_time=config.get('EMAIL_EXPIRE_TIME'),
         email_template_text=email_template_text,
+        avatar_size=config.get('EMAIL_AVATAR_SIZE'),
+        avatar_default=config.get('EMAIL_AVATAR_DEFAULT')
+
     )

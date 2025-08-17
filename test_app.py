@@ -35,6 +35,8 @@ authl.flask.setup(
         'EMAIL_SUBJECT': 'Log in to authl test',
         'EMAIL_CHECK_MESSAGE': 'Use the link printed to the test console',
         'EMAIL_EXPIRE_TIME': 60,
+        'EMAIL_AVATAR_SIZE': 256,
+        'EMAIL_AVATAR_DEFAULT': 'identicon',
 
         'INDIEAUTH_CLIENT_ID': authl.flask.client_id,
         'INDIEAUTH_PENDING_TTL': 10,
@@ -83,6 +85,10 @@ Want to <a href="{{url_for('logout', redir=request.path[1:])}}">log out</a>?</p>
 <li>{{k}}: {{v}}</li>
 {% endfor %}
 </ul>
+
+{% if profile.avatar %}
+<figure><img src="{{profile.avatar}}"></figure>
+{% endif %}
 {% endif %}""",
             me=flask.session['me'],
             profile=flask.session.get('profile')

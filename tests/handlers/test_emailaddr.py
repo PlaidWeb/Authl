@@ -1,7 +1,9 @@
 """ Tests for email login """
 # pylint:disable=missing-docstring
 
+import hashlib
 import logging
+import re
 
 from authl import disposition, tokens
 from authl.handlers import email_addr
@@ -53,7 +55,10 @@ def test_basics():
     assert handler.handles_url('MailtO:Foo@Example.Com') == 'mailto:foo@example.com'
 
 
-def test_success():
+def test_success(mocker):
+    import dns.exception
+    mocker.patch('dns.resolver.resolve', side_effect=dns.exception.DNSException)
+
     store = {}
 
     def do_callback(message):
@@ -86,7 +91,13 @@ def test_success():
     assert result.cdata == 'some data'
 
     assert store['result'].identity == 'mailto:user@example.com'
+    assert store['result'].profile['email'] == 'user@example.com'
+    hashcode = hashlib.md5('user@example.com'.encode('utf-8')).hexdigest()
+    assert (store['result'].profile['avatar'] ==
+            f'https://seccdn.libravatar.org/avatar/{hashcode}')
+
     assert store['result'].redir == '/redir'
+    assert store['is_done'] == 'mailto:user@example.com'
 
 
 def test_failures(mocker):
@@ -271,3 +282,52 @@ def test_please_wait(mocker):
     assert mock_send.call_count == 4
     assert token_value != pending['foo@bar.com']
     token_value = pending['foo@bar.com']
+
+
+def test_avatars(mocker):
+    def md5(text):
+        return hashlib.md5(text.encode('utf-8')).hexdigest()
+
+    results = {
+        'http.example': ('avatars.http.example', 80),
+        'https.example': ('avatars.https.example', 443),
+        'custom-http.example': ('avatars.http.example', 8080)
+    }
+
+    def fake_resolver(query, proto):
+        import dns
+        import dns.rdtypes.IN.SRV
+
+        assert proto == 'SRV'
+        assert query.startswith('_avatars._tcp.')
+        hostname = re.sub('^_avatars._tcp.', '', query)
+
+        try:
+            host, port = results[hostname]
+            record = dns.rdtypes.IN.SRV.SRV(dns.rdataclass.IN,
+                                            dns.rdatatype.SRV,
+                                            0, 0, port, f'{host}.')
+            return [record]
+        except KeyError as err:
+            raise dns.resolver.NXDOMAIN(qnames=[query]) from err
+
+    mocker.patch('dns.resolver.resolve', side_effect=fake_resolver)
+
+    assert (email_addr.lookup_avatar('foo@bar.baz') ==
+            f'https://seccdn.libravatar.org/avatar/{md5("foo@bar.baz")}')
+    assert (email_addr.lookup_avatar('Foo@Bar.Baz') ==
+            f'https://seccdn.libravatar.org/avatar/{md5("foo@bar.baz")}')
+
+    assert (email_addr.lookup_avatar('foo@http.example') ==
+            f'http://avatars.http.example/avatar/{md5("foo@http.example")}')
+    assert (email_addr.lookup_avatar('foo@https.example') ==
+            f'https://avatars.https.example/avatar/{md5("foo@https.example")}')
+    assert (email_addr.lookup_avatar('foo@custom-http.example') ==
+            f'http://avatars.http.example:8080/avatar/{md5("foo@custom-http.example")}')
+
+    assert (email_addr.lookup_avatar('foo@bar.baz', size=192) ==
+            f'https://seccdn.libravatar.org/avatar/{md5("foo@bar.baz")}?s=192')
+    assert (email_addr.lookup_avatar('foo@bar.baz', default='retro') ==
+            f'https://seccdn.libravatar.org/avatar/{md5("foo@bar.baz")}?d=retro')
+    assert (email_addr.lookup_avatar('foo@bar.baz', size=192) ==
+            f'https://seccdn.libravatar.org/avatar/{md5("foo@bar.baz")}?s=192')

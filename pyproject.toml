@@ -19,6 +19,7 @@ requests_oauthlib = "^2.0.0"
 validate_email = "^1.3"
 mf2py = "^2.0.1"
 mastodon-py = "^2.0.0"
+dnspython = "^2.7.0"
 
 [tool.poetry.group.dev.dependencies]
 autopep8 = "^2.3.2"
