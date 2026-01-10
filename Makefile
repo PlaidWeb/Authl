@@ -69,4 +69,5 @@ upload: clean build
 
 .PHONY: doc
 doc:
+	poetry export -o docs/requirements.txt --all-extras --with=dev
 	poetry run sphinx-build -b html docs/ docs/_build

@@ -10,7 +10,7 @@ repository = "https://github.com/PlaidWeb/Authl"
 documentation = "https://authl.readthedocs.io/"
 
 [tool.poetry.dependencies]
-python = ">=3.11,<4.0"
+python = ">=3.12,<4.0"
 beautifulsoup4 = "^4.14.2"
 expiringdict = "^1.2.2"
 itsdangerous = "^2.2.0"
@@ -32,11 +32,11 @@ pylint = "^4.0.2"
 coverage = "^7.11.0"
 pytest = "^8.4.2"
 requests-mock = "^1.12.1"
-sphinx = "^8.2.3"
 pytest-mock = "^3.15.1"
 types-requests = "^2.32.4.20250913"
-sphinx-rtd-theme = "^3.0.2"
 poetry-plugin-export = "^1.9.0"
+sphinx = "^9.1.0"
+sphinx-rtd-theme = "^3.0.2"
 
 [build-system]
 requires = ["poetry>=0.12"]
