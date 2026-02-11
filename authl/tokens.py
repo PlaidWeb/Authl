@@ -116,7 +116,7 @@ class Serializer(TokenStore):
     Also note that tokens stored in this way cannot be revoked individually.
 
     Additionally, this token storage mechanism may limit the security of some
-    of the identity providers.
+    of the identity providers; in particular it opens them up to replay attacks.
     """
 
     def __init__(self, secret_key):
@@ -134,7 +134,7 @@ class Serializer(TokenStore):
         try:
             return to_type(self._serializer.loads(key))
         except itsdangerous.BadData as err:
-            raise KeyError("Invalid token") from err
+            raise KeyError("Couldn't decode token") from err
 
     def remove(self, key):
         pass
