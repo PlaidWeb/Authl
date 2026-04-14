@@ -250,7 +250,7 @@ class AuthlFlask:
                  config: typing.Dict[str, typing.Any],
                  *,
                  login_name: str = 'authl.login',
-             login_path: str = '/login',
+                 login_path: str = '/login',
                  callback_name: str = 'authl.callback',
                  callback_path: str = '/cb',
                  tester_name: str = 'authl.test',
