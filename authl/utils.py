@@ -14,7 +14,7 @@ from . import __version__
 
 LOGGER = logging.getLogger(__name__)
 
-USER_AGENT = f'Authl v{__version__.__version__}; +https://plaidweb.site/'
+USER_AGENT = f'Authl v{__version__.__version__}; +https://authl.readthedocs.io/'
 
 
 def get_user_agent(client_id: Optional[str] = None):
