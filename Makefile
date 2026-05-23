@@ -1,4 +1,4 @@
-all: setup version format mypy cov pylint flake8 doc
+all: setup format mypy cov pylint flake8 doc
 
 .PHONY: setup
 setup:
@@ -46,16 +46,8 @@ cov: test
 	poetry run coverage html
 	poetry run coverage report
 
-.PHONY: version
-version: authl/__version__.py
-authl/__version__.py: pyproject.toml
-	# Kind of a hacky way to get the version updated, until the poetry folks
-	# settle on a better approach
-	printf '""" version """\n__version__ = "%s"\n' \
-		`poetry version | cut -f2 -d\ ` > authl/__version__.py
-
 .PHONY: build
-build: version preflight pylint flake8
+build: preflight pylint flake8
 	poetry build
 
 .PHONY: clean
