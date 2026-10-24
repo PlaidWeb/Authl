@@ -661,9 +661,9 @@ expiringdict==1.2.2 ; python_version >= "3.12" and python_version < "4.0" \
 fastjsonschema==2.22.2 ; python_version >= "3.12" and python_version < "4.0" \
     --hash=sha256:0fb3915616adac85ccfdd737d26be1089845d2019819505b42d39888458f74d4 \
     --hash=sha256:72064e12356a7d6ef02165be2946b9abadbdf238536e07eb587e3dbaa33099cf
-filelock==4.0.7 ; python_version >= "3.12" and python_version < "4.0" \
-    --hash=sha256:a93c4d93269b339a6af4848342c7e940d0f9928ad95eff64764699e5f1bf8a6a \
-    --hash=sha256:da5915714a70b55d167fdc7e251ad91302b0a36816fb574dfafae8f4f2c9bb21
+filelock==4.2.1 ; python_version >= "3.12" and python_version < "4.0" \
+    --hash=sha256:7be2662e9e826b9bba28afc0f843a123280d799a2ea44bb5d35ccec67905ae44 \
+    --hash=sha256:c4c937ccac2a813cee448e662a56366cfb374c0f8702e75f295c412cc1c5d5a3
 findpython==0.8.0 ; python_version >= "3.12" and python_version < "4.0" \
     --hash=sha256:4a61ee1618a8b55014f7d41f59345d322be93f6ce62395bdccccc651b3f7e28a \
     --hash=sha256:53b32264874dfa5990bd09d717819386d8db3149d89fe20f88fe1078de286bae
